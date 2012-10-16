@@ -1,0 +1,11 @@
+#
+#LaTeX Ignores
+#
+*.log
+*.aux
+*.pdf
+
+#
+#Ignore Temp Files
+#
+*~
