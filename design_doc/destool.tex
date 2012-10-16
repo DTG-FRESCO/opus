@@ -1,0 +1,10 @@
+\subsubsection{Purelibc}
+\label{PureLCJust}
+Purelibc is a tool implemented in C which performs library interception. We chose to use Purelibc to implement our front end as it minimises the amount of work needed. Purelibc has some drawbacks in that it has not implemented some secondary system calls, also purelibc is licensed with GPL.
+\subsubsection{Python}
+Python was chosen for the majority of the system because of the wide array of tools that it provides and the rapid development speed that it can bring. It will result in a faster development cycle at the expense of higher overheads, we hope this can be mitigated somewhat by use of c extensions.
+\subsubsection{levelDB}
+\label{levelDBJust}
+The first version of the system will use levelDB in the storage system as it is an embedded ordered key/value store. It supports memory caching and iterating over ranges of keys. It is implemented in c++ but presents bindings for a number of languages including python. The use of levelDB makes the storage of information just an API call rather than relying on IPC methods such as in database connections for SQL.
+\subsubsection{Unix domain sockets}
+In order to communicate between the front and back end of the system we need to use an IPC mechanism. Unix domain sockets provide an ordered, local and low overhead mechanism for IPC on Unix systems. 

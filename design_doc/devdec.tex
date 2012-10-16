@@ -1,0 +1,39 @@
+\subsection{Classes of Provenance Capture Method}
+\begin{itemize}
+\item Provenance API
+\item Workflow Systems
+\item Userland Tracing
+\item OS Tracing
+\end{itemize}
+
+Provenance APIs and Workflow systems are not especially appealing given our requirements as both techniques require large amounts of user or programmer intervention.
+
+\subsubsection{Userland Tracing}
+\paragraph{FUSE}
+Good filesystem level tracing, high overheads and requires that the user shadow their filesystem in a subdirectory.
+\paragraph{libc interception}
+Broad system call capture, low overheads, vulnerable to statically linked libraries and direct system calls.
+\paragraph{ptrace}
+Full system call interception, high overheads, arcane and abstruse interface.
+\paragraph{Linux audit subsystem}
+Powerful but rigidly specified capture capabilities, only a single configuration per machine allowed, system admin orientated. 
+\paragraph{SystemTap}
+Very powerful system call capture, provides scripting language with embedded C, can have high overheads, requires root permissions and requires Linux debug symbols to be installed.
+
+\subsubsection{OS Tracing}
+\begin{description}
+\item[kprobes] Flexible kernel debugging and tracing, low overheads, requires root permissions, available only from 2.6.9 kernel and requires kernel to be compiled with CONFIG\_KPROBES enabled.
+\item[System call table interception] Very powerful system call capture, requires root permissions, requires modifying page permissions, requires finding address of system call table.
+\item[Linux security modules] Powerful capture capabilities, only a single KSM can be loaded (preventing users from also running SELinux), misses any system calls that fail before permissions checks.
+\end{description}
+
+\subsection{Database Paradigms}
+
+\subsubsection{RDBMS}
+RBDMS are conventionally used to store related records under a specific schema format. However they struggle to represent graph structures efficiently and result in exceedingly complex queries to traverse paths in such a database. 
+
+\subsubsection{Graph Databases}
+Graph databases can represent our provenance object relationships effectively and allow for powerful querying capabilities. However most graph databases are distributed, proprietary or otherwise suited for much heavier weight systems. The initial phase of the project requires a simpler approach to represent provenance objects and hence graph databases have been ruled out for the first phase.
+
+\subsubsection{Key/Value Stores}
+Key/value stores are a quick and easy way to store provenance objects, they do not require a specific schema and provide a simple if less powerful interface for querying. Key/value stores are available for a range of applications from heavy weight distributed systems to single node systems using an embedded database. In phase one of the system we are focussing on a single node application and an embedded key/value store will cater to our requirements.
