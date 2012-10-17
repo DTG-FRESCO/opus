@@ -1,52 +1,7 @@
 \subsubsection{Unix Domain Socket Messaging Format}
 \label{ProvProt}
-\begin{table}[H]
-\begin{tabular}{|l|l|}
-\hline
-Field Name & Field Type\\
-\hline
-Message Type & char\\
-Message Length & int\\
-\hline
-\end{tabular}
-\caption{Message Header}
-\end{table}
-
-Message type may take one of a series of enumerated values. The logical values are SETUP, SYSCALL and AGGREGATE. SETUP and SYSCALL message headers will be followed by a setup or syscall message as detailed below. AGGREGATE message headers are followed by a series of message header, message pairs. The purpose of aggregate messages is to allow both the front and back end to make bulk writes/reads to the socket to gain greater performance.
-
-\begin{table}[H]
-\begin{tabular}{|l|l|}
-\hline
-Field Name & Field Type\\
-\hline
-EXE Name Length & int\\
-CWD Length & int\\
-\hline
-\multicolumn{2}{|c|}{String Data}\\
-\hline
-\end{tabular}
-\caption{Setup Message}
-\end{table}
-
-\begin{table}[H]
-\begin{tabular}{|l|l|}
-\hline
-Field Name & Field Type\\
-\hline
-syscall Number & int\\
-Arguments & int64*6\\
-Return & int64\\
-Timestamp & int64\\
-String Arguments & char\\
-\hline
-\multicolumn{2}{|c|}{String Data}\\
-\hline
-\end{tabular}
-\caption{Syscall Message}
-\end{table}
-
-The string arguments element is a single byte bitfield that indicates which arguments are strings. String arguments will have the character pointer that would be in the argument slot replaced with a length and the string data appended to the end of the message in argument order.
+\inputminted{protobuf}{../src/protobuf/uds_msg.proto}
 
 \subsubsection{Provenance Object Format}
 \label{POF}
-\inputminted{protobuf}{../prov_db.proto}
+\inputminted{protobuf}{../src/protobuf/prov_db.proto}
