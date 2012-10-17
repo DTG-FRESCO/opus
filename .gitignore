@@ -4,6 +4,8 @@
 *.log
 *.aux
 *.pdf
+*.pyg
+
 
 #
 #Ignore Temp Files
