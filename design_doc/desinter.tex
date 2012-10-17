@@ -49,18 +49,4 @@ The string arguments element is a single byte bitfield that indicates which argu
 
 \subsubsection{Provenance Object Format}
 \label{POF}
-\begin{table}[H]
-\begin{tabular}{|l|l|}
-\hline
-Field Name & Field Type\\
-\hline
-version & integer\\
-user & string\\
-type & integer\\
-timestamp & datetime\\
-eName & string\\
-ancestors & list\\
-descendants & list \\
-\hline
-\end{tabular}
-\end{table}
+\inputminted{protobuf}{../prov_db.proto}
