@@ -1,0 +1,33 @@
+package FrescoIPCMessage;
+
+message Header {
+    optional int64 timeStamp = 1;
+    optional StartupMessage sMsg = 2;
+    optional LibInfoMessage lMsg = 3;
+    optional FuncInfoMessage fMsg = 4;
+}
+
+
+message StartupMessage {
+    optional string execName = 1;
+    optional string cwd = 2;
+    optional string processId = 3;
+    optional string cmdLineArgs = 4;
+
+    //repeated string environment = 5;
+}
+
+message LibInfoMessage {
+    repeated string lib = 1;
+}
+
+
+message FuncInfoMessage {
+    optional string funcName = 1;
+    repeated string args = 2;
+    optional int64 retVal = 3;
+}
+
+message AcumulatedMessage{
+    repeated Header msgs = 1;
+}
