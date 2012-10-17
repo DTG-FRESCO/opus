@@ -1,0 +1,48 @@
+enum ProvTypes{
+	FILE = 1;
+	PROCESS = 2;
+}
+
+message ProvObj{
+    optional ProvTypes type = 1;//Semi-required
+    optional int64 timestamp = 2;//Semi-required
+    optional string entity_name = 3;//Semi-required
+    optional int64 metaID = 4;
+
+    message Link{
+        optional int64 provID = 1;//Semi-required
+        optional int64 ioID = 2;
+    }
+
+    repeated Link ancestors = 5;//Semi-required
+    repeated Link decendants = 6;//Semi-required
+}
+
+message MetaObj{
+    repeated string library = 1;
+    repeated string ENV = 2;
+    optional string kernel_version = 3;
+}
+
+message IOObj{
+    optional string fn = 1;//Semi-required
+    optional int64 prev = 2;//Semi-required
+    optional int32 return = 3;//Semi-required
+    optional int64 timestamp = 4;
+    optional int32 bytes_changed = 5;
+    optional int32 mode = 6;
+    optional int32 flags = 7;
+}
+
+message ProvList{
+    repeated int64 provID = 1;
+}
+
+
+// TABLE NAME |   KEY     |    DATA
+//--------------------------------------
+//    MAIN    |   provID  |   ProvObj
+//     IO     |   ioID    |    IOObj
+//    META    |   metaID  |   MetaObj
+//INDEX ENAME |   eName   |   ProvList
+// INDEX TIME | timestamp |   provID
