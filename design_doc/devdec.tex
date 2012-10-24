@@ -15,6 +15,8 @@ Good filesystem level tracing, high overheads and requires that the user shadow 
 Broad system call capture, low overheads, vulnerable to statically linked libraries and direct system calls.
 \paragraph{ptrace}
 Full system call interception, high overheads, arcane and abstruse interface.
+\paragraph{Binary Rewriting}
+Add trampolines to the binary being executed whenever a system call instruction is encountered. Provides full system call interposing capabilities. Difficult to implement correctly. Involves a lot of development time and effort.
 \paragraph{Linux audit subsystem}
 Powerful but rigidly specified capture capabilities, only a single configuration per machine allowed, system admin orientated. 
 \paragraph{SystemTap}
@@ -30,7 +32,7 @@ Very powerful system call capture, provides scripting language with embedded C, 
 \subsection{Database Paradigms}
 
 \subsubsection{RDBMS}
-RBDMS are conventionally used to store related records under a specific schema format. However they struggle to represent graph structures efficiently and result in exceedingly complex queries to traverse paths in such a database. 
+RBDMS are conventionally used to store related records under a specific schema format. However they struggle to represent graph structures efficiently and result in exceedingly complex queries to traverse paths in such a database.
 
 \subsubsection{Graph Databases}
 Graph databases can represent our provenance object relationships effectively and allow for powerful querying capabilities. However most graph databases are distributed, proprietary or otherwise suited for much heavier weight systems. The initial phase of the project requires a simpler approach to represent provenance objects and hence graph databases have been ruled out for the first phase.

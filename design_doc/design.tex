@@ -28,7 +28,6 @@ The requirements for the first phase of our system the following requirements ap
 \item Targeting x86/x86\_64
 \item Assume most programs use libc to make system calls
 \item Assume most programs are dynamically linked
-\item Assume purelibc intercepts all system calls made via libc
 \end{itemize}
 
 \section{Design}
@@ -41,6 +40,9 @@ The requirements for the first phase of our system the following requirements ap
 
 \subsection{Interface Specification}
 \input{desinter}
+
+\subsection{Provenance Semantics}
+\input{desprovsem}
 
 \subsection{Tool Choices}
 \input{destool}

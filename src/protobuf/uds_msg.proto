@@ -27,7 +27,3 @@ message FuncInfoMessage {
     repeated string args = 2;
     optional int64 retVal = 3;
 }
-
-message AcumulatedMessage{
-    repeated Header msgs = 1;
-}
