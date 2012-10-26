@@ -1,8 +1,8 @@
 package fresco.DBObjects;
 
 enum ProvTypes{
-	FILE = 1;
-	PROCESS = 2;
+    FILE = 1;
+    PROCESS = 2;
 }
 
 message ProvObj{
@@ -10,13 +10,13 @@ message ProvObj{
     optional int64 time_stamp = 2;//Semi-required
     optional string entity_name = 3;//Semi-required
 
-	message MetaRef{
+    message MetaRef{
         optional int64 time_stamp = 1;
         optional int64 library = 2;//MetaObj Pointer
-    	optional int64 ENV = 3;//MetaObj Pointer
-   		optional string kernel_version = 4;
-    	optional string user_name = 16;
-		optional string group_name = 17;
+        optional int64 ENV = 3;//MetaObj Pointer
+        optional string kernel_version = 4;
+        optional string user_name = 16;
+        optional string group_name = 17;
     }
 
     repeated MetaRef meta_refs = 4;
@@ -42,7 +42,7 @@ message IOObj{
     optional int64 before_time = 5;//Semi-required
     optional int64 after_time = 6;//Semi-required
 
-	//Function specific values.
+    //Function specific values.
     optional int32 bytes_changed = 64;
     optional int32 mode = 65;
     optional int32 flags = 66;
