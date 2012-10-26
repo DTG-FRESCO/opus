@@ -39,3 +39,12 @@ Graph databases can represent our provenance object relationships effectively an
 
 \subsubsection{Key/Value Stores}
 Key/value stores are a quick and easy way to store provenance objects, they do not require a specific schema and provide a simple if less powerful interface for querying. Key/value stores are available for a range of applications from heavy weight distributed systems to single node systems using an embedded database. In phase one of the system we are focusing on a single node application and an embedded key/value store will cater to our requirements.
+
+\subsection{Event Ordering}
+Maintaining a correct view of the order of events in the system is important for a provenance system as small changes in the order of events can produce large changes in their effect.
+
+Initially we were planning on timestamping all events as they occur, however the sytem clock on a given machine is not guarenteed to be sane over any given period due to NTP updates or the user manually changing the system time. Thus the system time is not sufficient for our needs as it does not give a consistent ordering.
+
+Secondly we considered storing a counter in shared memory that all of the front-end systems would access to get sequence numbers for events that would produce an ordering over the events. This idea was discarded as multiple processes accessing the shared counter would require exclusive access using locks to prevent the possibility of duplicated values. Due to this the time between an event happening and it receiving a time stamp may vary wildly due to lock contention.
+
+Finally we decided to use a hardware monotonic clock, this provides the guarentee of a consistant increasing time value over any single run of a given machine. The disadvantage of this clock is that it is reset when the machine is reboot but we think this can be solved by the fact that once our data is committed to the database its identifiers in the database will give it ordering in a global context.
