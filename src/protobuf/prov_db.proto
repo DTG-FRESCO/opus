@@ -1,3 +1,5 @@
+package fresco.DBObjects;
+
 enum ProvTypes{
 	FILE = 1;
 	PROCESS = 2;

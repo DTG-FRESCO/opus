@@ -1,20 +1,23 @@
-package FrescoIPCMessage;
+package fresco.IPCMessage;
 
 message Header {
-    optional int64 timeStamp = 1;
-    optional StartupMessage sMsg = 2;
-    optional LibInfoMessage lMsg = 3;
-    optional FuncInfoMessage fMsg = 4;
+    optional int64 userTime = 1;
+    optional int64 processId = 2;
+    optional StartupMessage sMsg = 8;
+    optional LibInfoMessage lMsg = 9;
+    optional FuncInfoMessage fMsg = 10;
 }
 
 
 message StartupMessage {
     optional string execName = 1;
     optional string cwd = 2;
-    optional string processId = 3;
-    optional string cmdLineArgs = 4;
+    optional string cmdLineArgs = 3;
+    optional string userName = 4;
+    optional string groupName = 5;
+    optional int64 parentPid = 6;
 
-    //repeated string environment = 5;
+    repeated string environment = 7;
 }
 
 message LibInfoMessage {
@@ -26,4 +29,7 @@ message FuncInfoMessage {
     optional string funcName = 1;
     repeated string args = 2;
     optional int64 retVal = 3;
+    optional int64 beginTime = 4;
+    optional int64 endTime = 5;
+    optional int64 errno = 6;
 }
