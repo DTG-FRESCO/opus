@@ -7,13 +7,23 @@ enum ProvTypes{
 
 message ProvObj{
     optional ProvTypes type = 1;//Semi-required
-    optional int64 timestamp = 2;//Semi-required
+    optional int64 time_stamp = 2;//Semi-required
     optional string entity_name = 3;//Semi-required
-    optional int64 metaID = 4;
+
+	message MetaRef{
+        optional int64 time_stamp = 1;
+        optional int64 library = 2;//MetaObj Pointer
+    	optional int64 ENV = 3;//MetaObj Pointer
+   		optional string kernel_version = 4;
+    	optional string user_name = 16;
+		optional string group_name = 17;
+    }
+
+    repeated MetaRef meta_refs = 4;
 
     message Link{
-        optional int64 provID = 1;//Semi-required
-        optional int64 ioID = 2;
+        optional int64 provID = 1;//Semi-required//ProvObj Pointer
+        optional int64 ioID = 2;//IOObj Pointer
     }
 
     repeated Link ancestors = 5;//Semi-required
@@ -21,23 +31,25 @@ message ProvObj{
 }
 
 message MetaObj{
-    repeated string library = 1;
-    repeated string ENV = 2;
-    optional string kernel_version = 3;
+    repeated string data = 1;
 }
 
 message IOObj{
     optional string fn = 1;//Semi-required
-    optional int64 prev = 2;//Semi-required
+    optional int64 prev = 2;//Semi-required //IOObj Pointer
     optional int32 return = 3;//Semi-required
-    optional int64 timestamp = 4;
-    optional int32 bytes_changed = 5;
-    optional int32 mode = 6;
-    optional int32 flags = 7;
+    optional int64 user_time = 4;//Semi-required
+    optional int64 before_time = 5;//Semi-required
+    optional int64 after_time = 6;//Semi-required
+
+	//Function specific values.
+    optional int32 bytes_changed = 64;
+    optional int32 mode = 65;
+    optional int32 flags = 66;
 }
 
 message ProvList{
-    repeated int64 provID = 1;
+    repeated int64 provID = 1;//ProvObj Pointer
 }
 
 
