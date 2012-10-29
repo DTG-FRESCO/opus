@@ -1,4 +1,4 @@
-package fresco.DBObjects;
+package fresco.opus.DBObjects;
 
 enum ProvTypes{
     FILE = 1;

@@ -1,4 +1,4 @@
-package fresco.IPCMessage;
+package fresco.opus.IPCMessage;
 
 message Header {
     optional int64 userTime = 1;
