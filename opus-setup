@@ -1,0 +1,2 @@
+export PROJ_HOME=$PWD
+export TOP=$PROJ_HOME
