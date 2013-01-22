@@ -1,4 +1,5 @@
 import dbus.service
+import threading
 
 
 class CommunicationManager(object):
@@ -20,6 +21,7 @@ class PersistantLog(object):
     def __init__(self):
         self.max_log_size = 0
         self.rolling_log_limit = 0
+
         self.log_path = ""
         self.current_log = None
         self.session_index = SessionIndex()
@@ -78,7 +80,7 @@ class EventOrderer(object):
         pass
 
 
-class PVCAnalyser(object):
+class PVMAnalyser(object):  # TODO:Replace with common reference
     def __init__(self):
         self.storage_interface = StorageIFace()
 
@@ -113,35 +115,82 @@ class PVCAnalyser(object):
         pass
 
 
-class POSIXPVCAnalyser(PVCAnalyser):
+class POSIXPVMAnalyser(PVMAnalyser):
     def __init__(self):
-        super(self, POSIXPVCAnalyser).__init__()
+        super(self, POSIXPVMAnalyser).__init__()
 
 
 class StorageIFace(object):
     def __init__(self):
-        self.leveldb_connection = None
+        self.obj_db = None
+        self.index_db = None
 
     def __del__(self):
+        pass
+
+    def put(self, db_id, obj):
+        '''Insert obj into the database with key db_id.'''
+        pass
+
+    def create(self, obj_type):
+        '''Create and object of type obj_type in the database, return a tuple
+        of the object and its id.'''
+        pass
+
+    def get(self, db_id):
+        '''Return the object matching the given db_id.'''
+        pass
+
+    def get_id_list_from_name(self, ename):
+        '''Return the list of db_ids that match the given entity name in the
+        index.'''
+        pass
+
+    def get_id_list_from_time_range(self, start, finish):
+        '''Return a list of all db_ids within the given time range.'''
+        pass
+
+
+class MessageableThread(threading.thread):
+    def __init__(self):
+        super(MessageableThread, self).__init__()
+        self.mailbox = None
+
+    def put_msg(self):
+        pass
+
+    def get_msg(self):
+        pass
+
+
+class ProducerThread(MessageableThread):
+    def __init__(self):
+        super(ProducerThread, self).__init__()
+        self.comm_manager = CommunicationManager()
+        self.persistant_log = PersistantLog()
+        self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+
+    def run(self):
+        pass
+
+
+class AnalyserThread(MessageableThread):
+    def __init__(self):
+        super(AnalyserThread, self).__init__()
+        self.provenance_analyser = POSIXPVMAnalyser()
+        self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+
+    def run(self):
         pass
 
 
 class DaemonManager(dbus.service.Object):
     def __init__(self):
         self.config = None
-        self.producer = None
-        self.analyser = None
-        self.producer_msg = None
-        self.analyser_msg = None
-        self.event_orderer = EventOrderer()
+        self.producer = ProducerThread()
+        self.analyser = AnalyserThread()
 
     def __del__(self):
-        pass
-
-    def do_thread_one(self):
-        pass
-
-    def do_thread_two(self):
         pass
 
     def do_dbus_msg(self):
