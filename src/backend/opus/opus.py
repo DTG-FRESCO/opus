@@ -193,5 +193,8 @@ class DaemonManager(dbus.service.Object):
     def __del__(self):
         pass
 
-    def do_dbus_msg(self):
+    def dbus_change_config(self):
+        pass
+
+    def dbus_stop_service(self):
         pass
