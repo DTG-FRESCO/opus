@@ -162,7 +162,7 @@ class Messageable():
         pass
 
 
-class MessageableThread(threading.thread, Messageable):
+class MessageableThread(threading.Thread, Messageable):
     def __init__(self):
         super(MessageableThread, self).__init__()
         pass
