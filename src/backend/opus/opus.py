@@ -21,7 +21,6 @@ class PersistantLog(object):
     def __init__(self):
         self.max_log_size = 0
         self.rolling_log_limit = 0
-
         self.log_path = ""
         self.current_log = None
         self.session_index = SessionIndex()
@@ -80,7 +79,7 @@ class EventOrderer(object):
         pass
 
 
-class PVMAnalyser(object):  # TODO:Replace with common reference
+class PVMAnalyser(object):
     def __init__(self):
         self.storage_interface = StorageIFace()
 
@@ -90,28 +89,28 @@ class PVMAnalyser(object):  # TODO:Replace with common reference
     def process(self):
         pass
 
-    def get_l(self):
+    def pvm_get_l(self):
         pass
 
-    def get_g(self):
+    def pvm_get_g(self):
         pass
 
-    def drop_l(self):
+    def pvm_drop_l(self):
         pass
 
-    def drop_g(self):
+    def pvm_drop_g(self):
         pass
 
-    def bind(self):
+    def pvm_bind(self):
         pass
 
-    def unbind(self):
+    def pvm_unbind(self):
         pass
 
-    def eadd(self):
+    def pvm_eadd(self):
         pass
 
-    def erem(self):
+    def pvm_erem(self):
         pass
 
 
@@ -133,7 +132,7 @@ class StorageIFace(object):
         pass
 
     def create(self, obj_type):
-        '''Create and object of type obj_type in the database, return a tuple
+        '''Create an object of type obj_type in the database, return a tuple
         of the object and its id.'''
         pass
 
@@ -151,9 +150,9 @@ class StorageIFace(object):
         pass
 
 
-class MessageableThread(threading.thread):
+class Messageable():
     def __init__(self):
-        super(MessageableThread, self).__init__()
+        super(Messageable, self).__init__()
         self.mailbox = None
 
     def put_msg(self):
@@ -163,12 +162,19 @@ class MessageableThread(threading.thread):
         pass
 
 
+class MessageableThread(threading.thread, Messageable):
+    def __init__(self):
+        super(MessageableThread, self).__init__()
+        pass
+
+
 class ProducerThread(MessageableThread):
     def __init__(self):
         super(ProducerThread, self).__init__()
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
         self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+        self.mailman = Mailman()
 
     def run(self):
         pass
@@ -179,16 +185,16 @@ class AnalyserThread(MessageableThread):
         super(AnalyserThread, self).__init__()
         self.provenance_analyser = POSIXPVMAnalyser()
         self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+        self.mailman = Mailman()
 
     def run(self):
         pass
 
 
-class DaemonManager(dbus.service.Object):
+class DaemonManager(dbus.service.Object, Messageable):
     def __init__(self):
         self.config = None
-        self.producer = ProducerThread()
-        self.analyser = AnalyserThread()
+        self.mailman = Mailman()
 
     def __del__(self):
         pass
@@ -198,3 +204,39 @@ class DaemonManager(dbus.service.Object):
 
     def dbus_stop_service(self):
         pass
+
+    def check_messages(self):
+        pass
+
+
+class Mailman(object):
+    address_map = {}
+
+    def __init__(self):
+        pass
+
+    def register(self, identifier, obj):
+        pass
+
+    def send_msg(self, identifier, msg):
+        pass
+
+
+class EventMsg(object):
+    def __init__(self):
+        self.type = ""
+        self.payload = None
+
+
+class RequestMsg(EventMsg):
+    def __init__(self):
+        super(RequestMsg, self).__init__()
+        pass
+
+
+class ResponseMsg(EventMsg):
+    def __init__(self):
+        super(ResponseMsg, self).__init__()
+        pass
+
+
