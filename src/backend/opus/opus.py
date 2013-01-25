@@ -179,8 +179,7 @@ class Messageable():
     retrieve these messages at its leisure.'''
     def __init__(self):
         super(Messageable, self).__init__()
-        self.request_mailbox = None
-        self.response_mailbox = None
+        self.mailbox = None
 
     def put_msg(self, msg):
         '''Place the given message into the internal mailbox.'''
@@ -264,15 +263,5 @@ class EventMsg(object):
     def __init__(self):
         self.type = ""
         self.payload = None
+        self.source = None
 
-
-class RequestMsg(EventMsg):
-    def __init__(self):
-        super(RequestMsg, self).__init__()
-        pass
-
-
-class ResponseMsg(EventMsg):
-    def __init__(self):
-        super(ResponseMsg, self).__init__()
-        pass
