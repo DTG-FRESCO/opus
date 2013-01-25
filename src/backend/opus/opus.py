@@ -3,6 +3,9 @@ import threading
 
 
 class CommunicationManager(object):
+    '''A communication manager binds a UDS socket, then accepts connections and
+    messages from the socket producing lists of messages for the rest of the
+    system.'''
     def __init__(self):
         self.fd_set = []
         self.uds_socket_path = ""
@@ -18,6 +21,9 @@ class CommunicationManager(object):
 
 
 class PersistantLog(object):
+    '''A persistant log stores a stream of messages in a series of rolling
+    files, it uses a SessionIndex to track sessions of messages in the output.
+    Messages from the log can be retrieved using the get command.'''
     def __init__(self):
         self.max_log_size = 0
         self.rolling_log_limit = 0
@@ -28,16 +34,26 @@ class PersistantLog(object):
     def __del__(self):
         pass
 
-    def put(self):
+    def put(self, msg):
         '''Put a message into the persistant log.'''
         pass
 
-    def clear(self):
-        '''Explicatly clear a log file.'''
+    def get(self, start):
+        '''Return all of the messages in the log since the given start time.'''
+        pass
+
+    def clear(self, file_name):
+        '''Clear a log file.'''
+        pass
+
+    def clear_all(self):
+        '''Clear all log files.'''
         pass
 
 
 class SessionIndex(object):
+    '''A session index stores a mapping between session number and the file
+    name and file position the session starts at.'''
     def __init__(self):
         self.indexes_list = []
         self.index_file_name = ""
@@ -45,16 +61,23 @@ class SessionIndex(object):
     def __del__(self):
         pass
 
-    def get(self):
+    def get(self, session_number):
         '''Get a filename and position that corresponds to session number.'''
         pass
 
-    def remove_file(self):
+    def add(self, session_number, file_name, file_pos):
+        '''Add a mapping of session number to file name and position.'''
+        pass
+
+    def remove_file(self, file_name):
         '''Remove all entries for a specific filename.'''
         pass
 
 
 class EventOrderer(object):
+    '''An event orderer accepts messages being placed into it and returns
+    messages in timestamp order, with a window based delay to allow for
+    message delays.'''
     def __init__(self):
         self.priority_queue = None
         self.window_size = 0
@@ -62,7 +85,7 @@ class EventOrderer(object):
     def __del__(self):
         pass
 
-    def push(self):
+    def push(self, msg):
         '''Push a new message onto the ordering queue.'''
         pass
 
@@ -151,29 +174,40 @@ class StorageIFace(object):
 
 
 class Messageable():
+    '''A messageable class is one that holds an internal mailbox and accepts
+    messages being given to it to place in the mailbox. The class can then
+    retrieve these messages at its leisure.'''
     def __init__(self):
         super(Messageable, self).__init__()
-        self.mailbox = None
+        self.request_mailbox = None
+        self.response_mailbox = None
 
-    def put_msg(self):
+    def put_msg(self, msg):
+        '''Place the given message into the internal mailbox.'''
         pass
 
     def get_msg(self):
+        '''Return the oldest message in the mailbox.'''
         pass
 
 
 class MessageableThread(threading.Thread, Messageable):
+    '''A messageable thread is a thread that has the messageable
+    interface mixed in.'''
     def __init__(self):
         super(MessageableThread, self).__init__()
         pass
 
 
 class ProducerThread(MessageableThread):
-    def __init__(self):
+    '''The producer thread handles the interactions between the communication
+    manager, persistant log and the event orderer. It is messageable to allow
+    it to reveive commands.'''
+    def __init__(self):waiting
         super(ProducerThread, self).__init__()
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
-        self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+        self.event_orderer = EventOrderer()  # TODO:Replace with argument
         self.mailman = Mailman()
 
     def run(self):
@@ -181,10 +215,13 @@ class ProducerThread(MessageableThread):
 
 
 class AnalyserThread(MessageableThread):
+    '''The analyser thread handles the interaction between the provenance
+    analyser and the event orderer. It is messageable to allow it to
+    receive commands.'''
     def __init__(self):
         super(AnalyserThread, self).__init__()
         self.provenance_analyser = POSIXPVMAnalyser()
-        self.event_orderer = EventOrderer()  # TODO:Replace with common reference
+        self.event_orderer = EventOrderer()  # TODO:Replace with argument
         self.mailman = Mailman()
 
     def run(self):
@@ -210,6 +247,7 @@ class DaemonManager(dbus.service.Object, Messageable):
 
 
 class Mailman(object):
+    '''A mailman allows '''
     address_map = {}
 
     def __init__(self):
@@ -238,5 +276,3 @@ class ResponseMsg(EventMsg):
     def __init__(self):
         super(ResponseMsg, self).__init__()
         pass
-
-
