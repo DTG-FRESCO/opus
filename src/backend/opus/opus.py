@@ -173,10 +173,37 @@ class StorageIFace(object):
         pass
 
 
-class ProducerThread(threading.Thread):
-    '''The producer thread handles the interactions between the communication
-    manager, persistant log and the event orderer.'''
+class Messageable():
+    '''A messageable class is one that holds an internal mailbox and accepts
+    messages being given to it to place in the mailbox. The class can then
+    retrieve these messages at its leisure.'''
     def __init__(self):
+        super(Messageable, self).__init__()
+        self.request_mailbox = None
+        self.response_mailbox = None
+
+    def put_msg(self, msg):
+        '''Place the given message into the internal mailbox.'''
+        pass
+
+    def get_msg(self):
+        '''Return the oldest message in the mailbox.'''
+        pass
+
+
+class MessageableThread(threading.Thread, Messageable):
+    '''A messageable thread is a thread that has the messageable
+    interface mixed in.'''
+    def __init__(self):
+        super(MessageableThread, self).__init__()
+        pass
+
+
+class ProducerThread(MessageableThread):
+    '''The producer thread handles the interactions between the communication
+    manager, persistant log and the event orderer. It is messageable to allow
+    it to reveive commands.'''
+    def __init__(self):waiting
         super(ProducerThread, self).__init__()
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
@@ -187,9 +214,10 @@ class ProducerThread(threading.Thread):
         pass
 
 
-class AnalyserThread(threading.Thread):
+class AnalyserThread(MessageableThread):
     '''The analyser thread handles the interaction between the provenance
-    analyser and the event orderer.'''
+    analyser and the event orderer. It is messageable to allow it to
+    receive commands.'''
     def __init__(self):
         super(AnalyserThread, self).__init__()
         self.provenance_analyser = POSIXPVMAnalyser()
@@ -200,7 +228,7 @@ class AnalyserThread(threading.Thread):
         pass
 
 
-class DaemonManager(dbus.service.Object):
+class DaemonManager(dbus.service.Object, Messageable):
     def __init__(self):
         self.config = None
         self.mailman = Mailman()
@@ -218,43 +246,17 @@ class DaemonManager(dbus.service.Object):
         pass
 
 
-class Mailbox():
-    def __init__(self, size):
-        super(Mailbox, self).__init__()
-        self.mailbox = None
-
-    def put_msg(self, msg):
-        '''Place the given message into the internal mailbox.'''
-        pass
-
-    def get_msg(self, timeout=0):
-        '''Return the oldest message in the mailbox.'''
-        pass
-
-
 class Mailman(object):
+    '''A mailman allows '''
     address_map = {}
 
-    def __init__(self, identity):
-        self.ident = identity
-        self.req_mailbox = Mailbox()
-        self.rsp_mailbox = Mailbox()
-        self.rsp_tag = None
-        self.rsp_lock = None
-
-    def send(self, identifier, msg):
-        '''Send msg to identifier, then wait for a response message. When the
-        response if received return it. Optionally time out after the given
-        period of time.'''
+    def __init__(self):
         pass
 
-    def check_for_msg(self):
-        '''Check the request mailbox for new messages. If there is a new
-        message return it, otherwise return None.'''
+    def register(self, identifier, obj):
         pass
 
-    def reply(self, identifier, msg):
-        '''Send a reply message to identifier.'''
+    def send_msg(self, identifier, msg):
         pass
 
 
@@ -262,5 +264,15 @@ class EventMsg(object):
     def __init__(self):
         self.type = ""
         self.payload = None
-        self.source = None
-        self.rsp_tag = None
+
+
+class RequestMsg(EventMsg):
+    def __init__(self):
+        super(RequestMsg, self).__init__()
+        pass
+
+
+class ResponseMsg(EventMsg):
+    def __init__(self):
+        super(ResponseMsg, self).__init__()
+        pass
