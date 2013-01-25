@@ -103,6 +103,9 @@ class EventOrderer(object):
 
 
 class PVMAnalyser(object):
+    '''The PVM analyser class implements the core of the PVM model, including 
+    the significant operations and their interactions with the underlying 
+    storage system.'''
     def __init__(self):
         self.storage_interface = StorageIFace()
 
@@ -110,6 +113,8 @@ class PVMAnalyser(object):
         pass
 
     def process(self):
+        '''Process a single front end message, applying it's effects to the
+        database.'''
         pass
 
     def pvm_get_l(self):
@@ -138,11 +143,16 @@ class PVMAnalyser(object):
 
 
 class POSIXPVMAnalyser(PVMAnalyser):
+    '''The POSIX PVM analyser implements the operations of the POSIX system in 
+    terms of the PVM calls that are inherited from it's parent class.'''
     def __init__(self):
         super(self, POSIXPVMAnalyser).__init__()
 
 
 class StorageIFace(object):
+    '''A storage interface instance allows for access to a provenance database
+    collection using a series of operations. It encapsulates the type of 
+    database and it's method of access.'''
     def __init__(self):
         self.obj_db = None
         self.index_db = None
@@ -202,7 +212,7 @@ class ProducerThread(MessageableThread):
     '''The producer thread handles the interactions between the communication
     manager, persistant log and the event orderer. It is messageable to allow
     it to reveive commands.'''
-    def __init__(self):waiting
+    def __init__(self):
         super(ProducerThread, self).__init__()
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
@@ -210,6 +220,19 @@ class ProducerThread(MessageableThread):
         self.mailman = Mailman()
 
     def run(self):
+        pass
+    
+    def do_shutdown(self):
+        '''Shutdown the thread gracefully.'''
+        pass
+    
+    def do_start_event_orderer(self):
+        '''Start sending messages to the event orderer from a given message 
+        id.'''
+        pass
+    
+    def do_stop_event_orderer(self):
+        '''Cease sending messages to the event orderer.'''
         pass
 
 
@@ -225,9 +248,15 @@ class AnalyserThread(MessageableThread):
 
     def run(self):
         pass
+    
+    def do_shutdown(self):
+        '''Shutdown the thread gracefully.'''
+        pass
 
 
 class DaemonManager(dbus.service.Object, Messageable):
+    '''The daemon manager is created to launch the back-end. It creates and
+    starts the two working threads then listens for commands via DBUS.'''
     def __init__(self):
         self.config = None
         self.mailman = Mailman()
@@ -235,7 +264,13 @@ class DaemonManager(dbus.service.Object, Messageable):
     def __del__(self):
         pass
 
-    def dbus_change_config(self):
+    def dbus_start_analyser(self):
+        pass
+    
+    def dbus_stop_analyser(self):
+        pass
+    
+    def dbus_is_analyser_on(self):
         pass
 
     def dbus_stop_service(self):
@@ -246,20 +281,27 @@ class DaemonManager(dbus.service.Object, Messageable):
 
 
 class Mailman(object):
-    '''A mailman allows '''
+    '''A mailman allows messageable objects to communicate with each other by
+    registering them under a given identifier then routing messages for them
+    between the different identifiers.'''
     address_map = {}
 
     def __init__(self):
         pass
 
     def register(self, identifier, obj):
+        '''Register the given object under the given identifier in the
+        address_map.'''
         pass
 
     def send_msg(self, identifier, msg):
+        '''Send a message to the given identifier.'''
         pass
 
 
 class EventMsg(object):
+    '''EventMsg objects encapsulate a message between two threads, allowing
+    for identification of message type and source.'''
     def __init__(self):
         self.type = ""
         self.payload = None
