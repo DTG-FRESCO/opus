@@ -257,10 +257,6 @@ class Mailman(object):
         '''Send a reply message to identifier.'''
         pass
 
-    def remove_req(self, identifier)
-        '''Remove a request message from the identifiers queue'''
-        pass
-
 
 class EventMsg(object):
     def __init__(self):
