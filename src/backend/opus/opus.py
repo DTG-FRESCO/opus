@@ -146,7 +146,7 @@ class POSIXPVMAnalyser(PVMAnalyser):
     '''The POSIX PVM analyser implements the operations of the POSIX system in 
     terms of the PVM calls that are inherited from it's parent class.'''
     def __init__(self):
-        super(self, POSIXPVMAnalyser).__init__()
+        super(POSIXPVMAnalyser, self).__init__()
 
 
 class StorageIFace(object):
