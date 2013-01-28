@@ -183,7 +183,7 @@ class StorageIFace(object):
         pass
 
 
-class Messageable():
+class Messageable(object):
     '''A messageable class is one that holds an internal mailbox and accepts
     messages being given to it to place in the mailbox. The class can then
     retrieve these messages at its leisure.'''
@@ -204,8 +204,8 @@ class MessageableThread(threading.Thread, Messageable):
     '''A messageable thread is a thread that has the messageable
     interface mixed in.'''
     def __init__(self):
-        super(MessageableThread, self).__init__()
-        pass
+        threading.Thread.__init__(self)
+        Messageable.__init__(self)
 
 
 class ProducerThread(MessageableThread):
@@ -258,8 +258,11 @@ class DaemonManager(dbus.service.Object, Messageable):
     '''The daemon manager is created to launch the back-end. It creates and
     starts the two working threads then listens for commands via DBUS.'''
     def __init__(self):
+        dbus.service.Object.__init__(self)
+        Messageable.__init__(self)
         self.config = None
         self.mailman = Mailman()
+        self.event_orderer = EventOrderer()
 
     def __del__(self):
         pass
