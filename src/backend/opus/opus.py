@@ -8,8 +8,7 @@ class CommunicationManager(object):
     system.'''
     def __init__(self):
         self.fd_set = []
-        self.uds_socket_path = ""
-        self.socket_timeout = 0
+        self.select_timeout = 0
 
     def __del__(self):
         pass
@@ -155,7 +154,8 @@ class StorageIFace(object):
     database and it's method of access.'''
     def __init__(self):
         self.obj_db = None
-        self.index_db = None
+        self.time_index = None
+        self.name_index = None
 
     def __del__(self):
         pass
