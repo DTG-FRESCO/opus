@@ -114,7 +114,7 @@ class PVMAnalyser(object):
     def process(self):
         '''Process a single front end message, applying it's effects to the
         database.'''
-        pass
+        raise NotImplementedError()
 
     def pvm_get_l(self):
         pass
@@ -146,6 +146,9 @@ class POSIXPVMAnalyser(PVMAnalyser):
     terms of the PVM calls that are inherited from it's parent class.'''
     def __init__(self):
         super(POSIXPVMAnalyser, self).__init__()
+
+    def process(self):
+        pass
 
 
 class StorageIFace(object):
@@ -205,8 +208,8 @@ class Mailer(object):
         '''Return the oldest message in the mailbox.'''
         pass
     
-    def register(self, identifier, obj):
-        '''Register the given object under the given identifier in the
+    def register(self, identifier):
+        '''Register this object under the given identifier in the
         address_map.'''
         pass
 
