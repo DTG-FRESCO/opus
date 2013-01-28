@@ -268,18 +268,24 @@ class DaemonManager(dbus.service.Object, Messageable):
         pass
 
     def dbus_start_analyser(self):
+        '''Handle a dbus message signalling for an analyser start.'''
         pass
     
     def dbus_stop_analyser(self):
+        '''Handle a sbud message signalling for an analyser stop.'''
         pass
     
     def dbus_is_analyser_on(self):
+        '''Return the status of the analyser thread.'''
         pass
 
     def dbus_stop_service(self):
+        '''Cause the daemon to shutdown gracefully.'''
         pass
 
     def check_messages(self):
+        '''Check the messages of the internal mailman and respond
+        appropriatly.'''
         pass
 
 
