@@ -183,55 +183,48 @@ class StorageIFace(object):
         pass
 
 
-class Messageable(object):
-    '''A messageable class is one that holds an internal mailbox and accepts
-    messages being given to it to place in the mailbox. The class can then
-    retrieve these messages at its leisure.'''
-    def __init__(self):
-        super(Messageable, self).__init__()
-        self.mailbox = None
-        self.mailman = Mailman()
+class Mailer(object):
+    '''A mailman allows messageable objects to communicate with each other by
+    registering them under a given identifier then routing messages for them
+    between the different identifiers. A mailer class holds an internal mailbox
+    and accepts messages being given to it to place in the mailbox. The class
+    can then retrieve these messages at its leisure. Mailer classes communicate
+    with each other by registering themselves under a given identifier in the
+    address_map then routing messages to each other.'''
+    address_map = {}    
 
-    def put_msg(self, msg):
+    def __init__(self):
+        super(Mailer, self).__init__()
+        self.mailbox = None
+
+    def recv(self, msg):
         '''Place the given message into the internal mailbox.'''
         pass
 
-    def get_msg(self):
+    def check(self):
         '''Return the oldest message in the mailbox.'''
         pass
-
-
-class Mailman(object):
-    '''A mailman allows messageable objects to communicate with each other by
-    registering them under a given identifier then routing messages for them
-    between the different identifiers.'''
-    address_map = {}
-
-    def __init__(self):
-        super(Mailman, self).__init__()
-        pass
-
+    
     def register(self, identifier, obj):
         '''Register the given object under the given identifier in the
         address_map.'''
         pass
 
-    def send_msg(self, identifier, msg):
+    def send(self, identifier, msg):
         '''Send a message to the given identifier.'''
         pass
 
 
-class ProducerThread(threading.Thread, Messageable):
+class ProducerThread(threading.Thread):
     '''The producer thread handles the interactions between the communication
-    manager, persistant log and the event orderer. It is messageable to allow
-    it to reveive commands.'''
+    manager, persistant log and the event orderer.'''
     def __init__(self):
-        threading.Thread.__init__(self)
-        Messageable.__init__(self)
+        super(ProducerThread, self).__init__()
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
         self.event_orderer = EventOrderer()  # TODO:Replace with argument
         self.session_number = 0
+        self.mailer = Mailer()
 
     def run(self):
         pass
@@ -250,16 +243,15 @@ class ProducerThread(threading.Thread, Messageable):
         pass
 
 
-class AnalyserThread(threading.Thread, Messageable):
+class AnalyserThread(threading.Thread):
     '''The analyser thread handles the interaction between the provenance
-    analyser and the event orderer. It is messageable to allow it to
-    receive commands.'''
+    analyser and the event orderer.'''
     def __init__(self):
-        threading.Thread.__init__(self)
-        Messageable.__init__(self)
+        super(AnalyserThread, self).__init__()
         self.provenance_analyser = POSIXPVMAnalyser()
         self.event_orderer = EventOrderer()  # TODO:Replace with argument
         self.session_number = 0
+        self.mailer = Mailer()
 
     def run(self):
         pass
@@ -269,15 +261,15 @@ class AnalyserThread(threading.Thread, Messageable):
         pass
 
 
-class DaemonManager(dbus.service.Object, Messageable):
+class DaemonManager(dbus.service.Object):
     '''The daemon manager is created to launch the back-end. It creates and
     starts the two working threads then listens for commands via DBUS.'''
     def __init__(self):
-        dbus.service.Object.__init__(self)
-        Messageable.__init__(self)
+        super(DaemonManager, self).__init__()
         self.config = None
         self.session_number = 0
         self.event_orderer = EventOrderer()
+        self.mailer = Mailer()
 
     def __del__(self):
         pass
