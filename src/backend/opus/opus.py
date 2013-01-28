@@ -190,6 +190,7 @@ class Messageable(object):
     def __init__(self):
         super(Messageable, self).__init__()
         self.mailbox = None
+        self.mailman = Mailman()
 
     def put_msg(self, msg):
         '''Place the given message into the internal mailbox.'''
@@ -200,24 +201,37 @@ class Messageable(object):
         pass
 
 
-class MessageableThread(threading.Thread, Messageable):
-    '''A messageable thread is a thread that has the messageable
-    interface mixed in.'''
+class Mailman(object):
+    '''A mailman allows messageable objects to communicate with each other by
+    registering them under a given identifier then routing messages for them
+    between the different identifiers.'''
+    address_map = {}
+
     def __init__(self):
-        threading.Thread.__init__(self)
-        Messageable.__init__(self)
+        super(Mailman, self).__init__()
+        pass
+
+    def register(self, identifier, obj):
+        '''Register the given object under the given identifier in the
+        address_map.'''
+        pass
+
+    def send_msg(self, identifier, msg):
+        '''Send a message to the given identifier.'''
+        pass
 
 
-class ProducerThread(MessageableThread):
+class ProducerThread(threading.Thread, Messageable):
     '''The producer thread handles the interactions between the communication
     manager, persistant log and the event orderer. It is messageable to allow
     it to reveive commands.'''
     def __init__(self):
-        super(ProducerThread, self).__init__()
+        threading.Thread.__init__(self)
+        Messageable.__init__(self)
         self.comm_manager = CommunicationManager()
         self.persistant_log = PersistantLog()
         self.event_orderer = EventOrderer()  # TODO:Replace with argument
-        self.mailman = Mailman()
+        self.session_number = 0
 
     def run(self):
         pass
@@ -236,15 +250,16 @@ class ProducerThread(MessageableThread):
         pass
 
 
-class AnalyserThread(MessageableThread):
+class AnalyserThread(threading.Thread, Messageable):
     '''The analyser thread handles the interaction between the provenance
     analyser and the event orderer. It is messageable to allow it to
     receive commands.'''
     def __init__(self):
-        super(AnalyserThread, self).__init__()
+        threading.Thread.__init__(self)
+        Messageable.__init__(self)
         self.provenance_analyser = POSIXPVMAnalyser()
         self.event_orderer = EventOrderer()  # TODO:Replace with argument
-        self.mailman = Mailman()
+        self.session_number = 0
 
     def run(self):
         pass
@@ -261,7 +276,7 @@ class DaemonManager(dbus.service.Object, Messageable):
         dbus.service.Object.__init__(self)
         Messageable.__init__(self)
         self.config = None
-        self.mailman = Mailman()
+        self.session_number = 0
         self.event_orderer = EventOrderer()
 
     def __del__(self):
@@ -287,32 +302,3 @@ class DaemonManager(dbus.service.Object, Messageable):
         '''Check the messages of the internal mailman and respond
         appropriatly.'''
         pass
-
-
-class Mailman(object):
-    '''A mailman allows messageable objects to communicate with each other by
-    registering them under a given identifier then routing messages for them
-    between the different identifiers.'''
-    address_map = {}
-
-    def __init__(self):
-        pass
-
-    def register(self, identifier, obj):
-        '''Register the given object under the given identifier in the
-        address_map.'''
-        pass
-
-    def send_msg(self, identifier, msg):
-        '''Send a message to the given identifier.'''
-        pass
-
-
-class EventMsg(object):
-    '''EventMsg objects encapsulate a message between two threads, allowing
-    for identification of message type and source.'''
-    def __init__(self):
-        self.type = ""
-        self.payload = None
-        self.source = None
-
