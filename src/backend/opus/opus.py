@@ -7,6 +7,7 @@ class CommunicationManager(object):
     messages from the socket producing lists of messages for the rest of the
     system.'''
     def __init__(self):
+        super(CommunicationManager, self).__init__()
         self.fd_set = []
         self.select_timeout = 0
 
@@ -24,6 +25,7 @@ class PersistantLog(object):
     files, it uses a SessionIndex to track sessions of messages in the output.
     Messages from the log can be retrieved using the get command.'''
     def __init__(self):
+        super(PersistantLog, self).__init__()
         self.max_log_size = 0
         self.rolling_log_limit = 0
         self.log_path = ""
@@ -54,6 +56,7 @@ class SessionIndex(object):
     '''A session index stores a mapping between session number and the file
     name and file position the session starts at.'''
     def __init__(self):
+        super(SessionIndex, self).__init__()
         self.indexes_list = []
         self.index_file_name = ""
 
@@ -78,6 +81,7 @@ class EventOrderer(object):
     messages in timestamp order, with a window based delay to allow for
     message delays.'''
     def __init__(self):
+        super(EventOrderer, self).__init__()
         self.priority_queue = None
         self.window_size = 0
 
@@ -106,6 +110,7 @@ class PVMAnalyser(object):
     the significant operations and their interactions with the underlying 
     storage system.'''
     def __init__(self):
+        super(PVMAnalyser, self).__init__()
         self.storage_interface = StorageIFace()
 
     def __del__(self):
@@ -156,6 +161,7 @@ class StorageIFace(object):
     collection using a series of operations. It encapsulates the type of 
     database and it's method of access.'''
     def __init__(self):
+        super(StorageIFace, self).__init__()
         self.obj_db = None
         self.time_index = None
         self.name_index = None
@@ -268,7 +274,7 @@ class DaemonManager(dbus.service.Object):
     '''The daemon manager is created to launch the back-end. It creates and
     starts the two working threads then listens for commands via DBUS.'''
     def __init__(self):
-        super(DaemonManager, self).__init__()
+        dbus.service.Object.__init__(self)
         self.config = None
         self.session_number = 0
         self.event_orderer = EventOrderer()
