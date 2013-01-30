@@ -11,7 +11,9 @@ class CommunicationManager(object):
         self.fd_set = []
         self.select_timeout = 0
 
-    def __del__(self):
+    def close(self):
+        '''Close the comms manager, closing the listening socket and any
+        active connections.'''
         pass
 
     def do_poll(self):
@@ -32,7 +34,8 @@ class PersistantLog(object):
         self.current_log = None
         self.session_index = SessionIndex()
 
-    def __del__(self):
+    def close(self):
+        '''Close the log, closing any open files.'''
         pass
 
     def put(self, msg):
@@ -60,9 +63,6 @@ class SessionIndex(object):
         self.indexes_list = []
         self.index_file_name = ""
 
-    def __del__(self):
-        pass
-
     def get(self, session_number):
         '''Get a filename and position that corresponds to session number.'''
         pass
@@ -84,9 +84,6 @@ class EventOrderer(object):
         super(EventOrderer, self).__init__()
         self.priority_queue = None
         self.window_size = 0
-
-    def __del__(self):
-        pass
 
     def push(self, msg):
         '''Push a new message onto the ordering queue.'''
@@ -113,7 +110,8 @@ class PVMAnalyser(object):
         super(PVMAnalyser, self).__init__()
         self.storage_interface = StorageIFace()
 
-    def __del__(self):
+    def close(self):
+        '''Close the storage interface.'''
         pass
 
     def process(self):
@@ -166,7 +164,8 @@ class StorageIFace(object):
         self.time_index = None
         self.name_index = None
 
-    def __del__(self):
+    def close(self):
+        '''Close all active database connections.'''
         pass
 
     def put(self, db_id, obj):
@@ -279,9 +278,6 @@ class DaemonManager(dbus.service.Object):
         self.session_number = 0
         self.event_orderer = EventOrderer()
         self.mailer = Mailer()
-
-    def __del__(self):
-        pass
 
     def dbus_start_analyser(self):
         '''Handle a dbus message signalling for an analyser start.'''
