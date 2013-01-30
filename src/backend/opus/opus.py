@@ -117,7 +117,7 @@ class PVMAnalyser(object):
     def process(self):
         '''Process a single front end message, applying it's effects to the
         database.'''
-        raise NotImplementedError()
+        pass
 
     def pvm_get_l(self):
         pass
