@@ -1,6 +1,12 @@
 import dbus.service
 import threading
 
+def get_comm_object(comm_type):
+    if(conn_type == "UDS"):
+        return UDSCommunicationManager()
+    elif conn_type == "TCP":
+        return TCPCommunicationManager()
+
 
 class CommunicationManager(object):
     '''A communication manager binds a UDS socket, then accepts connections and
@@ -21,6 +27,23 @@ class CommunicationManager(object):
         of any messages received.'''
         pass
 
+class UDSCommunicationManager(CommunicationManager):
+    '''Setup UDS specific connection in the init method'''
+    def __init__(self):
+        super(UDSCommunicationManager, self).__init__()
+
+    def do_poll(self):
+        pass
+
+
+class TCPCommunicationManager(CommunicationManager):
+    '''Setup TCP specific connection in the init method'''
+    def __init__(self):
+        super(TCPCommunicationManager, self).__init__()
+        pass
+
+    def do_poll(self):
+        pass
 
 class PersistantLog(object):
     '''A persistant log stores a stream of messages in a series of rolling
@@ -228,7 +251,7 @@ class ProducerThread(threading.Thread):
     manager, persistant log and the event orderer.'''
     def __init__(self):
         super(ProducerThread, self).__init__()
-        self.comm_manager = CommunicationManager()
+        self.comm_manager = get_comm_object("UDS") # TODO: Pass comm type
         self.persistant_log = PersistantLog()
         self.event_orderer = EventOrderer()  # TODO:Replace with argument
         self.session_number = 0
