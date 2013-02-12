@@ -41,9 +41,23 @@ class TCPCommunicationManager(CommunicationManager):
         pass
 
 
-class PersistantQueue(object):
+class PriorityQueue(object):
+    '''In memory priority queue to order messages'''
     def __init__(self):
-        super(PersistantQueue, self).__init__()
+        super(PriorityQueue, self).__init__()
+        self.priority_queue = None
+
+    def push(self):
+        pass
+
+    def pop(self):
+        pass
+
+    def is_empty(self):
+        pass
+
+    def clear(self):
+        pass
 
 
 class Relay(object):
@@ -158,11 +172,19 @@ class SocketProducer(Producer):
         super(SocketProducer, self).__init__()
         self.comms_manager = CommunicationManager()
 
+    def run(self): # Will use the CommunicationManager object to reaed msgs
+        pass
+
 
 class BatchProducer(Producer):
     def __init__(self):
         super(BatchProducer, self).__init__()
-        self.persistant_queue = PersistantQueue()
+        self.persistant_file_location = ""
+
+    def run(self):
+        ''' Read persistant file and send data to
+        the analyser's queue.'''
+        pass
 
 
 class Analyser(threading.Thread):
@@ -172,6 +194,7 @@ class Analyser(threading.Thread):
     def run(self):
         pass
 
+
     def do_shutdown(self):
         '''Shutdown the thread gracefully.'''
         pass
@@ -180,20 +203,31 @@ class Analyser(threading.Thread):
 class LoggingAnalyser(Analyser):
     def __init__(self):
         super(LoggingAnalyser, self).__init__()
-        self.persistant_queue = PersistantQueue()
+        self.file_object = None
+
+    def put_msg(self): # Adds a message to the file object
+        pass
 
 
 class ProcessingAnalyser(Analyser):
     def __init__(self):
         super(ProcessingAnalyser, self).__init__()
-        self.persistant_queue = PersistantQueue()
         self.pvm_analyser = PVMAnalyser()
+        self.priority_queue = PriorityQueue()
+
+    def put_msg(self): # Adds a message to the priority_queue
+        pass
+
 
 class RelayingAnalyser(Analyser):
     def __init__(self):
         super(RelayingAnalyser, self).__init__()
-        self.persistanht_queue = PersistantQueue()
         self.relay = Relay()
+        self.priority_queue = PriorityQueue()
+
+    def put_msg(self): # Adds a message to the priority_queue
+        pass
+
 
 class DaemonManager(dbus.service.Object):
     '''The daemon manager is created to launch the back-end. It creates and
@@ -219,4 +253,3 @@ class DaemonManager(dbus.service.Object):
     def dbus_stop_service(self):
         '''Cause the daemon to shutdown gracefully.'''
         pass
-
