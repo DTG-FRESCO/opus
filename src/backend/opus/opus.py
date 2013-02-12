@@ -1,11 +1,10 @@
 import dbus.service
 import threading
 
-def get_comm_object(comm_type):
-    if(conn_type == "UDS"):
-        return UDSCommunicationManager()
-    elif conn_type == "TCP":
-        return TCPCommunicationManager()
+
+def meta_factory(base, tag):
+    '''Return an instance of the class derived from base with the name "tag"'''
+    pass
 
 
 class CommunicationManager(object):
@@ -15,6 +14,7 @@ class CommunicationManager(object):
     def __init__(self):
         super(CommunicationManager, self).__init__()
         self.fd_set = []
+        self.sock_fd = None
         self.select_timeout = 0
 
     def close(self):
@@ -27,13 +27,11 @@ class CommunicationManager(object):
         of any messages received.'''
         pass
 
+
 class UDSCommunicationManager(CommunicationManager):
     '''Setup UDS specific connection in the init method'''
     def __init__(self):
         super(UDSCommunicationManager, self).__init__()
-
-    def do_poll(self):
-        pass
 
 
 class TCPCommunicationManager(CommunicationManager):
@@ -42,92 +40,20 @@ class TCPCommunicationManager(CommunicationManager):
         super(TCPCommunicationManager, self).__init__()
         pass
 
-    def do_poll(self):
-        pass
 
-class PersistantLog(object):
-    '''A persistant log stores a stream of messages in a series of rolling
-    files, it uses a SessionIndex to track sessions of messages in the output.
-    Messages from the log can be retrieved using the get command.'''
+class PersistantQueue(object):
     def __init__(self):
-        super(PersistantLog, self).__init__()
-        self.max_log_size = 0
-        self.rolling_log_limit = 0
-        self.log_path = ""
-        self.current_log = None
-        self.session_index = SessionIndex()
-
-    def close(self):
-        '''Close the log, closing any open files.'''
-        pass
-
-    def put(self, msg):
-        '''Put a message into the persistant log.'''
-        pass
-
-    def get(self, start):
-        '''Return all of the messages in the log since the given start time.'''
-        pass
-
-    def clear(self, file_name):
-        '''Clear a log file.'''
-        pass
-
-    def clear_all(self):
-        '''Clear all log files.'''
-        pass
+        super(PersistantQueue, self).__init__()
 
 
-class SessionIndex(object):
-    '''A session index stores a mapping between session number and the file
-    name and file position the session starts at.'''
+class Relay(object):
     def __init__(self):
-        super(SessionIndex, self).__init__()
-        self.indexes_list = []
-        self.index_file_name = ""
-
-    def get(self, session_number):
-        '''Get a filename and position that corresponds to session number.'''
-        pass
-
-    def add(self, session_number, file_name, file_pos):
-        '''Add a mapping of session number to file name and position.'''
-        pass
-
-    def remove_file(self, file_name):
-        '''Remove all entries for a specific filename.'''
-        pass
-
-
-class EventOrderer(object):
-    '''An event orderer accepts messages being placed into it and returns
-    messages in timestamp order, with a window based delay to allow for
-    message delays.'''
-    def __init__(self):
-        super(EventOrderer, self).__init__()
-        self.priority_queue = None
-        self.window_size = 0
-
-    def push(self, msg):
-        '''Push a new message onto the ordering queue.'''
-        pass
-
-    def pop(self):
-        '''Pop a message from the ordering queue.'''
-        pass
-
-    def is_empty(self):
-        '''Check if the ordering queue is empty.'''
-        pass
-
-    def clear(self):
-        '''Clear the ordering queue.'''
-        pass
+        super(Relay, self).__init__()
 
 
 class PVMAnalyser(object):
-    '''The PVM analyser class implements the core of the PVM model, including 
-    the significant operations and their interactions with the underlying 
+    '''The PVM analyser class implements the core of the PVM model, including
+    the significant operations and their interactions with the underlying
     storage system.'''
     def __init__(self):
         super(PVMAnalyser, self).__init__()
@@ -168,7 +94,7 @@ class PVMAnalyser(object):
 
 
 class POSIXPVMAnalyser(PVMAnalyser):
-    '''The POSIX PVM analyser implements the operations of the POSIX system in 
+    '''The POSIX PVM analyser implements the operations of the POSIX system in
     terms of the PVM calls that are inherited from it's parent class.'''
     def __init__(self):
         super(POSIXPVMAnalyser, self).__init__()
@@ -179,7 +105,7 @@ class POSIXPVMAnalyser(PVMAnalyser):
 
 class StorageIFace(object):
     '''A storage interface instance allows for access to a provenance database
-    collection using a series of operations. It encapsulates the type of 
+    collection using a series of operations. It encapsulates the type of
     database and it's method of access.'''
     def __init__(self):
         super(StorageIFace, self).__init__()
@@ -214,83 +140,60 @@ class StorageIFace(object):
         pass
 
 
-class Mailer(object):
-    '''A mailman allows messageable objects to communicate with each other by
-    registering them under a given identifier then routing messages for them
-    between the different identifiers. A mailer class holds an internal mailbox
-    and accepts messages being given to it to place in the mailbox. The class
-    can then retrieve these messages at its leisure. Mailer classes communicate
-    with each other by registering themselves under a given identifier in the
-    address_map then routing messages to each other.'''
-    address_map = {}    
-
+class Producer(threading.Thread):
     def __init__(self):
-        super(Mailer, self).__init__()
-        self.mailbox = None
-
-    def recv(self, msg):
-        '''Place the given message into the internal mailbox.'''
-        pass
-
-    def check(self):
-        '''Return the oldest message in the mailbox.'''
-        pass
-    
-    def register(self, identifier):
-        '''Register this object under the given identifier in the
-        address_map.'''
-        pass
-
-    def send(self, identifier, msg):
-        '''Send a message to the given identifier.'''
-        pass
-
-
-class ProducerThread(threading.Thread):
-    '''The producer thread handles the interactions between the communication
-    manager, persistant log and the event orderer.'''
-    def __init__(self):
-        super(ProducerThread, self).__init__()
-        self.comm_manager = get_comm_object("UDS") # TODO: Pass comm type
-        self.persistant_log = PersistantLog()
-        self.event_orderer = EventOrderer()  # TODO:Replace with argument
-        self.session_number = 0
-        self.mailer = Mailer()
+        super(Producer, self).__init__()
+        self.analyser = Analyser()  # TODO: Gift from constructor.
 
     def run(self):
         pass
-    
-    def do_shutdown(self):
-        '''Shutdown the thread gracefully.'''
-        pass
-    
-    def do_start_event_orderer(self):
-        '''Start sending messages to the event orderer from a given message 
-        id.'''
-        pass
-    
-    def do_stop_event_orderer(self):
-        '''Cease sending messages to the event orderer.'''
-        pass
 
-
-class AnalyserThread(threading.Thread):
-    '''The analyser thread handles the interaction between the provenance
-    analyser and the event orderer.'''
-    def __init__(self):
-        super(AnalyserThread, self).__init__()
-        self.provenance_analyser = POSIXPVMAnalyser()
-        self.event_orderer = EventOrderer()  # TODO:Replace with argument
-        self.session_number = 0
-        self.mailer = Mailer()
-
-    def run(self):
-        pass
-    
     def do_shutdown(self):
         '''Shutdown the thread gracefully.'''
         pass
 
+
+class SocketProducer(Producer):
+    def __init__(self):
+        super(SocketProducer, self).__init__()
+        self.comms_manager = CommunicationManager()
+
+
+class BatchProducer(Producer):
+    def __init__(self):
+        super(BatchProducer, self).__init__()
+        self.persistant_queue = PersistantQueue()
+
+
+class Analyser(threading.Thread):
+    def __init__(self):
+        super(Analyser, self).__init__()
+
+    def run(self):
+        pass
+
+    def do_shutdown(self):
+        '''Shutdown the thread gracefully.'''
+        pass
+
+
+class LoggingAnalyser(Analyser):
+    def __init__(self):
+        super(LoggingAnalyser, self).__init__()
+        self.persistant_queue = PersistantQueue()
+
+
+class ProcessingAnalyser(Analyser):
+    def __init__(self):
+        super(ProcessingAnalyser, self).__init__()
+        self.persistant_queue = PersistantQueue()
+        self.pvm_analyser = PVMAnalyser()
+
+class RelayingAnalyser(Analyser):
+    def __init__(self):
+        super(RelayingAnalyser, self).__init__()
+        self.persistanht_queue = PersistantQueue()
+        self.relay = Relay()
 
 class DaemonManager(dbus.service.Object):
     '''The daemon manager is created to launch the back-end. It creates and
@@ -298,18 +201,17 @@ class DaemonManager(dbus.service.Object):
     def __init__(self):
         dbus.service.Object.__init__(self)
         self.config = None
-        self.session_number = 0
-        self.event_orderer = EventOrderer()
-        self.mailer = Mailer()
+        self.producer = Producer()
+        self.analyser = Analyser()
 
     def dbus_start_analyser(self):
         '''Handle a dbus message signalling for an analyser start.'''
         pass
-    
+
     def dbus_stop_analyser(self):
         '''Handle a sbud message signalling for an analyser stop.'''
         pass
-    
+
     def dbus_is_analyser_on(self):
         '''Return the status of the analyser thread.'''
         pass
@@ -318,7 +220,3 @@ class DaemonManager(dbus.service.Object):
         '''Cause the daemon to shutdown gracefully.'''
         pass
 
-    def check_messages(self):
-        '''Check the messages of the internal mailman and respond
-        appropriatly.'''
-        pass
