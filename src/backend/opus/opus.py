@@ -201,6 +201,8 @@ class Analyser(threading.Thread):
     def run(self):
         pass
 
+    def put_msg(self): # Should be overridden in the subclass
+        pass
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully.'''
