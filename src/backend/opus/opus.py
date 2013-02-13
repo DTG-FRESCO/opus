@@ -63,6 +63,13 @@ class PriorityQueue(object):
 class Relay(object):
     def __init__(self):
         super(Relay, self).__init__()
+        self.sock_fd = 0
+
+    def send_message(self):
+        pass
+
+    def close_socket(self):
+        pass
 
 
 class PVMAnalyser(object):
