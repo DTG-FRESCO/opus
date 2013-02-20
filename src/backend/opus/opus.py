@@ -229,6 +229,8 @@ class ProcessingAnalyser(Analyser):
 
 
 class RelayingAnalyser(Analyser):
+    ''' An analyser class to merely relay incoming provenance
+    data to a remote host'''
     def __init__(self):
         super(RelayingAnalyser, self).__init__()
         self.relay = Relay()
