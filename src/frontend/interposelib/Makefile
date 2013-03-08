@@ -9,7 +9,6 @@ CFLAGS2  := $(CFLAGS2) -shared -fPIC -std=gnu++0x -ldl
 SRCS	:= \
 		mywrite.C
 
-
 HDRS	:=
 
 
