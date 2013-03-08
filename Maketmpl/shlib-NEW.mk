@@ -66,7 +66,7 @@ all:		$(LIBRARY) $(XTARGETS) installonly
 installonly:	$(DSTHDRS) $(DSTLIB)
 
 $(LIBRARY): 	$(OBJS)
-		$(PURIFY) $(CPLUS) $(DEBUG) -o $@ $(SHLIB) $(LFLAGS) $(OBJS)
+		$(PURIFY) $(CPLUS) $(DEBUG) -o $@ $(SHLIB) $(OBJS) $(LFLAGS)
 		$(POSTLIB_CLEANUP)
 
 hdrz:		$(DSTHDRS)

@@ -12,21 +12,36 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <signal.h>
 
 #include <iostream>
 #include <string>
 #include <unordered_map>
 
+#include <stdint.h>
+#include <errno.h>
+#include <assert.h>
+
+#include "log.h"
+#include "uds_client.h"
+#include "uds_msg.pb.h"
+#include "proc_utils.h"
+
+
+UDSCommClient* comm_ptr = NULL;
 std::unordered_map<long, void*> funcMap;
 
 void initialize(void) __attribute__((constructor));
+void deinitialize(void) __attribute__((destructor));
+
 typedef ssize_t (*LIBC_WRITE)(int fd, const void *buf, size_t len);
+typedef ssize_t (*LIBC_FWRITE)(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 typedef int (*LIBC_PRINTF)(const char *format, ...);
 typedef int (*LIBC_VPRINTF)(const char *format, va_list ap);
 typedef int (*LIBC_PUTS)(const char *s);
-typedef void (*LIBC__EXIT)(int status);
-typedef pid_t (*LIBC_FORK)(void);
+
+typedef ::fresco::opus::IPCMessage::StartupMessage StartupMessage;
+typedef ::fresco::opus::IPCMessage::Header HeaderMessage;
+typedef ::google::protobuf::Message Message;
 
 void checkError(const char* fileName, const int lineNum, void* ptr, const std::string& funcName)
 {
@@ -36,27 +51,29 @@ void checkError(const char* fileName, const int lineNum, void* ptr, const std::s
 
 static void exitHandler(void)
 {
-    printf("Inside exit handler\n");
     //do cleanup work
 }
+
 
 //All libc function wrappers go here...
 extern "C" ssize_t write(int fd, const void *buf, size_t len)
 {
-   // Do our stuff here
+    uint64_t start_time = ProcUtils::get_time();
 
-    return ((LIBC_WRITE)funcMap[(long)write])(fd,buf,len);
+    ssize_t ret = ((LIBC_WRITE)funcMap[(long)write])(fd,buf,len);
+    int error_value = errno;
+
+    uint64_t end_time = ProcUtils::get_time();
+
+
 }
 
 extern "C" int printf(const char *format, ...)
 {
     va_list list;
+
     va_start(list, format);
-
-    // Do other work
-    //int ret = ((LIBC_PRINTF)funcMap[(long)printf])(format, list);
-    int ret = ((LIBC_VPRINTF)funcMap[(long)vprintf])("mystuff", list);
-
+    int ret = ((LIBC_VPRINTF)funcMap[(long)vprintf])(format, list);
     va_end(list);
 
     return ret;
@@ -64,20 +81,24 @@ extern "C" int printf(const char *format, ...)
 
 extern "C" int puts(const char *s)
 {
-   // Do our stuff here
-   return ((LIBC_PUTS)funcMap[(long)puts])("foobar");
+    return ((LIBC_PUTS)funcMap[(long)puts])(s);
 }
 
-extern "C" pid_t fork(void)
+extern "C" size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
-    printf("Inside my fork\n");
-    return ((LIBC_FORK)funcMap[(long)fork])();
-}
+    //if global is set, call function and return
+    //else set global
 
-extern "C" void _exit(int status)
-{
-    printf("Inside our _exit\n");
-    ((LIBC__EXIT)funcMap[(long)_exit])(status);
+    //Get current time
+    int ret = ((LIBC_FWRITE)funcMap[(long)fwrite])(ptr, size, nmemb, stream);
+    //capture ret and errno
+    //Get end time
+
+    //construct protobuf header message
+    //Construct payload message using args and other data
+    //Send
+
+    return ret;
 }
 
 void updateMap(const std::string& funcName, const long funcAddr)
@@ -95,39 +116,88 @@ void updateMap(const std::string& funcName, const long funcAddr)
     }
 }
 
-// Setup handler for SIGSEGV
-static void handleSegv(int sig, siginfo_t *si, void *unused)
+void deinitialize()
 {
-    printf("Got SIGSEGV at address: 0x%lx\n",(long) si->si_addr);
-    exit(1);
-}
-
-void setSignalHandler()
-{
-    struct sigaction sa;
-
-    sa.sa_flags = SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_sigaction = handleSegv;
-
-    if(sigaction(SIGSEGV, &sa, NULL) < 0)
-        perror("sigaction");
+    UDSCommClient::get_instance()->shutdown();
 }
 
 
-void initialize(void)
+void serialize_and_send_data(const Message& msg_obj)
 {
-    //printf("Inside initialize\n");
+    int size = msg_obj.ByteSize();
+
+    void* buf = malloc(size);
+    if(NULL == buf)
+    {
+        DEBUG_LOG("[%s:%d]: Failed to allocate buffer\n",__FILE__,__LINE__);
+        return;
+    }
+
+    msg_obj.SerializeToArray(buf, size);
+
+    if(false == comm_ptr->send_data(buf, size))
+    {
+        DEBUG_LOG("[%s:%d]: Sending data failed\n",__FILE__,__LINE__);
+        free(buf);
+        return;
+    }
+
+    free(buf);
+}
+
+void send_startup_message()
+{
+
+    StartupMessage start_msg_obj;
+    start_msg_obj.set_exec_name("foobar");
+    start_msg_obj.set_cwd("/tmp/foo");
+    start_msg_obj.set_cmd_line_args("-f null");
+    start_msg_obj.set_user_name("nb466");
+    start_msg_obj.set_group_name("nb466");
+    start_msg_obj.set_ppid(getppid());
+
+    const uint64_t msg_size = start_msg_obj.ByteSize();
+
+    //Note: Should we store header message globally
+    //and avoid reconstructing it each time?
+    uint64_t current_time = ProcUtils::get_time();
+
+    HeaderMessage hdr_msg_obj;
+    hdr_msg_obj.set_timestamp(current_time);
+    hdr_msg_obj.set_pid((uint64_t)getpid());
+    hdr_msg_obj.set_start_msg_len(msg_size);
+    hdr_msg_obj.set_lib_msg_len((uint64_t)0);
+    hdr_msg_obj.set_func_msg_len((uint64_t)0);
+
+    //Note: Should we make comm_ptr part of the
+    //process utils class
+    comm_ptr = UDSCommClient::get_instance();
+
+    std::string uds_path = "./demo_socket";
+
+    if(false == comm_ptr->connect(uds_path))
+    {
+        DEBUG_LOG("[%s:%d]: Socket connect failed\n",__FILE__,__LINE__);
+        return;
+    }
+
+    serialize_and_send_data(hdr_msg_obj);
+    serialize_and_send_data(start_msg_obj);
+
+}
+
+void initialize()
+{
+
+    /* Setup an exit handler */
     atexit(exitHandler);
 
-    setSignalHandler();
-
     updateMap("write", (long)write);
+    updateMap("fwrite", (long)fwrite);
     updateMap("printf", (long)printf);
     updateMap("vprintf", (long)vprintf);
     updateMap("puts", (long)puts);
-    updateMap("signal", (long)signal);
-    updateMap("fork", (long)fork);
-    updateMap("_exit", (long)_exit);
-    updateMap("exit", (long)exit);
+
+    send_startup_message();
+
 }

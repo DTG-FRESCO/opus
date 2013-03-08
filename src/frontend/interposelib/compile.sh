@@ -1,3 +1,3 @@
-g++ -g -shared -fPIC -o liboverride.so mywrite.C -std=gnu++0x -ldl
-#g++ -shared -fPIC -o liboverride.so mywrite.C -L $HOME/protocolBuffers/lib -lprotobuf -ldl
-#g++ -shared -o liboverride.so -L $HOME/protocolBuffers/lib -static -lprotobuf mywrite.C -ldl
+g++ -DDEBUG -g -shared -fPIC -o liboverride.so log.cc proc_utils.cc uds_client.cc uds_message.pb.cc mywrite.cc -std=gnu++0x -I/home/nb466/protocolBuffers/include -L/home/nb466/protocolBuffers/lib -ldl -lrt -lprotobuf
+g++ -DDEBUG log.cc uds_message.pb.cc server.cc -std=gnu++0x -I/home/nb466/protocolBuffers/include -L/home/nb466/protocolBuffers/lib -lprotobuf
+#protoc uds_message.proto --cc_out=.
