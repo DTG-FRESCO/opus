@@ -6,10 +6,11 @@
 class ProcUtils
 {
     public:
-
         static uint64_t get_time();
-        //TODO: Add other process specific utilities here
+		static bool test_and_set_flag(const bool value);
 
+	private:
+		static bool in_func_flag;
 };
 
 #endif

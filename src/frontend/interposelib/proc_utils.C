@@ -17,3 +17,17 @@ uint64_t ProcUtils::get_time()
 
     return nsecs;
 }
+
+/* 
+	Returns true if we are already 
+	inside an overridden libc function
+*/
+bool ProcUtils::test_and_set_flag(const bool value)
+{
+	bool ret = in_func_flag & value;
+
+	if(value && in_func_flag) return ret;
+
+	in_func_flag = value;
+	return ret;
+}
