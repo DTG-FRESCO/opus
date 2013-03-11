@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <errno.h>
 
+bool ProcUtils::in_func_flag = false;
+
 uint64_t ProcUtils::get_time()
 {
     struct timespec tp;

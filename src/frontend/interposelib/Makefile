@@ -15,8 +15,7 @@ LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf
 SRCS	:= 	log.C \
 			proc_utils.C \
 			uds_client.C \
-			uds_msg.pb.cc \
-			mywrite.C
+			uds_msg.pb.cc
 
 HDRS	:=	log.h \
 			proc_utils.h \
