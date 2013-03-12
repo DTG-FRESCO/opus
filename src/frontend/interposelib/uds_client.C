@@ -79,7 +79,7 @@ bool UDSCommClient::send_data(void* data, const int data_size)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",__FILE__,__LINE__,__PRETTY_FUNCTION__);
 
-    size_t to_be_sent = data_size;
+    size_t bytes_left = data_size;
 
     try
     {
@@ -87,9 +87,9 @@ bool UDSCommClient::send_data(void* data, const int data_size)
 
         unsigned long total_bytes_sent = 0;
 
-        while(total_bytes_sent < to_be_sent)
+        while(total_bytes_sent < bytes_left)
         {
-            ssize_t bytes_sent = ::send(conn_fd, data, to_be_sent, 0);
+            ssize_t bytes_sent = ::send(conn_fd, (char*)data+total_bytes_sent, bytes_left, 0);
             if(bytes_sent < (ssize_t)0)
             {
                 if(errno == EINTR)
@@ -103,7 +103,7 @@ bool UDSCommClient::send_data(void* data, const int data_size)
             DEBUG_LOG("[%s:%d]: Wrote %ld bytes to socket\n",__FILE__,__LINE__,bytes_sent);
 
             total_bytes_sent += bytes_sent;
-            to_be_sent -= bytes_sent;
+            bytes_left -= bytes_sent;
         }
 
     }
