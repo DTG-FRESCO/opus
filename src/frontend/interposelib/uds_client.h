@@ -1,9 +1,7 @@
-#ifndef _UDS_CLIENT_H
-#define _UDS_CLIENT_H
+#ifndef SRC_FRONTEND_INTERPOSELIB_UDS_CLIENT_H_
+#define SRC_FRONTEND_INTERPOSELIB_UDS_CLIENT_H_
 
 #include <string>
-
-#define UNIX_PATH_MAX 108
 
 class UDSCommClient
 {
@@ -14,7 +12,7 @@ class UDSCommClient
         void shutdown();
 
         bool send_data(const std::string& data);
-        bool send_data(void* data, const int data_size);
+        bool send_data(const void* const data, const int data_size);
 
     private:
         static UDSCommClient* comm_obj;
@@ -26,4 +24,4 @@ class UDSCommClient
         UDSCommClient& operator=(const UDSCommClient& copy_obj);
 };
 
-#endif
+#endif  // SRC_FRONTEND_INTERPOSELIB_UDS_CLIENT_H_

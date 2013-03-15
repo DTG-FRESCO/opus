@@ -1,5 +1,5 @@
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef SRC_FRONTEND_INTERPOSELIB_LOG_H_
+#define SRC_FRONTEND_INTERPOSELIB_LOG_H_
 
 #ifdef DEBUG
 #define DEBUG_LOG debug_msg
@@ -7,7 +7,6 @@
 #define DEBUG_LOG
 #endif
 
-char* getTimeStamp(char *time_stamp);
 void debug_msg(const char* msg, ...);
 
-#endif
+#endif // SRC_FRONTEND_INTERPOSELIB_LOG_H_

@@ -116,32 +116,32 @@ DEPS	:= $(strip $(DEPS))
 #======================================================================
 # Generate C include dependencies
 #======================================================================
-%.d:		%.c
-		@echo "Generating dependencies for $<..."
-		@echo "" >$@.tmp
-		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
-		@cat $@.tmp | sed -e 's/$(<:.c=.o):/$@ $(<:.c=.o):/' > $@
-		@rm -f $@.tmp $@.tmp.bak
+#%.d:		%.c
+#		@echo "Generating dependencies for $<..."
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.c=.o):/$@ $(<:.c=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
 
 #======================================================================
 # Generate C++ include dependencies
 #======================================================================
-%.d:		%.C
-		@echo "Generating dependencies for $<..." 
-		@echo "" >$@.tmp
-		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
-		@cat $@.tmp | sed -e 's/$(<:.C=.o):/$@ $(<:.C=.o):/' > $@
-		@rm -f $@.tmp $@.tmp.bak
+#%.d:		%.C
+#		@echo "Generating dependencies for $<..." 
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.C=.o):/$@ $(<:.C=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
 
 #======================================================================
 # Generate protobuf C++ include dependencies
 #======================================================================
-%.d:		%.pb.cc
-		@echo "Generating dependencies for $<..." 
-		@echo "" >$@.tmp
-		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
-		@cat $@.tmp | sed -e 's/$(<:.pb.cc=.o):/$@ $(<:.pb.cc=.o):/' > $@
-		@rm -f $@.tmp $@.tmp.bak
+#%.d:		%.pb.cc
+#		@echo "Generating dependencies for $<..." 
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.pb.cc=.o):/$@ $(<:.pb.cc=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
 
 #======================================================================
 # Generated Pro*C/C++ SQL include dependencies
