@@ -1,5 +1,3 @@
-#!/usr/bin/python -tt
-
 '''
 This module contains the implementation of
 various types of producer classes. It also
