@@ -1,7 +1,7 @@
 MF= Makefile
 
 CC=protoc
-CFLAGS=--cpp_out=.
+CFLAGS=--cpp_out=. --python_out=.
 
 
 SRC= uds_msg.proto
@@ -20,6 +20,7 @@ $(OBJ): $(MF)
 
 all:
 		cp -f *.pb.h $(PROJ_INCLUDE)
+		cp -f *.py $(PROJ_HOME)/src/backend/opus
 
 clean:
-		rm -f *.pb.h *.pb.cc
+		rm -f *.pb.h *.pb.cc *.py
