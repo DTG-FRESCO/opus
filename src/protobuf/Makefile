@@ -20,6 +20,7 @@ $(OBJ): $(MF)
 
 all:
 		cp -f *.pb.h $(PROJ_INCLUDE)
+		cp -f *.pb.cc $(PROJ_HOME)/src/frontend/interposelib
 
 clean:
 		rm -f *.pb.h *.pb.cc

@@ -21,6 +21,13 @@ CXX_SRCS	:= $(filter %.C,$(SRCS))
 CXX_DEPS	:= $(CXX_SRCS:.C=.d)
 CXX_OBJS	:= $(CXX_SRCS:.C=.o)
 
+#======================================================================
+# Protobuf C++ related files
+#======================================================================
+PB_CXX_SRCS	:= $(filter %.pb.cc,$(SRCS))
+PB_CXX_DEPS	:= $(PB_CXX_SRCS:.pb.cc=.pb.d)
+PB_CXX_OBJS	:= $(PB_CXX_SRCS:.pb.cc=.pb.o)
+
 #=====================================================================
 # Compute .l (lex ) related files
 #==================================================================
@@ -52,7 +59,8 @@ CXX_OBJS	:= $(CXX_SRCS:.C=.o)
 # Compute auto generated dependencies
 #======================================================================
 DEPS	:=	$(C_DEPS) \
-		$(CXX_DEPS)
+		$(CXX_DEPS) \
+		$(PB_CXX_DEPS)
 #		$(LEX_DEPS) \
 #		$(PROC_DEPS) \
 #		$(ESQL_DEPS) 
@@ -108,22 +116,32 @@ DEPS	:= $(strip $(DEPS))
 #======================================================================
 # Generate C include dependencies
 #======================================================================
-%.d:		%.c
-		@echo "Generating dependencies for $<..."
-		@echo "" >$@.tmp
-		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
-		@cat $@.tmp | sed -e 's/$(<:.c=.o):/$@ $(<:.c=.o):/' > $@
-		@rm -f $@.tmp $@.tmp.bak
+#%.d:		%.c
+#		@echo "Generating dependencies for $<..."
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.c=.o):/$@ $(<:.c=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
 
 #======================================================================
 # Generate C++ include dependencies
 #======================================================================
-%.d:		%.C
-		@echo "Generating dependencies for $<..." 
-		@echo "" >$@.tmp
-		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
-		@cat $@.tmp | sed -e 's/$(<:.C=.o):/$@ $(<:.C=.o):/' > $@
-		@rm -f $@.tmp $@.tmp.bak
+#%.d:		%.C
+#		@echo "Generating dependencies for $<..." 
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.C=.o):/$@ $(<:.C=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
+
+#======================================================================
+# Generate protobuf C++ include dependencies
+#======================================================================
+#%.d:		%.pb.cc
+#		@echo "Generating dependencies for $<..." 
+#		@echo "" >$@.tmp
+#		@$(CXXDPND) $(INCPATHSW) $(PORT) -f$@.tmp $< 2>/dev/null
+#		@cat $@.tmp | sed -e 's/$(<:.pb.cc=.o):/$@ $(<:.pb.cc=.o):/' > $@
+#		@rm -f $@.tmp $@.tmp.bak
 
 #======================================================================
 # Generated Pro*C/C++ SQL include dependencies
@@ -145,7 +163,6 @@ DEPS	:= $(strip $(DEPS))
 #		@cat $@.tmp | sed -e 's/$(<:.ec=.o):/$@ $(<:.ec=.o):/' > $@
 #		@rm -f $@.tmp $@.tmp.bak
 
-#======================================================================
 # Generate LEX include dependencies
 #======================================================================
 #%.d:		%.l
@@ -159,7 +176,8 @@ DEPS	:= $(strip $(DEPS))
 # Compute full object list
 #======================================================================
 OBJS	:=	$(C_OBJS) \
-		$(CXX_OBJS)
+		$(CXX_OBJS) \
+		$(PB_CXX_OBJS)
 #		$(PROC_OBJS) \
 #		$(ESQL_OBJS) \
 #		$(LEX_OBJS)
@@ -247,6 +265,12 @@ DSTBIN		= $(PROGRAM:%=$(INSBINDIR)/%)
 # C++ compliation rule
 #======================================================================
 %.o:		%.C
+		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
+
+#======================================================================
+# protobuf C++ compliation rule
+#======================================================================
+%.pb.o:		%.pb.cc
 		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
 
 #======================================================================
