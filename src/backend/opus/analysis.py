@@ -5,8 +5,9 @@ types of analysers have been defined in this file.
 '''
 
 import os
-import sys
+import logging
 import threading
+import common_utils
 
 class Analyser(threading.Thread):
     '''Base class for the analyser'''
@@ -39,9 +40,9 @@ class LoggingAnalyser(Analyser):
         try:
             self.file_object = open(self.logfile_path, "ab+")
         except IOError as (err, msg):
-            print "Error:", err, "Message:", msg
-            sys.exit(1)
-        print "Opened file", self.logfile_path
+            logging.error("Error: %d, Message: %s", err, msg)
+            raise common_utils.OPUSException("log file open error")
+        logging.debug("Opened file %s", self.logfile_path)
 
 
     def put_msg(self, msg_list):
