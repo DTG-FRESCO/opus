@@ -16,12 +16,14 @@ SRCS	:= 	log.C \
 			proc_utils.C \
 			uds_client.C \
 			uds_msg.pb.cc \
-			functions.C
+			functions.C \
+			main.C
 
 HDRS	:=	log.h \
 			proc_utils.h \
 			uds_comm_exception.h \
 			uds_client.h \
-			functions.h
+			functions.h \
+			main.h
 
 include		$(TOP)/Maketmpl/shlib-NEW.mk
