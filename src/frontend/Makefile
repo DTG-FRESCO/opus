@@ -1,5 +1,6 @@
 MF=Makefile
 
-SUBDIRS := interposelib
+SUBDIRS := gen-boiler \
+	   interposelib
 
 include $(PROJ_HOME)/Maketmpl/dir.mk

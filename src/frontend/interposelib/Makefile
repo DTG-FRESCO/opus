@@ -15,11 +15,13 @@ LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf
 SRCS	:= 	log.C \
 			proc_utils.C \
 			uds_client.C \
-			uds_msg.pb.cc
+			uds_msg.pb.cc \
+			functions.C
 
 HDRS	:=	log.h \
 			proc_utils.h \
 			uds_comm_exception.h \
-			uds_client.h
+			uds_client.h \
+			functions.h
 
 include		$(TOP)/Maketmpl/shlib-NEW.mk
