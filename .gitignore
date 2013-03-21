@@ -11,3 +11,18 @@
 #Ignore Temp Files
 #
 *~
+
+#
+#C Ignores
+#
+*.o
+*.so
+lib
+include
+
+#
+#Specific C excludes
+#
+src/protobuf/uds_msg.pb.*
+src/frontend/interposelib/uds_msg.pb.*
+src/frontend/interposelib/a.out
