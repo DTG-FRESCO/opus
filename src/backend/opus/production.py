@@ -1,5 +1,3 @@
-#!/usr/bin/python -tt
-
 '''
 This module contains the implementation of
 various types of producer classes. It also
@@ -9,18 +7,14 @@ data from connected clients.
 '''
 
 import os
-import sys
 import struct
-import time
 import errno
 import threading
 import socket
-from socket import SOL_SOCKET
 import select
 import logging
 import uds_msg_pb2
 import common_utils
-import analysis
 
 def unlink_uds_path(path):
     '''Remove UDS link'''
@@ -31,8 +25,9 @@ def get_credentials(client_fd):
     '''Reads the peer credentials from a UDS descriptor'''
     if not hasattr(get_credentials, "SO_PEERCRED"):
         get_credentials.SO_PEERCRED = 17
-    credentials = client_fd.getsockopt(SOL_SOCKET, \
-                get_credentials.SO_PEERCRED, struct.calcsize('3i'))
+    credentials = client_fd.getsockopt (socket.SOL_SOCKET,
+                                        get_credentials.SO_PEERCRED,
+                                        struct.calcsize('3i'))
     pid, uid, gid = struct.unpack('3i', credentials)
     return pid, uid, gid
 
@@ -85,8 +80,9 @@ class CommunicationManager(object):
 
 class UDSCommunicationManager(CommunicationManager):
     '''UDS specific server implementation'''
-    StatusCode = common_utils.enum(success=0, \
-                close_connection=100, try_again_later=101)
+    StatusCode = common_utils.enum(success=0, 
+                                close_connection=100, 
+                                try_again_later=101)
     def __init__(self, path, max_conn=10, timeout=5.0):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__()
@@ -99,8 +95,8 @@ class UDSCommunicationManager(CommunicationManager):
         self.msg_stash_map = {} # Map that holds a stash_info map per fd
 
         try:
-            self.server_socket = \
-                    socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.server_socket = socket.socket(socket.AF_UNIX, 
+                                                socket.SOCK_STREAM)
             self.server_socket.bind(self.uds_path)
             self.server_socket.listen(self.max_server_conn)
         except socket.error as err:
@@ -116,8 +112,8 @@ class UDSCommunicationManager(CommunicationManager):
         ret_list = [] # List of tuples of form (header, payload)
 
         try:
-            input_ready, _, _ = \
-                    select.select(self.input_fds, [], [], self.select_timeout)
+            input_ready, _, _ = select.select(self.input_fds, [], [], 
+                                                self.select_timeout)
         except (select.error, socket.error) as err:
             logging.error("Error: %s", str(err))
             return ret_list
@@ -141,7 +137,7 @@ class UDSCommunicationManager(CommunicationManager):
 
         if status_code == UDSCommunicationManager.StatusCode.success:
             logging.debug("Got valid data")
-            ret_list.append((self.msg_stash_map[sock_fd]['header'], \
+            ret_list.append((self.msg_stash_map[sock_fd]['header'], 
                             self.msg_stash_map[sock_fd]['payload']))
             reset_stash(self.msg_stash_map[sock_fd])
         elif status_code == UDSCommunicationManager.StatusCode.close_connection:
@@ -167,7 +163,7 @@ class UDSCommunicationManager(CommunicationManager):
 
 
     def __receive(self, sock_fd, size):
-        '''Received data for a given size from a socket'''
+        '''Receives data for a given size from a socket'''
         buf = ''
         status_code = UDSCommunicationManager.StatusCode.success
         while size > 0:
@@ -195,8 +191,8 @@ class UDSCommunicationManager(CommunicationManager):
 
     def __get_payload(self, sock_fd, stash_ref):
         '''Receives the payload and stashes it'''
-        payload_buf, status_code = self.__receive(sock_fd, \
-                                    stash_ref['payload_len'])
+        payload_buf, status_code = self.__receive(sock_fd, 
+                                                stash_ref['payload_len'])
         if status_code != UDSCommunicationManager.StatusCode.success:
             return status_code
 
@@ -214,8 +210,8 @@ class UDSCommunicationManager(CommunicationManager):
 
         # Read the header in not present
         if not stash_ref['header']:
-            hdr_buf, status_code = self.__receive(sock_fd, \
-                                    common_utils.header_size())
+            hdr_buf, status_code = self.__receive(sock_fd, 
+                                        common_utils.header_size())
             if status_code != UDSCommunicationManager.StatusCode.success:
                 return status_code
             stash_ref['header'] = hdr_buf
@@ -253,6 +249,13 @@ class Producer(threading.Thread):
         '''Override in the derived class'''
         pass
 
+    @common_utils.analyser_lock
+    def switch_analyser(self, new_analyser):
+        '''Takes a new analyser object and returns the old one'''
+        old_analyser = self.analyser
+        self.analyser = new_analyser
+        return old_analyser
+
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
         self.analyser.do_shutdown()
@@ -268,9 +271,9 @@ class SocketProducer(Producer):
         self.comm_type = comm_type
 
         try:
-            self.comm_manager = \
-                    common_utils.meta_factory(CommunicationManager, \
-                    "UDSCommunicationManager", "./demo_socket", 10, 5)
+            self.comm_manager = common_utils.meta_factory(CommunicationManager, 
+                                        "UDSCommunicationManager", 
+                                        "./demo_socket", 10, 5)
         except common_utils.InvalidTagException as err_msg:
             raise common_utils.OPUSException(err_msg.msg)
 
@@ -302,13 +305,17 @@ class SocketProducer(Producer):
 #    try:
 #        analyser_object = analysis.LoggingAnalyser("prov_log.dat")
 #        producer_object = SocketProducer(analyser_object, \
-#                            "UDSCommunicationManager")
-#   except common_utils.OPUSException as message:
+#                                    "UDSCommunicationManager")
+#    except common_utils.OPUSException as message:
 #        logging.error(message)
 #        sys.exit(1) # Depends on how the DaemonManager handles this
 #
-#   producer_object.start()
-#   time.sleep(20)
-#   producer_object.do_shutdown()
-#   producer_object.join()
-#   logging.debug("Exiting master thread")
+#    producer_object.start()
+#    time.sleep(10)
+#    new_analyser = analysis.DummyAnalyser()
+#    old_analyser = producer_object.switch_analyser(new_analyser)
+#    old_analyser.do_shutdown()
+#    time.sleep(10)
+#    producer_object.do_shutdown()
+#    producer_object.join()
+#    logging.debug("Exiting master thread")

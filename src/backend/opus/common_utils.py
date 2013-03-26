@@ -2,8 +2,9 @@
 Contains common classes and functions that can
 be used by multiple modules in the OPUS backend
 '''
-from threading import Lock
 import copy
+import threading
+import functools
 import uds_msg_pb2
 
 
@@ -66,7 +67,8 @@ def enum(**enums):
 def analyser_lock(func):
     '''Decorator method for accessing analyser object'''
     if not hasattr(analyser_lock, "mutex"):
-        analyser_lock.mutex = Lock()
+        analyser_lock.mutex = threading.Lock()
+    @functools.wraps(func)
     def deco(self, *args, **kwargs):
         '''Wraps function call with lock acquire and release'''
         with analyser_lock.mutex:
