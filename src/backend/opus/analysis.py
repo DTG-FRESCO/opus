@@ -49,9 +49,8 @@ class LoggingAnalyser(Analyser):
         '''Takes a list of tuples (header, payload)
         and writes them to a file'''
         for msg in msg_list:
-            if msg[0]: # Write header
+            if msg[0] and msg[1]:
                 self.file_object.write(msg[0])
-            if msg[1]: # Write payload
                 self.file_object.write(msg[1])
         self.file_object.flush()
 
