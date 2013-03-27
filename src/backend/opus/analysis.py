@@ -31,11 +31,11 @@ class Analyser(threading.Thread):
 
 class LoggingAnalyser(Analyser):
     '''Implementation of a logging analyser'''
-    def __init__(self, path):
+    def __init__(self, log_path):
         '''Initialize class members'''
         super(LoggingAnalyser, self).__init__()
         self.file_object = None
-        self.logfile_path = path
+        self.logfile_path = log_path
 
         try:
             self.file_object = open(self.logfile_path, "ab+")
