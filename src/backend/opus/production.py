@@ -83,14 +83,14 @@ class UDSCommunicationManager(CommunicationManager):
     StatusCode = common_utils.enum(success=0, 
                                 close_connection=100, 
                                 try_again_later=101)
-    def __init__(self, path, max_conn=10, timeout=5.0):
+    def __init__(self, uds_path, max_conn=10, select_timeout=5.0, *args, **kwargs):
         '''Initialize the class members'''
-        super(UDSCommunicationManager, self).__init__()
-        unlink_uds_path(path)
+        super(UDSCommunicationManager, self).__init__(*args, **kwargs)
+        unlink_uds_path(uds_path)
         self.input_fds = []
-        self.uds_path = path # Configurable
+        self.uds_path = uds_path # Configurable
         self.max_server_conn = max_conn # Configurable
-        self.select_timeout = timeout # Configurable
+        self.select_timeout = select_timeout # Configurable
         self.server_socket = None
         self.msg_stash_map = {} # Map that holds a stash_info map per fd
 
@@ -250,6 +250,11 @@ class Producer(threading.Thread):
         pass
 
     @common_utils.analyser_lock
+    def _send_data_to_analyser(self, msg_list):
+        '''Calls the analyser object method by obtaining a lock'''
+        self.analyser.put_msg(msg_list)
+
+    @common_utils.analyser_lock
     def switch_analyser(self, new_analyser):
         '''Takes a new analyser object and returns the old one'''
         old_analyser = self.analyser
@@ -265,15 +270,14 @@ class Producer(threading.Thread):
 
 class SocketProducer(Producer):
     '''Implementation of a socket producer class'''
-    def __init__(self, analyser_obj, comm_type):
+    def __init__(self, comm_mgr_type, comm_mgr_args, *args, **kwargs):
         '''Initialize the class data members'''
-        super(SocketProducer, self).__init__(analyser_obj)
-        self.comm_type = comm_type
+        super(SocketProducer, self).__init__(*args, **kwargs)
+        self.comm_mgr_type = comm_mgr_type
 
         try:
             self.comm_manager = common_utils.meta_factory(CommunicationManager, 
-                                        "UDSCommunicationManager", 
-                                        "./demo_socket", 10, 5)
+                                        self.comm_mgr_type, **comm_mgr_args)
         except common_utils.InvalidTagException as err_msg:
             raise common_utils.OPUSException(err_msg.msg)
 
@@ -285,37 +289,45 @@ class SocketProducer(Producer):
                 logging.debug("No message to be logged")
             else:
                 logging.debug("Calling put_msg on analyser")
-                self.__send_data_to_analyser(msg_list)
+                self._send_data_to_analyser(msg_list)
             check_mailbox()
         self.comm_manager.close()
-
-    @common_utils.analyser_lock
-    def __send_data_to_analyser(self, msg_list):
-        '''Calls the analyser object method by obtaining a lock'''
-        self.analyser.put_msg(msg_list)
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
         super(SocketProducer, self).do_shutdown()
 
-# Uncomment for testing purposes
+## Uncomment for testing purposes
 #if __name__ == "__main__":
-#    logging.basicConfig(format='%(asctime)s %(message)s', \
+#    import sys
+#    import time
+#    import analysis
+#    logging.basicConfig(format='%(asctime)s L%(lineno)d %(message)s', 
 #                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.DEBUG)
 #    try:
-#        analyser_object = analysis.LoggingAnalyser("prov_log.dat")
-#        producer_object = SocketProducer(analyser_object, \
-#                                    "UDSCommunicationManager")
+#        args_to_analyser = {}
+#        args_to_analyser["log_path"] = "prov_log.dat"
+#        analyser_object = analysis.LoggingAnalyser(**(args_to_analyser))
+#
+#        socket_prod_args = {}
+#        socket_prod_args["analyser_obj"] = analyser_object
+#        socket_prod_args["comm_mgr_type"] = "UDSCommunicationManager"
+#        socket_prod_args["comm_mgr_args"] = {"uds_path": "./demo_socket",
+#                                             "max_conn": 50,
+#                                             "select_timeout": 2}
+#        producer_object = SocketProducer(**(socket_prod_args))
 #    except common_utils.OPUSException as message:
 #        logging.error(message)
 #        sys.exit(1) # Depends on how the DaemonManager handles this
+#    except TypeError as err:
+#        logging.error(str(err))
 #
 #    producer_object.start()
-#    time.sleep(10)
-#    new_analyser = analysis.DummyAnalyser()
-#    old_analyser = producer_object.switch_analyser(new_analyser)
-#    old_analyser.do_shutdown()
-#    time.sleep(10)
+#    time.sleep(20)
+#    #new_analyser = analysis.DummyAnalyser()
+#    #old_analyser = producer_object.switch_analyser(new_analyser)
+#    #old_analyser.do_shutdown()
+#    #time.sleep(10)
 #    producer_object.do_shutdown()
 #    producer_object.join()
 #    logging.debug("Exiting master thread")

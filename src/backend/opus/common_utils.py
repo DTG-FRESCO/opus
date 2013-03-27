@@ -42,7 +42,7 @@ class FixedDict(object):
             raise KeyError("The key {} is not defined.".format(key))
         return self._dictionary[key]
 
-def meta_factory(base, tag, *args):
+def meta_factory(base, tag, *args, **kwargs):
     '''Return an instance of the class 
     derived from base with the name "tag"'''
     def compute_subs(cls):
@@ -56,7 +56,7 @@ def meta_factory(base, tag, *args):
     sub_classes = compute_subs(base)
     for sub_class in sub_classes:
         if sub_class.__name__ == tag:
-            return sub_class(*args)
+            return sub_class(*args, **kwargs)
     raise InvalidTagException(tag)
 
 def enum(**enums):
