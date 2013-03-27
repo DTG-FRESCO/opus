@@ -2,6 +2,10 @@
 Contains common classes and functions that can
 be used by multiple modules in the OPUS backend
 '''
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+
 import copy
 import threading
 import functools
@@ -61,7 +65,7 @@ def meta_factory(base, tag, *args, **kwargs):
 
 def enum(**enums):
     '''Returns an enum class object'''
-    return type('Enum', (), enums)
+    return type(str('Enum'), (), enums)
 
 
 def analyser_lock(func):

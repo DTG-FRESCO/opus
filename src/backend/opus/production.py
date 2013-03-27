@@ -6,6 +6,9 @@ classes the OPUS backend uses to receive provenance
 data from connected clients.
 '''
 
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+
 import os
 import struct
 import errno
@@ -27,7 +30,7 @@ def get_credentials(client_fd):
         get_credentials.SO_PEERCRED = 17
     credentials = client_fd.getsockopt (socket.SOL_SOCKET,
                                         get_credentials.SO_PEERCRED,
-                                        struct.calcsize('3i'))
+                                        struct.calcsize(str('3i')))
     pid, uid, gid = struct.unpack('3i', credentials)
     return pid, uid, gid
 
@@ -54,7 +57,7 @@ def reset_stash(stash_map):
 
 def create_close_conn_obj(sock_fd):
     '''Returns objects to mark a client connection close'''
-    print "Creating close message for", sock_fd.fileno()
+    logging.debug("Creating close message for %d", sock_fd.fileno())
     return None, None
 
 
@@ -83,7 +86,8 @@ class UDSCommunicationManager(CommunicationManager):
     StatusCode = common_utils.enum(success=0, 
                                 close_connection=100, 
                                 try_again_later=101)
-    def __init__(self, uds_path, max_conn=10, select_timeout=5.0, *args, **kwargs):
+    def __init__(self, uds_path, max_conn=10, 
+                select_timeout=5.0, *args, **kwargs):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__(*args, **kwargs)
         unlink_uds_path(uds_path)
@@ -164,12 +168,12 @@ class UDSCommunicationManager(CommunicationManager):
 
     def __receive(self, sock_fd, size):
         '''Receives data for a given size from a socket'''
-        buf = ''
+        buf = b''
         status_code = UDSCommunicationManager.StatusCode.success
         while size > 0:
             try:
                 data = sock_fd.recv(size)
-                if data == '':
+                if data == b'':
                     status_code = \
                         UDSCommunicationManager.StatusCode.close_connection
                     break
