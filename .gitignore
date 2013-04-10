@@ -26,3 +26,9 @@ include
 src/protobuf/uds_msg.pb.*
 src/frontend/interposelib/uds_msg.pb.*
 src/frontend/interposelib/a.out
+
+#
+#Specific Py excludes
+#
+src/protobuf/uds_msg_pb2.py
+src/backend/opus/uds_msg_pb2.py
