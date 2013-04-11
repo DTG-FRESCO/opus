@@ -14,13 +14,14 @@ void send_startup_message(){
     char link[1024];
     char exe[1024];
     snprintf(link,sizeof(link),"/proc/%d/exe",getpid());
-    readlink(link,exe,sizeof(exe));
-    
-    start_msg.set_exec_name(exe);
+    if (readlink(link,exe,sizeof(exe)) >= 0) {
+        start_msg.set_exec_name(exe);
+    }    
 
     char *cwd = NULL;
-    cwd = getcwd(NULL,0);
-    start_msg.set_cwd(cwd);
+    if ((cwd = getcwd(NULL,0)) != NULL) {
+        start_msg.set_cwd(cwd);
+    }
 
     start_msg.set_cmd_line_args("");
     start_msg.set_user_name(getpwuid(getuid())->pw_name);
@@ -55,7 +56,8 @@ void deinitialise(){
 void initialise(){
     initialise_interposition_functions();
     ProcUtils::test_and_set_flag(true);
-    UDSCommClient::get_instance()->connect("./demo_socket");
-    send_startup_message();
-    ProcUtils::test_and_set_flag(false);
+    if (UDSCommClient::get_instance()->connect("./demo_socket")){
+        send_startup_message();
+        ProcUtils::test_and_set_flag(false);
+    }
 }

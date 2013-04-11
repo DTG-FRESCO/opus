@@ -35,7 +35,11 @@ void ProcUtils::serialise_and_send_data(const Message& msg_obj)
     return;
   }
 
-  msg_obj.SerializeToArray(buf, size);
+  if (!msg_obj.SerializeToArray(buf, size))
+  {
+    DEBUG_LOG("[%s:%d]: Failed to serialise to buffer\n", __FILE__, __LINE__);
+    return;
+  }
 
   if (!UDSCommClient::get_instance()->send_data(buf, size))
   {

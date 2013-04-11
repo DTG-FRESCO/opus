@@ -35,13 +35,13 @@ class TestGenBoiler(unittest.TestCase):
                           'ret': 'int'}])
         
     def test_broken_def(self):
-        funcs = ["int foo int a, int b)"]
+        func = "int foo int a, int b)"
         
         with self.assertRaises(gen_boiler.InvalidLineException):
-            gen_boiler.gather_funcs(funcs)
+            gen_boiler.match_func_in_line(func)
         
     def test_broken_args(self):
-        funcs = ["int foo(int a, b, glarg__! fet);"]
+        args = "int a, b, glarg__! fet"
         
         with self.assertRaises(gen_boiler.InvalidArgumentException):
-            gen_boiler.gather_funcs(funcs)
+            gen_boiler.match_args_from_list(args)

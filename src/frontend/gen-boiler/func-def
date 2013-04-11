@@ -63,20 +63,22 @@ int lchown(read const char *path, read uid_t owner, read gid_t group);
 int dup(read int oldfd);
 int dup2(read int oldfd, read int newfd);
 int dup3(read int oldfd, read int newfd, read int flags);
-int fstat(read int fd, struct stat *buf);
-int fstat64(read int fd, struct stat64 *buf);
 int ftruncate(read int fd, read off_t length);
 int ftruncate64(read int fd, read off64_t length);
-int lstat(read const char *path, struct stat *buf);
-int lstat64(read const char *path, struct stat64 *buf);
 int remove(read const char *pathname);
 int rename(read const char *oldpath, read const char *newpath);
-int stat(read const char *path, struct stat *buf);
-int stat64(read const char *path, struct stat64 *buf);
 int symlink(read const char *oldpath, read const char *newpath);
 int truncate(read const char *path, read off_t length);
 int truncate64(read const char *path, read off64_t length);
 int unlink(read const char *pathname);
+
+#Stat Functions
+int __fxstat(int __ver, read int fd, struct stat *buf);
+int __fxstat64(int __ver, read int fd, struct stat64 *buf);
+int __lxstat(int __ver, read const char *path, struct stat *buf);
+int __lxstat64(int __ver, read const char *path, struct stat64 *buf);
+int __xstat(int __ver, read const char *path, struct stat *buf);
+int __xstat64(int __ver, read const char *path, struct stat64 *buf);
 
 #Directory related functions
 

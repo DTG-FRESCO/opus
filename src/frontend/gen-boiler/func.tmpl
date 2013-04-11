@@ -21,6 +21,11 @@
 
 #define NUM_BUFF_SIZE 50
 
+#define DLSYM_CHECK(A) if ((A)==NULL){ \
+  DEBUG_LOG("Critical error, failed to dlsym a function correctly."); \
+  exit(1); \
+}
+
 {% for func in fn_list %}
 static {{func.ret}} (*real_{{func.name}})({{macros.fn_arg_types(func)}})=NULL;{% endfor %}
 
@@ -52,16 +57,16 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
   {% if arg.type == "char *" or arg.type == "const char *" -%}
     tmp_arg->set_value({{arg.name}});
   {%- elif arg.type == "FILE *" -%}
-    memset(buffer, 0, NUM_BUFF_SIZE);
-  snprintf(buffer, NUM_BUFF_SIZE-1, "%d", fileno({{arg.name}}));
+    memset(buffer, 0, sizeof buffer);
+  snprintf(buffer, (sizeof buffer)-1, "%d", fileno({{arg.name}}));
   tmp_arg->set_value(buffer);
   {%- elif arg.type == "uid_t" -%}
     tmp_arg->set_value(getpwuid({{arg.name}})->pw_name);
   {%- elif arg.type == "gid_t" -%}
     tmp_arg->set_value(getgrgid({{arg.name}})->gr_name);
   {%- else -%}
-    memset(buffer, 0, NUM_BUFF_SIZE);
-  snprintf(buffer, NUM_BUFF_SIZE-1, {{printf_map[arg.type]}}, {{arg.name}});
+    memset(buffer, 0, sizeof buffer);
+  snprintf(buffer, (sizeof buffer)-1, {{printf_map[arg.type]}}, {{arg.name}});
   tmp_arg->set_value(buffer);
 {%- endif -%}
 {%- endfor %}
@@ -101,6 +106,6 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
 {% endfor %}
 
 void initialise_interposition_functions() {
-{% for func in fn_list %}  real_{{func.name}} = ({{func.ret}}(*)({{macros.fn_arg_types(func)}}))dlsym(RTLD_NEXT, "{{func.name}}");{% if not loop.last %}{{"\n"}}{% endif %}{% endfor %}
+{% for func in fn_list %}  DLSYM_CHECK(real_{{func.name}} = ({{func.ret}}(*)({{macros.fn_arg_types(func)}}))dlsym(RTLD_NEXT, "{{func.name}}"));{% if not loop.last %}{{"\n"}}{% endif %}{% endfor %}
 }
 

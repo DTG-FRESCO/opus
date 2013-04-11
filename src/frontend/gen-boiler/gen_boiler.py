@@ -9,10 +9,16 @@ from __future__ import (unicode_literals, print_function,
                         absolute_import, division)
 
 import argparse
-import jinja2
 import logging
 import re
 import sys
+
+try:
+    import jinja2
+except ImportError:
+    print("Jinja2 module is not present!")
+    print("Please install the Jinja2 module.")
+    sys.exit(1)
 
 DEFINITION_REG = "([\w* _]+(?:\*| ))([\w_]+)\((.*?)\);"
 ARG_SPLIT_REG = ",*\s*([^,]+),*"
@@ -75,8 +81,7 @@ def match_args_from_list(args):
                     'name': arg_name,
                     'read': arg_read}
 
-        logging.info("Gathered argument from line: %s",
-                     arg_info)
+        logging.info("Gathered argument from line: %s", arg_info)
 
         ret += [arg_info]
     return ret
@@ -113,17 +118,45 @@ def gather_funcs(file_handle):
     for line in file_handle:
         if line == "\n" or line.startswith("#"):
             continue
-        (func_ret, func_name, func_args) = match_func_in_line(line)
+        try:
+            (func_ret, func_name, func_args) = match_func_in_line(line)
+        except FunctionParsingException:
+            logging.error("Failed to parse the following function definition: "
+                          "%s", line)
+            continue
 
         function_info = {'name': func_name,
                          'ret': func_ret,
                          'args': func_args}
 
-        logging.info("Gathered function from file: %s",
-                     function_info)
+        logging.info("Gathered function from file: %s", function_info)
 
         funcs += [function_info]
     return funcs
+
+
+def init_logging():
+    '''Setup the logging framework.'''
+    form_file = logging.Formatter(fmt="%(asctime)s %(levelname)s"
+                                      " L%(lineno)d -> %(message)s")
+    form_con = logging.Formatter(fmt="%(levelname)s:%(message)s")
+
+    logging.getLogger('').setLevel(logging.INFO)
+
+    hand_con = logging.StreamHandler()
+    hand_con.setLevel(logging.ERROR)
+    hand_con.setFormatter(form_con)
+    logging.getLogger('').addHandler(hand_con)
+
+    try:
+        hand_file = logging.FileHandler("gen_boiler.log","w")
+    except IOError as exc:
+        logging.error("Failed to open log file.")
+        logging.error(exc)
+    else:
+        hand_file.setLevel(logging.INFO)
+        hand_file.setFormatter(form_file)
+        logging.getLogger('').addHandler(hand_file)
 
 
 def main():
@@ -131,9 +164,8 @@ def main():
     function definitions then renders the two templates using the information
     extracted.'''
 
-    logging.basicConfig(filename='gen_boiler.log',
-                        filemode="w",
-                        level=logging.INFO)
+    init_logging()
+
     parser = argparse.ArgumentParser(description="Creates a set of "
                                      "interposition functions from "
                                      "a description file.")
@@ -154,37 +186,54 @@ def main():
         file_handle = sys.stdin
     else:
         logging.info("Using %s as function definition source.", args.input_file)
-        file_handle = open(args.input_file, "rt")
+        try:
+            file_handle = open(args.input_file, "rt")
+        except IOError as exc:
+            logging.critical("Failed to open input file %s.", args.input_file)
+            logging.critical(exc)
+            return None
 
     logging.info("Gathering function definitions from the source locaiton.")
-    try:
-        funcs = gather_funcs(file_handle)
-    except FunctionParsingException:
-        return None
-
+    
+    funcs = gather_funcs(file_handle)
+    
     file_handle.close()
 
     logging.info("Initialising the Jinja template loader.")
     env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
 
     logging.info("Beginning rendering of header file.")
-    with open(args.output_dest + ".h", "wt") as header_file:
-        logging.info("Rendering the header template to the header file %s.",
-                     args.output_dest + ".h")
-        header_tmpl = env.get_template("header.tmpl")
-        header_file.write(header_tmpl.render(fn_list=funcs))
-    logging.info("Completing redering of header file.")
+    try:
+        header_name = args.output_dest + ".h"
+        with open(header_name, "wt") as header_file:
+            logging.info("Rendering the header template to the header file %s.",
+                         header_name)
+            header_tmpl = env.get_template("header.tmpl")
+            header_file.write(header_tmpl.render(fn_list=funcs))
+    except IOError as exc:
+        logging.critical("Failed to open header output file %s.", header_name)
+        logging.critical(exc)
+        return None
+    logging.info("Completing rendering of header file.")
 
     logging.info("Beginning rendering of object file.")
-    with open(args.output_dest + ".C", "wt") as object_file:
-        logging.info("Rendering the object template to the object file %s.",
-                     args.output_dest + ".C")
-        object_tmpl = env.get_template("func.tmpl")
-        object_file.write(object_tmpl.render(fn_list=funcs,
-                                             printf_map=PRINTF_MAP)
-                          )
+    try:
+        object_name = args.output_dest + ".C"
+        with open(object_name, "wt") as object_file:
+            logging.info("Rendering the object template to the object file %s.",
+                         object_name)
+            object_tmpl = env.get_template("func.tmpl")
+            object_file.write(object_tmpl.render(fn_list=funcs,
+                                                 printf_map=PRINTF_MAP)
+                                                )
+    except IOError as exc:
+        logging.critical("Failed to open object output file %s.", object_name)
+        logging.critical(exc)
+        return None
     logging.info("Completing rendering of object file.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    if main() is None:
+        sys.exit(1)
