@@ -6,7 +6,10 @@ be used by multiple modules in the OPUS backend
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import os
 import copy
+import ctypes
+import logging
 import threading
 import functools
 import uds_msg_pb2
@@ -21,6 +24,7 @@ class OPUSException(Exception):
     def __str__(self):
         '''Return message'''
         return self.msg
+
 
 class InvalidTagException(OPUSException):
     '''Exception class to handle invalid tags'''
@@ -46,6 +50,34 @@ class FixedDict(object):
             raise KeyError("The key {} is not defined.".format(key))
         return self._dictionary[key]
 
+
+class ClockConstant(object):
+    '''Clock type values from from <linux/time.h>'''
+    CLOCK_MONOTONIC = 1
+    CLOCK_MONOTONIC_RAW = 4
+
+
+class Timespec(ctypes.Structure):
+    '''Describes the fields in timespec structure'''
+    _fields_ = [ ('tv_sec', ctypes.c_long), ('tv_nsec', ctypes.c_long) ]
+
+
+def monotonic_time(clock_type):
+    '''Takes a clock type and returns the appropriate time in nano secs'''
+    if not hasattr(monotonic_time, "clock_gettime"):
+        librt = ctypes.CDLL('librt.so.1', use_errno=True)
+        monotonic_time.clock_gettime = librt.clock_gettime
+        monotonic_time.clock_gettime.argtypes = \
+                [ctypes.c_int, ctypes.POINTER(Timespec)]
+
+    _time = Timespec()
+    if monotonic_time.clock_gettime(clock_type, 
+                            ctypes.pointer(_time)) != 0:
+        _errno = ctypes.get_errno()
+        raise OSError(_errno, os.strerror(_errno))
+    return _time.tv_sec * 1000000000L + _time.tv_nsec
+
+
 def meta_factory(base, tag, *args, **kwargs):
     '''Return an instance of the class 
     derived from base with the name "tag"'''
@@ -62,6 +94,7 @@ def meta_factory(base, tag, *args, **kwargs):
         if sub_class.__name__ == tag:
             return sub_class(*args, **kwargs)
     raise InvalidTagException(tag)
+
 
 def enum(**enums):
     '''Returns an enum class object'''
@@ -87,18 +120,21 @@ def header_size():
     header = uds_msg_pb2.Header()
     header.timestamp = 0
     header.pid = 0
-    header.start_msg_len = 0
-    header.lib_msg_len = 0
-    header.func_msg_len = 0
+    header.payload_type = 0
+    header.payload_len = 0
     header_size.size = header.ByteSize()
     return header_size.size
 
 
 def get_payload_type(header):
-    '''Returns the paylod size and appropriate payload object'''
-    if header.start_msg_len > 0:
-        return header.start_msg_len, uds_msg_pb2.StartupMessage()
-    if header.lib_msg_len > 0:
-        return header.lib_msg_len, uds_msg_pb2.LibInfoMessage()
-    if header.func_msg_len > 0:
-        return header.func_msg_len, uds_msg_pb2.FuncInfoMessage()
+    '''Returns the appropriate payload object'''
+    if header.payload_type == uds_msg_pb2.STARTUP_MSG:
+        return uds_msg_pb2.StartupMessage()
+    elif header.payload_type == uds_msg_pb2.LIBINFO_MSG:
+        return uds_msg_pb2.LibInfoMessage()
+    elif header.payload_type == uds_msg_pb2.FUNCINFO_MSG:
+        return uds_msg_pb2.FuncInfoMessage()
+    elif header.payload_type == uds_msg_pb2.GENERIC_MSG:
+        return uds_msg_pb2.GenericMessage()
+    else:
+        logging.error("Invalid payload type %d", header.payload_type)
