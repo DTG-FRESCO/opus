@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division,
 import os
 import struct
 import errno
+import time
 import socket
 import select
 import logging
@@ -20,6 +21,7 @@ import threading
 
 import uds_msg_pb2
 import common_utils
+import custom_time
 
 
 def unlink_uds_path(path):
@@ -57,6 +59,18 @@ def reset_stash(stash_map):
     stash_map['payload'] = None
     stash_map['payload_object'] = None
 
+def mono_time_in_nanosecs():
+    '''Returns a monotonic time if 
+    available, else returns 0'''
+    ret_time = 0
+
+    if hasattr(time, 'clock_gettime'):
+        try:
+            ret_time = int(time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1e+9)
+        except OSError as (_errno, err_msg):
+            logging.error("Error: %d, Message: %s", _errno, err_msg)
+
+    return ret_time
 
 def create_close_conn_obj(sock_fd):
     '''Returns objects to mark a client connection close'''
@@ -65,14 +79,11 @@ def create_close_conn_obj(sock_fd):
 
     gen_msg = uds_msg_pb2.GenericMessage()
     gen_msg.msg_type = uds_msg_pb2.DISCON
-    gen_msg.msg_desc = \
-                "Client socket: %d disconnected" % (sock_fd.fileno())
+    gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
     gen_msg.sys_time = str(datetime.datetime.now())
 
     header = uds_msg_pb2.Header()
-    header.timestamp = \
-                common_utils.monotonic_time\
-                (common_utils.ClockConstant.CLOCK_MONOTONIC_RAW)
+    header.timestamp = mono_time_in_nanosecs()
     header.pid = pid
     header.payload_type = uds_msg_pb2.GENERIC_MSG
     header.payload_len = gen_msg.ByteSize()
@@ -264,6 +275,7 @@ class Producer(threading.Thread):
         super(Producer, self).__init__()
         self.analyser = analyser_obj
         self.stop_event = threading.Event()
+        custom_time.patch_custom_monotonic_time()
 
     def run(self):
         '''Override in the derived class'''
@@ -319,35 +331,35 @@ class SocketProducer(Producer):
 
 # Uncomment for testing purposes
 #if __name__ == "__main__":
-#  import sys
-#  import time
-#  import analysis
-#  logging.basicConfig(format='%(asctime)s L%(lineno)d %(message)s', 
+#    import sys
+#    import time
+#    import analysis
+#    logging.basicConfig(format='%(asctime)s L%(lineno)d %(message)s', 
 #                      datefmt='%m/%d/%Y %H:%M:%S', level=logging.DEBUG)
-#  try:
-#      args_to_analyser = {}
-#      args_to_analyser["log_path"] = "prov_log.dat"
-#      analyser_object = analysis.LoggingAnalyser(**(args_to_analyser))
-
-#      socket_prod_args = {}
-#      socket_prod_args["analyser_obj"] = analyser_object
-#      socket_prod_args["comm_mgr_type"] = "UDSCommunicationManager"
-#      socket_prod_args["comm_mgr_args"] = {"uds_path": "./demo_socket",
+#    try:
+#        args_to_analyser = {}
+#        args_to_analyser["log_path"] = "prov_log.dat"
+#        analyser_object = analysis.LoggingAnalyser(**(args_to_analyser))
+#
+#        socket_prod_args = {}
+#        socket_prod_args["analyser_obj"] = analyser_object
+#        socket_prod_args["comm_mgr_type"] = "UDSCommunicationManager"
+#        socket_prod_args["comm_mgr_args"] = {"uds_path": "./demo_socket",
 #                                           "max_conn": 50,
 #                                           "select_timeout": 2}
-#      producer_object = SocketProducer(**(socket_prod_args))
-#  except common_utils.OPUSException as message:
-#      logging.error(message)
-#      sys.exit(1) # Depends on how the DaemonManager handles this
-#  except TypeError as err:
-#      logging.error(str(err))
-
-#  producer_object.start()
-#  time.sleep(20)
-#  #new_analyser = analysis.DummyAnalyser()
-#  #old_analyser = producer_object.switch_analyser(new_analyser)
-#  #old_analyser.do_shutdown()
-#  #time.sleep(10)
-#  producer_object.do_shutdown()
-#  producer_object.join()
-#  logging.debug("Exiting master thread")
+#        producer_object = SocketProducer(**(socket_prod_args))
+#    except common_utils.OPUSException as message:
+#        logging.error(message)
+#        sys.exit(1) # Depends on how the DaemonManager handles this
+#    except TypeError as err:
+#        logging.error(str(err))
+#
+#    producer_object.start()
+#    time.sleep(20)
+#    #new_analyser = analysis.DummyAnalyser()
+#    #old_analyser = producer_object.switch_analyser(new_analyser)
+#    #old_analyser.do_shutdown()
+#    #time.sleep(10)
+#    producer_object.do_shutdown()
+#    producer_object.join()
+#    logging.debug("Exiting master thread")

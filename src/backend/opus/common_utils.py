@@ -6,9 +6,7 @@ be used by multiple modules in the OPUS backend
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-import os
 import copy
-import ctypes
 import logging
 import threading
 import functools
@@ -49,33 +47,6 @@ class FixedDict(object):
         if key not in self._dictionary:
             raise KeyError("The key {} is not defined.".format(key))
         return self._dictionary[key]
-
-
-class ClockConstant(object):
-    '''Clock type values from from <linux/time.h>'''
-    CLOCK_MONOTONIC = 1
-    CLOCK_MONOTONIC_RAW = 4
-
-
-class Timespec(ctypes.Structure):
-    '''Describes the fields in timespec structure'''
-    _fields_ = [ ('tv_sec', ctypes.c_long), ('tv_nsec', ctypes.c_long) ]
-
-
-def monotonic_time(clock_type):
-    '''Takes a clock type and returns the appropriate time in nano secs'''
-    if not hasattr(monotonic_time, "clock_gettime"):
-        librt = ctypes.CDLL('librt.so.1', use_errno=True)
-        monotonic_time.clock_gettime = librt.clock_gettime
-        monotonic_time.clock_gettime.argtypes = \
-                [ctypes.c_int, ctypes.POINTER(Timespec)]
-
-    _time = Timespec()
-    if monotonic_time.clock_gettime(clock_type, 
-                            ctypes.pointer(_time)) != 0:
-        _errno = ctypes.get_errno()
-        raise OSError(_errno, os.strerror(_errno))
-    return _time.tv_sec * 1000000000L + _time.tv_nsec
 
 
 def meta_factory(base, tag, *args, **kwargs):
