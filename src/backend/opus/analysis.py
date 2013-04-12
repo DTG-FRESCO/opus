@@ -10,7 +10,8 @@ from __future__ import (absolute_import, division,
 import os
 import logging
 import threading
-import common_utils
+
+from opus import common_utils
 
 class Analyser(threading.Thread):
     '''Base class for the analyser'''

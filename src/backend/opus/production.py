@@ -9,15 +9,17 @@ data from connected clients.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-import os
-import struct
+
 import errno
-import threading
-import socket
-import select
 import logging
-import uds_msg_pb2
-import common_utils
+import os
+import select
+import socket
+import struct
+import threading
+
+from opus import (common_utils, uds_msg_pb2)
+
 
 def unlink_uds_path(path):
     '''Remove UDS link'''
