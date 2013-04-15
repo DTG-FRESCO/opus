@@ -1,0 +1,15 @@
+{% import 'macros.tmpl' as macros -%}
+#ifndef SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
+#define SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
+
+#include "uds_msg.pb.h"
+
+typedef ::fresco::opus::IPCMessage::KVPair KVPair;
+typedef ::fresco::opus::IPCMessage::FuncInfoMessage FuncInfoMessage;
+typedef ::fresco::opus::IPCMessage::Header HeaderMessage;
+typedef ::google::protobuf::Message Message;
+
+void initialise_interposition_functions();
+
+#endif  // SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
+

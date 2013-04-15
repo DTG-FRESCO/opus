@@ -1,0 +1,17 @@
+{% macro fn_arg_types(fn) -%}
+   {%- for arg in fn.args -%}
+       {{arg.type}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+   {%- endfor -%}
+{%- endmacro %}
+
+{% macro fn_arg_def(fn) -%}
+   {%- for arg in fn.args -%}
+       {{arg.type~" "~arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+   {%- endfor -%}
+{%- endmacro %}
+
+{% macro fn_arg_call(fn) -%}
+   {% for arg in fn.args -%}
+      {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+   {%- endfor -%}
+{%- endmacro %}
