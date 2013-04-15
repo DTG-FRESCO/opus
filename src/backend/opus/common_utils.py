@@ -13,6 +13,10 @@ import functools
 from opus import uds_msg_pb2
 
 
+'''Number of seconds to wait for a thread to join on shutdown.'''
+THREAD_JOIN_SLACK = 30
+
+
 class OPUSException(Exception):
     '''Simple exception handling class'''
     def __init__(self, msg):

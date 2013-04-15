@@ -269,9 +269,15 @@ class Producer(threading.Thread):
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
-        self.analyser.do_shutdown()
         logging.debug("Shutting down thread....")
         self.stop_event.set()
+        try:
+            self.join(common_utils.THREAD_JOIN_SLACK)
+        except RuntimeError as exc:
+            logging.error("Failed to shutdown thread sucessfully.")
+            logging.error(exc)
+            return False
+        return not self.isAlive()
 
 
 class SocketProducer(Producer):
