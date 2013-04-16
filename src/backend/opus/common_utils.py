@@ -10,7 +10,8 @@ import copy
 import logging
 import threading
 import functools
-import uds_msg_pb2
+
+from opus import uds_msg_pb2
 
 
 class OPUSException(Exception):

@@ -19,10 +19,7 @@ import logging
 import datetime
 import threading
 
-import uds_msg_pb2
-import common_utils
-import custom_time
-
+from opus import (uds_msg_pb2, common_utils)
 
 def unlink_uds_path(path):
     '''Remove UDS link'''
@@ -275,7 +272,6 @@ class Producer(threading.Thread):
         super(Producer, self).__init__()
         self.analyser = analyser_obj
         self.stop_event = threading.Event()
-        custom_time.patch_custom_monotonic_time()
 
     def run(self):
         '''Override in the derived class'''
@@ -328,38 +324,3 @@ class SocketProducer(Producer):
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
         super(SocketProducer, self).do_shutdown()
-
-# Uncomment for testing purposes
-#if __name__ == "__main__":
-#    import sys
-#    import time
-#    import analysis
-#    logging.basicConfig(format='%(asctime)s L%(lineno)d %(message)s', 
-#                      datefmt='%m/%d/%Y %H:%M:%S', level=logging.DEBUG)
-#    try:
-#        args_to_analyser = {}
-#        args_to_analyser["log_path"] = "prov_log.dat"
-#        analyser_object = analysis.LoggingAnalyser(**(args_to_analyser))
-#
-#        socket_prod_args = {}
-#        socket_prod_args["analyser_obj"] = analyser_object
-#        socket_prod_args["comm_mgr_type"] = "UDSCommunicationManager"
-#        socket_prod_args["comm_mgr_args"] = {"uds_path": "./demo_socket",
-#                                           "max_conn": 50,
-#                                           "select_timeout": 2}
-#        producer_object = SocketProducer(**(socket_prod_args))
-#    except common_utils.OPUSException as message:
-#        logging.error(message)
-#        sys.exit(1) # Depends on how the DaemonManager handles this
-#    except TypeError as err:
-#        logging.error(str(err))
-#
-#    producer_object.start()
-#    time.sleep(20)
-#    #new_analyser = analysis.DummyAnalyser()
-#    #old_analyser = producer_object.switch_analyser(new_analyser)
-#    #old_analyser.do_shutdown()
-#    #time.sleep(10)
-#    producer_object.do_shutdown()
-#    producer_object.join()
-#    logging.debug("Exiting master thread")
