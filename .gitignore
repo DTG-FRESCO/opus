@@ -13,6 +13,11 @@
 *~
 
 #
+#Ignore Config Files
+#
+src/backend/config.yaml
+
+#
 #C Ignores
 #
 *.o
