@@ -10,13 +10,13 @@
 
 void send_startup_message(){
     StartupMessage start_msg;
-    
+
     char link[1024];
     char exe[1024];
     snprintf(link,sizeof(link),"/proc/%d/exe",getpid());
     if (readlink(link,exe,sizeof(exe)) >= 0) {
         start_msg.set_exec_name(exe);
-    }    
+    }
 
     char *cwd = NULL;
     if ((cwd = getcwd(NULL,0)) != NULL) {
@@ -37,9 +37,8 @@ void send_startup_message(){
     HeaderMessage hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_start_msg_len(msg_size);
-    hdr_msg.set_lib_msg_len((uint64_t)0);
-    hdr_msg.set_func_msg_len((uint64_t)0);
+    hdr_msg.set_payload_type(PayloadType::STARTUP_MSG);
+    hdr_msg.set_payload_len(msg_size);
 
     ProcUtils::serialise_and_send_data(hdr_msg);
     ProcUtils::serialise_and_send_data(start_msg);
@@ -56,6 +55,7 @@ void deinitialise(){
 void initialise(){
     ProcUtils::test_and_set_flag(true);
     initialise_interposition_functions();
+
     if (UDSCommClient::get_instance()->connect("./demo_socket")){
         send_startup_message();
         ProcUtils::test_and_set_flag(false);
