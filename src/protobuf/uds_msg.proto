@@ -1,5 +1,17 @@
 package fresco.opus.IPCMessage;
 
+enum PayloadType {
+    STARTUP_MSG = 1;
+    LIBINFO_MSG = 2;
+    FUNCINFO_MSG = 3;
+    GENERIC_MSG = 4;
+}
+
+enum GenMsgType {
+    DISCON = 1; // Client disconnect
+    SIGNAL = 2; // Unix signals recived by application
+}
+
 message KVPair {
     optional string key = 1;
     optional string value = 2;
@@ -8,9 +20,8 @@ message KVPair {
 message Header {
     required fixed64 timestamp = 1;
     required fixed64 pid = 2;
-    required fixed64 start_msg_len = 8;
-    required fixed64 lib_msg_len = 9;
-    required fixed64 func_msg_len = 10;
+    required PayloadType payload_type = 3;
+    required fixed64 payload_len = 4;
 }
 
 message StartupMessage {
@@ -34,4 +45,10 @@ message FuncInfoMessage {
     optional int64 begin_time = 4;
     optional int64 end_time = 5;
     optional int64 error_num = 6;
+}
+
+message GenericMessage {
+    optional GenMsgType msg_type = 1; // Type of generic message
+    optional string msg_desc = 2; // Description of the message
+    optional string sys_time = 3; // Formatted system date time
 }

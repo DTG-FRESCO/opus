@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
+import datetime
 import errno
 import logging
 import os
@@ -17,6 +18,7 @@ import select
 import socket
 import struct
 import threading
+import time
 
 from opus import (common_utils, uds_msg_pb2)
 
@@ -56,12 +58,36 @@ def reset_stash(stash_map):
     stash_map['payload'] = None
     stash_map['payload_object'] = None
 
+def mono_time_in_nanosecs():
+    '''Returns a monotonic time if 
+    available, else returns 0'''
+    ret_time = 0
+
+    if hasattr(time, 'clock_gettime'):
+        try:
+            ret_time = int(time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1e+9)
+        except OSError as (_errno, err_msg):
+            logging.error("Error: %d, Message: %s", _errno, err_msg)
+
+    return ret_time
 
 def create_close_conn_obj(sock_fd):
     '''Returns objects to mark a client connection close'''
     logging.debug("Creating close message for %d", sock_fd.fileno())
-    return None, None
+    pid, _, _ = get_credentials(sock_fd)
 
+    gen_msg = uds_msg_pb2.GenericMessage()
+    gen_msg.msg_type = uds_msg_pb2.DISCON
+    gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
+    gen_msg.sys_time = str(datetime.datetime.now())
+
+    header = uds_msg_pb2.Header()
+    header.timestamp = mono_time_in_nanosecs()
+    header.pid = pid
+    header.payload_type = uds_msg_pb2.GENERIC_MSG
+    header.payload_len = gen_msg.ByteSize()
+
+    return header.SerializeToString(), gen_msg.SerializeToString()
 
 def check_mailbox():
     '''Check for local messages'''
@@ -88,6 +114,7 @@ class UDSCommunicationManager(CommunicationManager):
     StatusCode = common_utils.enum(success=0, 
                                 close_connection=100, 
                                 try_again_later=101)
+
     def __init__(self, uds_path, max_conn=10, 
                 select_timeout=5.0, *args, **kwargs):
         '''Initialize the class members'''
@@ -136,7 +163,6 @@ class UDSCommunicationManager(CommunicationManager):
 
         return ret_list
 
-
     def __handle_client(self, sock_fd, ret_list):
         '''Receives data from client or closes the client connection'''
         status_code = self.__read_data(sock_fd)
@@ -165,8 +191,6 @@ class UDSCommunicationManager(CommunicationManager):
         client_fd.setblocking(0) # Make the socket non-blocking
         self.input_fds.append(client_fd) # Add it to the input fd list
         self.msg_stash_map[client_fd] = stash_template()
-
-
 
     def __receive(self, sock_fd, size):
         '''Receives data for a given size from a socket'''
@@ -227,9 +251,9 @@ class UDSCommunicationManager(CommunicationManager):
             logging.debug("Header: %s", header.__str__())
 
             # Find out the payload length and type
-            payload_size, payload = common_utils.get_payload_type(header)
+            payload = common_utils.get_payload_type(header)
             stash_ref['payload_object'] = payload
-            stash_ref['payload_len'] = payload_size
+            stash_ref['payload_len'] = header.payload_len
             return self.__get_payload(sock_fd, stash_ref)
 
         # We already have a header, now receive the payload
@@ -308,38 +332,3 @@ class SocketProducer(Producer):
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
         super(SocketProducer, self).do_shutdown()
-
-## Uncomment for testing purposes
-#if __name__ == "__main__":
-#    import sys
-#    import time
-#    import analysis
-#    logging.basicConfig(format='%(asctime)s L%(lineno)d %(message)s', 
-#                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.DEBUG)
-#    try:
-#        args_to_analyser = {}
-#        args_to_analyser["log_path"] = "prov_log.dat"
-#        analyser_object = analysis.LoggingAnalyser(**(args_to_analyser))
-#
-#        socket_prod_args = {}
-#        socket_prod_args["analyser_obj"] = analyser_object
-#        socket_prod_args["comm_mgr_type"] = "UDSCommunicationManager"
-#        socket_prod_args["comm_mgr_args"] = {"uds_path": "./demo_socket",
-#                                             "max_conn": 50,
-#                                             "select_timeout": 2}
-#        producer_object = SocketProducer(**(socket_prod_args))
-#    except common_utils.OPUSException as message:
-#        logging.error(message)
-#        sys.exit(1) # Depends on how the DaemonManager handles this
-#    except TypeError as err:
-#        logging.error(str(err))
-#
-#    producer_object.start()
-#    time.sleep(20)
-#    #new_analyser = analysis.DummyAnalyser()
-#    #old_analyser = producer_object.switch_analyser(new_analyser)
-#    #old_analyser.do_shutdown()
-#    #time.sleep(10)
-#    producer_object.do_shutdown()
-#    producer_object.join()
-#    logging.debug("Exiting master thread")
