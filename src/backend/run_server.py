@@ -19,7 +19,7 @@ except ImportError:
     sys.exit(1)
 
 
-class InvalidConfigFileException(Exception):
+class InvalidConfigFileException(common_utils.OPUSException):
     '''Error in the formatting or content of the systems config file.'''
     def __init__(self):
         super(InvalidConfigFileException, self).__init__()
@@ -142,6 +142,13 @@ def init_logging():
     logging.getLogger('').addHandler(hand_con)
 
 
+def command_help():
+    print("======Commands======\n"
+                  "Analyser Set    -> set\n"
+                  "Analyser Type   -> type\n"
+                  "Quit            -> quit\n"
+                  "Help            -> ?\n")
+
 def main():
     '''Main loop method, creates the mock daemon manager then loops for user
     input calling methods of the daemon manager as appropriate. Finally calls
@@ -154,16 +161,13 @@ def main():
     except InvalidConfigFileException:
         return
 
+    command_help()
     while True:
         command = raw_input("Enter Command:")
         if command == "quit":
             break
         elif command == "?":
-            print("======Commands======\n"
-                  "Analyser Set    -> set\n"
-                  "Analyser Type   -> type\n"
-                  "Quit            -> quit\n"
-                  "Help            -> ?")
+            command_help()
         elif command == "type":
             print(daemon_manager.dbus_get_analyser())
         elif command == "set":
