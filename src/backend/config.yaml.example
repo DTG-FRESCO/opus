@@ -1,0 +1,13 @@
+MODULES:
+  Producer: SocketProducer
+  Analyser: LoggingAnalyser
+PRODUCERS:
+  SocketProducer:
+    comm_mgr_type: UDSCommunicationManager
+    comm_mgr_args:
+        uds_path: ./demo_socket
+        max_conn: 10
+        select_timeout: 5.0
+ANALYSERS:
+  LoggingAnalyser:
+    log_path: ./prov.log
