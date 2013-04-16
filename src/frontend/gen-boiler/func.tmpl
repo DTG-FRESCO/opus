@@ -90,9 +90,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
   HeaderMessage hdr_msg;
   hdr_msg.set_timestamp(current_time);
   hdr_msg.set_pid((uint64_t)getpid());
-  hdr_msg.set_start_msg_len((uint64_t)0);
-  hdr_msg.set_lib_msg_len((uint64_t)0);
-  hdr_msg.set_func_msg_len(msg_size);
+  hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
+  hdr_msg.set_payload_len(msg_size);
 
   ProcUtils::serialise_and_send_data(hdr_msg);
   ProcUtils::serialise_and_send_data(func_msg);
