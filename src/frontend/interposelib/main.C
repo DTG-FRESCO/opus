@@ -14,6 +14,9 @@ void send_startup_message(){
     char link[1024];
     char exe[1024];
 
+    memset(link, 0, sizeof(link));
+    memset(exe, 0, sizeof(exe));
+
     snprintf(link,sizeof(link),"/proc/%d/exe",getpid());
     if (readlink(link,exe,sizeof(exe)) >= 0) {
         start_msg.set_exec_name(exe);
@@ -56,7 +59,7 @@ void deinitialise(){
 void initialise(){
     ProcUtils::test_and_set_flag(true);
 
-    if (UDSCommClient::get_instance()->connect("/auto/homes/nb466/opus/src/backend/demo_socket")){
+    if (UDSCommClient::get_instance()->connect("./demo_socket")){
         send_startup_message();
         ProcUtils::test_and_set_flag(false);
     }
