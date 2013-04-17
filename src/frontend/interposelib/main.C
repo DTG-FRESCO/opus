@@ -54,7 +54,6 @@ void deinitialise(){
 
 void initialise(){
     ProcUtils::test_and_set_flag(true);
-    initialise_interposition_functions();
 
     if (UDSCommClient::get_instance()->connect("./demo_socket")){
         send_startup_message();
