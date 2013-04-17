@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
+#include <string>
 
 #include "log.h"
 #include "proc_utils.h"
@@ -26,12 +27,78 @@
   if ((error = dlerror()) != NULL){ \
     DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, error); \
   } \
-  exit(1); \
+  exit(EXIT_FAILURE); \
 }
 
 {% for func in fn_list %}
 static {{func.ret}} (*real_{{func.name}})({{macros.fn_arg_types(func)}})=NULL;{% endfor %}
 
+
+static void set_user_name(KVPair*& tmp_arg, const uid_t user_id)
+{
+    struct passwd pwd;
+    struct passwd *result;
+    char *buf = NULL;
+    size_t bufsize = -1;
+
+    bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufsize <= 0) bufsize = 1024;
+
+    buf = (char*)malloc(bufsize);
+    if (buf == NULL)
+    {
+        DEBUG_LOG("[%s:%d]: malloc: %s\n", __FILE__, __LINE__, strerror(errno));
+        tmp_arg->set_value("");
+        return;
+    }
+
+    int ret = getpwuid_r(user_id, &pwd, buf, bufsize, &result);
+    if (result == NULL)
+    {
+        if (ret == 0) DEBUG_LOG("[%s:%d]: User not found\n", __FILE__,__LINE__);
+        else DEBUG_LOG("[%s:%d]: Error: %s\n", __FILE__, __LINE__, strerror(errno));
+
+        tmp_arg->set_value("");
+        free(buf);
+        return;
+    }
+
+    tmp_arg->set_value(pwd.pw_name);
+    free(buf);
+}
+
+static void set_group_name(KVPair*& tmp_arg, const gid_t group_id)
+{
+    struct group grp;
+    struct group *result;
+    char *buf = NULL;
+    size_t bufsize = -1;
+
+    bufsize = sysconf(_SC_GETGR_R_SIZE_MAX);
+    if (bufsize <= 0) bufsize = 1024;
+
+    buf = (char*)malloc(bufsize);
+    if (buf == NULL)
+    {
+        DEBUG_LOG("[%s:%d]: malloc: %s\n", __FILE__, __LINE__, strerror(errno));
+        tmp_arg->set_value("");
+        return;
+    }
+
+    int ret = getgrgid_r(group_id, &grp, buf, bufsize, &result);
+    if (result == NULL)
+    {
+        if (ret == 0) DEBUG_LOG("[%s:%d]: Group not found\n", __FILE__,__LINE__);
+        else DEBUG_LOG("[%s:%d]: Error: %s\n", __FILE__, __LINE__, strerror(errno));
+
+        tmp_arg->set_value("");
+        free(buf);
+        return;
+    }
+
+    tmp_arg->set_value(grp.gr_name);
+    free(buf);
+}
 
 {% for func in fn_list -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
@@ -49,7 +116,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
   uint64_t start_time = ProcUtils::get_time();
 {% for arg in func.args if arg.read %}
   {% if arg.type == "FILE *" -%}
-    int {{arg.name}}_fd = fileno({{arg.name}});
+  int {{arg.name}}_fd = -1;
+  if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
   {%- endif -%}
 {%- endfor %}
   {% if func.ret != "void" -%}
@@ -70,15 +138,19 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
   tmp_arg = func_msg.add_args();
   tmp_arg->set_key("{{arg.name}}");
   {% if arg.type == "char *" or arg.type == "const char *" -%}
-    tmp_arg->set_value({{arg.name}});
+    std::string {{arg.name}}_value;
+    if ({{arg.name}}) {{arg.name}}_value = {{arg.name}};
+    tmp_arg->set_value({{arg.name}}_value);
   {%- elif arg.type == "FILE *" -%}
     memset(buffer, 0, sizeof buffer);
   snprintf(buffer, (sizeof buffer)-1, "%d", {{arg.name}}_fd);
   tmp_arg->set_value(buffer);
   {%- elif arg.type == "uid_t" -%}
-    tmp_arg->set_value(getpwuid({{arg.name}})->pw_name);
+    set_user_name(tmp_arg, {{arg.name}});
+    //tmp_arg->set_value(getpwuid({{arg.name}})->pw_name);
   {%- elif arg.type == "gid_t" -%}
-    tmp_arg->set_value(getgrgid({{arg.name}})->gr_name);
+    set_group_name(tmp_arg, {{arg.name}});
+    //tmp_arg->set_value(getgrgid({{arg.name}})->gr_name);
   {%- else -%}
     memset(buffer, 0, sizeof buffer);
   snprintf(buffer, (sizeof buffer)-1, {{printf_map[arg.type]}}, {{arg.name}});
@@ -87,7 +159,9 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}}) {
 {%- endfor %}
 
   {% if func.ret == "FILE *" -%}
-    func_msg.set_ret_val(fileno(ret));
+    int ret_val = -1;
+    if (ret) ret_val = fileno(ret);
+    func_msg.set_ret_val(ret_val);
   {%- elif func.ret != "char *" and func.ret != "void" -%}
     func_msg.set_ret_val(ret);
   {%- endif %}

@@ -4,7 +4,7 @@ INSDIR	:= $(TOP)
 
 LIBNAME	:= override
 
-CFLAGS2 := $(CFLAGS2) -DDEBUG -g -shared -fPIC
+CFLAGS2 := $(CFLAGS2) -Wall -DDEBUG -g -shared -fPIC
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 #CFLAGS2 := $(CFLAGS2) -ldl -lrt -lprotobuf
