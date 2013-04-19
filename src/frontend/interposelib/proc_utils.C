@@ -10,7 +10,7 @@
 #include "uds_client.h"
 
 
-bool ProcUtils::in_func_flag = false;
+bool ProcUtils::in_func_flag = true;
 
 uint64_t ProcUtils::get_time()
 {
@@ -26,34 +26,34 @@ uint64_t ProcUtils::get_time()
 
 void ProcUtils::serialise_and_send_data(const Message& msg_obj)
 {
-  int size = msg_obj.ByteSize();
+    int size = msg_obj.ByteSize();
 
-  void* buf = malloc(size);
-  if (buf == NULL)
-  {
-    DEBUG_LOG("[%s:%d]: Failed to allocate buffer\n", __FILE__, __LINE__);
-    return;
-  }
+    void* buf = malloc(size);
+    if (buf == NULL)
+    {
+        DEBUG_LOG("[%s:%d]: Failed to allocate buffer\n", __FILE__, __LINE__);
+        return;
+    }
 
-  if (!msg_obj.SerializeToArray(buf, size))
-  {
-    DEBUG_LOG("[%s:%d]: Failed to serialise to buffer\n", __FILE__, __LINE__);
-    return;
-  }
+    if (!msg_obj.SerializeToArray(buf, size))
+    {
+        DEBUG_LOG("[%s:%d]: Failed to serialise to buffer\n", __FILE__, __LINE__);
+        return;
+    }
 
-  if (!UDSCommClient::get_instance()->send_data(buf, size))
-  {
-    DEBUG_LOG("[%s:%d]: Sending data failed\n", __FILE__, __LINE__);
+    if (!UDSCommClient::get_instance()->send_data(buf, size))
+    {
+        DEBUG_LOG("[%s:%d]: Sending data failed\n", __FILE__, __LINE__);
+        free(buf);
+        return;
+    }
+
     free(buf);
-    return;
-  }
-
-  free(buf);
 }
 
-/* 
-    Returns true if we are already 
-    inside an overridden libc function
+/*
+   Returns true if we are already 
+   inside an overridden libc function
 */
 bool ProcUtils::test_and_set_flag(const bool value)
 {
