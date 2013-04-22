@@ -11,7 +11,7 @@ import os
 import logging
 import threading
 
-from opus import common_utils
+from opus import common_utils, uds_msg_pb2
 
 class Analyser(threading.Thread):
     '''Base class for the analyser'''
@@ -41,6 +41,22 @@ class Analyser(threading.Thread):
         return not self.isAlive()
 
 
+def create_blank_marker():
+    logging.debug("Creating blank message.")
+    if hasattr(create_blank_marker, "blank_msg"):
+        return create_blank_marker.blank_msg
+
+    header = uds_msg_pb2.Header()
+    header.timestamp = 0
+    header.pid = 0
+    header.payload_type = uds_msg_pb2.BLANK_MSG
+    header.payload_len = 0
+
+    create_blank_marker.blank_msg = header.SerializeToString()
+
+    return create_blank_marker.blank_msg
+
+
 class LoggingAnalyser(Analyser):
     '''Implementation of a logging analyser'''
     def __init__(self, log_path):
@@ -56,6 +72,8 @@ class LoggingAnalyser(Analyser):
             raise common_utils.OPUSException("log file open error")
         logging.debug("Opened file %s", self.logfile_path)
 
+        #Write a blank sentinal to the file.
+        self.file_object.write(create_blank_marker())
 
     def put_msg(self, msg_list):
         '''Takes a list of tuples (header, payload)

@@ -1,6 +1,7 @@
 package fresco.opus.IPCMessage;
 
 enum PayloadType {
+    BLANK_MSG = 0;
     STARTUP_MSG = 1;
     LIBINFO_MSG = 2;
     FUNCINFO_MSG = 3;
