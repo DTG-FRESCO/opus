@@ -2,15 +2,15 @@
 #ifndef SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
 #define SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
 
-#include "uds_msg.pb.h"
+#include "protobuf_typedefs.h"
 
-typedef ::fresco::opus::IPCMessage::KVPair KVPair;
-typedef ::fresco::opus::IPCMessage::FuncInfoMessage FuncInfoMessage;
-typedef ::fresco::opus::IPCMessage::Header HeaderMessage;
-typedef ::google::protobuf::Message Message;
-typedef ::fresco::opus::IPCMessage::PayloadType PayloadType;
-
-void initialise_interposition_functions();
+#define DLSYM_CHECK(A) if ((A)==NULL){ \
+  DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, "Critical error, failed to dlsym a function correctly."); \
+  if ((error = dlerror()) != NULL){ \
+    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, error); \
+  } \
+  exit(EXIT_FAILURE); \
+}
 
 #endif  // SRC_FRONTEND_GEN_BOILER_FUNCTIONS_H_
 
