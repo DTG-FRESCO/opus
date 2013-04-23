@@ -174,11 +174,10 @@ def main():
                         "descriptions from, replace with - to use "
                         "STDIN instead.")
     parser.add_argument('output_dest',
-                        default="./functions", nargs="?",
+                        default="./functions.C", nargs="?",
                         help="Location the created files will be "
-                        "written to, in the form of a full filename "
-                        "that will have .h and .C appended to it. "
-                        "(Default is ./functions)")
+                        "written to, in the form of a full filename. "
+                        "(Default is ./functions.C)")
 
     args = parser.parse_args()
     if args.input_file == "-":
@@ -202,32 +201,18 @@ def main():
     logging.info("Initialising the Jinja template loader.")
     env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
 
-    logging.info("Beginning rendering of header file.")
-    try:
-        header_name = args.output_dest + ".h"
-        with open(header_name, "wt") as header_file:
-            logging.info("Rendering the header template to the header file %s.",
-                         header_name)
-            header_tmpl = env.get_template("header.tmpl")
-            header_file.write(header_tmpl.render(fn_list=funcs))
-    except IOError as exc:
-        logging.critical("Failed to open header output file %s.", header_name)
-        logging.critical(exc)
-        return None
-    logging.info("Completing rendering of header file.")
-
     logging.info("Beginning rendering of object file.")
     try:
-        object_name = args.output_dest + ".C"
-        with open(object_name, "wt") as object_file:
+        with open(args.output_dest, "wt") as object_file:
             logging.info("Rendering the object template to the object file %s.",
-                         object_name)
+                         args.output_dest)
             object_tmpl = env.get_template("func.tmpl")
             object_file.write(object_tmpl.render(fn_list=funcs,
                                                  printf_map=PRINTF_MAP)
                                                 )
     except IOError as exc:
-        logging.critical("Failed to open object output file %s.", object_name)
+        logging.critical("Failed to open object output file %s.",
+                         args.output_dest)
         logging.critical(exc)
         return None
     logging.info("Completing rendering of object file.")
