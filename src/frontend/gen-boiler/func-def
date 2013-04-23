@@ -40,6 +40,17 @@ int vscanf(const char *format, va_list ap);
 int vfscanf(read FILE *stream, const char *format, va_list ap);
 ssize_t write(read int fd, const void *buf, read size_t count);
 
+#Unlocked IO functions
+int getc_unlocked(read FILE *stream);
+int getchar_unlocked(void);
+int putc_unlocked(int c, read FILE *stream);
+int putchar_unlocked(int c);
+int fgetc_unlocked(read FILE *stream);
+int fputc_unlocked(int c, read FILE *stream);
+size_t fread_unlocked(void *ptr, size_t size, size_t n, read FILE *stream);
+size_t fwrite_unlocked(const void *ptr, size_t size, size_t n, read FILE *stream);
+char *fgets_unlocked(char *s, int n, read FILE *stream);
+int fputs_unlocked(const char *s, read FILE *stream);
 
 #File pointer position related functions
 int fseek(read FILE *stream, read long offset, read int whence);
