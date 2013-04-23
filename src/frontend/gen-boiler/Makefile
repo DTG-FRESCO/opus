@@ -1,8 +1,6 @@
 all:
-	python gen_boiler.py func-def functions
-	cp functions.C ${PROJ_HOME}/src/frontend/interposelib
-	cp functions.h ${PROJ_HOME}/src/frontend/interposelib
+	python gen_boiler.py func-def gen_functions.C
+	cp gen_functions.C ${PROJ_HOME}/src/frontend/interposelib
 
 clean:
-	rm functions.C
-	rm functions.h
+	rm gen_functions.C
