@@ -1,5 +1,12 @@
-static int (*real_open)(const char *, int, ...)=NULL;
-static int (*real_open64)(const char *, int, ...)=NULL;
+typedef int (*OPEN_PTR)(const char*,int,...);
+typedef int (*VPRINTF_PTR)(const char*, va_list);
+typedef int (*VFPRINTF_PTR)(FILE *,const char*, va_list);
+typedef int (*VSCANF_PTR)(const char*, va_list);
+typedef int (*VFSCANF_PTR)(FILE *,const char*, va_list);
+
+
+static OPEN_PTR real_open=NULL;
+static OPEN_PTR real_open64=NULL;
 
 
 extern "C" int open(const char *pathname, int flags, ...)
@@ -9,16 +16,16 @@ extern "C" int open(const char *pathname, int flags, ...)
 
     if (!real_open)
     {
-        DLSYM_CHECK(real_open = (int(*)(const char*,int,...))dlsym(RTLD_NEXT, "open"));
+        DLSYM_CHECK(real_open = (OPEN_PTR)dlsym(RTLD_NEXT, "open"));
     }
 
-    int mode;
+    mode_t mode;
 
     if ((flags & O_CREAT) != 0)
     {
         va_list arg;
         va_start(arg, flags);
-        mode = va_arg(arg, int);
+        mode = va_arg(arg, mode_t);
         va_end(arg);
     }
 
@@ -102,16 +109,16 @@ extern "C" int open64(const char *pathname, int flags, ...)
 
     if (!real_open64)
     {
-        DLSYM_CHECK(real_open64 = (int(*)(const char*,int,...))dlsym(RTLD_NEXT, "open64"));
+        DLSYM_CHECK(real_open64 = (OPEN_PTR)dlsym(RTLD_NEXT, "open64"));
     }
 
-    int mode;
+    mode_t mode;
 
     if ((flags & O_CREAT) != 0)
     {
         va_list arg;
         va_start(arg, flags);
-        mode = va_arg(arg, int);
+        mode = va_arg(arg, mode_t);
         va_end(arg);
     }
 
@@ -196,7 +203,7 @@ extern "C" int printf(const char *format, ...)
 
     if (!real_vprintf)
     {
-        DLSYM_CHECK(real_vprintf = (int(*)(const char*, va_list))dlsym(RTLD_NEXT, "vprintf"));
+        DLSYM_CHECK(real_vprintf = (VPRINTF_PTR)dlsym(RTLD_NEXT, "vprintf"));
     }
 
     va_list args;
@@ -250,7 +257,7 @@ extern "C" int scanf(const char *format, ...)
 
     if (!real_vscanf)
     {
-        DLSYM_CHECK(real_vscanf = (int(*)(const char*, va_list))dlsym(RTLD_NEXT, "vscanf"));
+        DLSYM_CHECK(real_vscanf = (VSCANF_PTR)dlsym(RTLD_NEXT, "vscanf"));
     }
 
     va_list args;
@@ -304,7 +311,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     if (!real_vfprintf)
     {
-        DLSYM_CHECK(real_vfprintf = (int(*)(FILE *,const char*, va_list))dlsym(RTLD_NEXT, "vfprintf"));
+        DLSYM_CHECK(real_vfprintf = (VFPRINTF_PTR)dlsym(RTLD_NEXT, "vfprintf"));
     }
 
     va_list args;
@@ -370,7 +377,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     if (!real_vfscanf)
     {
-        DLSYM_CHECK(real_vfscanf = (int(*)(FILE *,const char*, va_list))dlsym(RTLD_NEXT, "vfscanf"));
+        DLSYM_CHECK(real_vfscanf = (VFSCANF_PTR)dlsym(RTLD_NEXT, "vfscanf"));
     }
 
     va_list args;
@@ -436,7 +443,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     if (!real___isoc99_vscanf)
     {
-        DLSYM_CHECK(real___isoc99_vscanf = (int(*)(const char*, va_list))dlsym(RTLD_NEXT, "__isoc99_vscanf"));
+        DLSYM_CHECK(real___isoc99_vscanf = (VSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vscanf"));
     }
 
     va_list args;
@@ -490,7 +497,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     if (!real___isoc99_vfscanf)
     {
-        DLSYM_CHECK(real___isoc99_vfscanf = (int(*)(FILE *,const char*, va_list))dlsym(RTLD_NEXT, "__isoc99_vfscanf"));
+        DLSYM_CHECK(real___isoc99_vfscanf = (VFSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vfscanf"));
     }
 
     va_list args;
