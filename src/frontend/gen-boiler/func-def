@@ -15,30 +15,26 @@ int fgetc(read FILE *stream);
 char *fgets(char *s, read int size, read FILE *stream);
 FILE *fopen(read const char *path, read const char *mode);
 FILE *fopen64(read const char *path, read const char *mode);
-#int fprintf(read FILE *stream, const char *format, ...);
 int fputc(int c, read FILE *stream);
 int fputs(const char *s, read FILE *stream);
 size_t fread(void *ptr, read size_t size, read size_t nmemb, read FILE *stream);
-#int fscanf(read FILE *stream, const char *format, ...);
 size_t fwrite(const void *ptr, read size_t size, read size_t nmemb, read FILE *stream);
 int getc(read FILE *stream);
 int getchar(void);
 __ssize_t getline(char **lineptr, read size_t *n, read FILE *stream);
-#int open(read const char *pathname, read int flags);
-#int open(read const char *pathname, read int flags, read mode_t mode);
-#int open64(read const char *pathname, read int flags);
-#int open64(read const char *pathname, read int flags, read mode_t mode);
-#int printf(const char *format, ...);
 int putc(int c, read FILE *stream);
 int putchar(int c);
 int puts(const char *s);
 ssize_t read(read int fd, void *buf, read size_t count);
-#int scanf(const char *format, ...);
 int vfprintf(read FILE *stream, const char *format, va_list ap);
 int vprintf(const char *format, va_list ap);
 int vscanf(const char *format, va_list ap);
 int vfscanf(read FILE *stream, const char *format, va_list ap);
 ssize_t write(read int fd, const void *buf, read size_t count);
+
+#ISOc99 Scanf
+int __isoc99_vscanf(const char *format, va_list ap);
+int __isoc99_vfscanf(read FILE *stream, const char *format, va_list ap);
 
 #Unlocked IO functions
 int getc_unlocked(read FILE *stream);
