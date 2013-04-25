@@ -37,8 +37,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     FuncInfoMessage func_msg;
     func_msg.set_func_name("{{func.name}}");
 
-    KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
+    {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
+    {% if func.args|buffer_arg %}char buffer[NUM_BUFF_SIZE];{% endif %}
     {% for arg in func.args if arg.read %}
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("{{arg.name}}");

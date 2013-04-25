@@ -28,12 +28,11 @@ PRINTF_MAP = {"int": '"%d"',
               "long int": '"%ld"',
               "long": '"%ld"',
               "off_t": '"%ld"',
-              "uid_t": '"%u"',
-              "gid_t": '"%u"',
               "mode_t": '"%u"',
               "size_t *": '"%p"',
               "off64_t": '"%ld"',
-              "size_t": '"%lu"'}
+              "size_t": '"%lu"',
+              "FILE *": ''}
 
 class FunctionParsingException(Exception):
     '''General base exception class for any errors in parsing the function
@@ -159,6 +158,23 @@ def init_logging():
         logging.getLogger('').addHandler(hand_file)
 
 
+def filter_capture_arg(args):
+    '''Check the args list for any captured arguments.'''
+    for arg in args:
+        if arg['read']:
+            return True
+    return False
+
+
+def filter_buffer_arg(args):
+    '''Check the args list for any arguments that need conversion to strings.'''
+    for arg in args:
+        if arg['read'] and arg['type'] in PRINTF_MAP:
+            return True
+    return False
+
+
+
 def main():
     '''Main function, parses command line arguments, parses the given file of
     function definitions then renders the two templates using the information
@@ -200,6 +216,9 @@ def main():
 
     logging.info("Initialising the Jinja template loader.")
     env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
+
+    env.filters['capture_arg'] = filter_capture_arg
+    env.filters['buffer_arg'] = filter_buffer_arg
 
     logging.info("Beginning rendering of object file.")
     try:
