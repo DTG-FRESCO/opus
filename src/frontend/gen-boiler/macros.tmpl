@@ -11,7 +11,7 @@
 {%- endmacro %}
 
 {% macro fn_arg_call(fn) -%}
-   {% for arg in fn.args -%}
-      {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+   {%- for arg in fn.args -%}
+       {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
    {%- endfor -%}
 {%- endmacro %}

@@ -16,14 +16,15 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 
     if (ProcUtils::test_and_set_flag(true))
         return (*real_{{func.name}})({{macros.fn_arg_call(func)}});
-
-    uint64_t start_time = ProcUtils::get_time();
-    {% for arg in func.args if arg.read %}
-    {% if arg.type == "FILE *" -%}
+    
+    {% for arg in func.args if arg.read -%}
+    {%- if arg.type == "FILE *" -%}
     int {{arg.name}}_fd = -1;
     if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
     {%- endif -%}
     {%- endfor %}
+    uint64_t start_time = ProcUtils::get_time();
+
     {% if func.ret != "void" -%}
     {{func.ret}} ret = (*real_{{func.name}})({{macros.fn_arg_call(func)}});
     {%- else -%}
@@ -51,10 +52,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     tmp_arg->set_value(buffer);
     {%- elif arg.type == "uid_t" -%}
     set_user_name(tmp_arg, {{arg.name}});
-    //tmp_arg->set_value(getpwuid({{arg.name}})->pw_name);
     {%- elif arg.type == "gid_t" -%}
     set_group_name(tmp_arg, {{arg.name}});
-    //tmp_arg->set_value(getgrgid({{arg.name}})->gr_name);
     {%- else -%}
     memset(buffer, 0, sizeof buffer);
     snprintf(buffer, (sizeof buffer)-1, {{printf_map[arg.type]}}, {{arg.name}});
