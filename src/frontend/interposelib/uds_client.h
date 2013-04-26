@@ -9,6 +9,7 @@ class UDSCommClient
         static UDSCommClient* get_instance();
         bool connect(const std::string& uds_path);
         bool reconnect();
+        void close_connection();
         void shutdown();
 
         bool send_data(const std::string& data);

@@ -59,7 +59,7 @@ bool UDSCommClient::connect(const std::string& path)
             else throw UDSCommException(__FILE__, __LINE__, strerror(errno));
         }
     }
-    catch(UDSCommException& e)
+    catch(const UDSCommException& e)
     {
         e.print_msg();
         return false;
@@ -93,7 +93,8 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
         while (total_bytes_sent < bytes_left)
         {
             ssize_t bytes_sent = ::send(conn_fd,
-                reinterpret_cast<const char*>(data)+total_bytes_sent, bytes_left, 0);
+                reinterpret_cast<const char*>(data)+total_bytes_sent,
+                bytes_left, 0);
             if (bytes_sent < (ssize_t)0)
             {
                 if (errno == EINTR)
@@ -114,7 +115,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
         }
 
     }
-    catch(UDSCommException& e)
+    catch(const UDSCommException& e)
     {
         e.print_msg();
         return false;
@@ -134,8 +135,7 @@ bool UDSCommClient::send_data(const std::string& data)
     return send_data((const void*)data_ptr, data_size);
 }
 
-
-void UDSCommClient::shutdown()
+void UDSCommClient::close_connection()
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -152,10 +152,19 @@ void UDSCommClient::shutdown()
             else throw UDSCommException(__FILE__, __LINE__, strerror(errno));
         }
     }
-    catch(UDSCommException& e)
+    catch(const UDSCommException& e)
     {
         e.print_msg();
     }
+}
+
+
+void UDSCommClient::shutdown()
+{
+    DEBUG_LOG("[%s:%d]: Entering %s\n",
+                __FILE__, __LINE__, __PRETTY_FUNCTION__);
+
+    close_connection();
 
     if (comm_obj != NULL)
     {
