@@ -15,7 +15,7 @@ class OPUSException
             message = msg;
         }
 
-        void print_msg()
+        void print_msg() const
         {
             DEBUG_LOG("[%s:%d]: %s\n", file_name.c_str(),
                         line_no, message.c_str());
