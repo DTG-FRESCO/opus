@@ -11,6 +11,8 @@ int close(read int fd);
 int creat(read const char *pathname, read mode_t mode);
 int creat64(read const char *pathname, read mode_t mode);
 int fclose(read FILE *fp);
+int fcloseall(void);
+FILE *fdopen(read int fd, read const char *mode);
 int fgetc(read FILE *stream);
 char *fgets(char *s, read int size, read FILE *stream);
 FILE *fopen(read const char *path, read const char *mode);
@@ -18,6 +20,8 @@ FILE *fopen64(read const char *path, read const char *mode);
 int fputc(int c, read FILE *stream);
 int fputs(const char *s, read FILE *stream);
 size_t fread(void *ptr, read size_t size, read size_t nmemb, read FILE *stream);
+FILE *freopen(read const char *path, read const char *mode, read FILE *stream);
+FILE *freopen64(read const char *filename, read const char *type, read FILE *stream);
 size_t fwrite(const void *ptr, read size_t size, read size_t nmemb, read FILE *stream);
 int getc(read FILE *stream);
 int getchar(void);
@@ -25,6 +29,8 @@ __ssize_t getline(char **lineptr, read size_t *n, read FILE *stream);
 int putc(int c, read FILE *stream);
 int putchar(int c);
 int puts(const char *s);
+ssize_t pread(read int fd, void *buf, read size_t count, read off_t offset);
+ssize_t pwrite(read int fd, const void *buf, read size_t count, read off_t offset);
 ssize_t read(read int fd, void *buf, read size_t count);
 int vfprintf(read FILE *stream, const char *format, va_list ap);
 int vprintf(const char *format, va_list ap);
@@ -43,8 +49,8 @@ int putc_unlocked(int c, read FILE *stream);
 int putchar_unlocked(int c);
 int fgetc_unlocked(read FILE *stream);
 int fputc_unlocked(int c, read FILE *stream);
-size_t fread_unlocked(void *ptr, size_t size, size_t n, read FILE *stream);
-size_t fwrite_unlocked(const void *ptr, size_t size, size_t n, read FILE *stream);
+size_t fread_unlocked(void *ptr, read size_t size, read size_t n, read FILE *stream);
+size_t fwrite_unlocked(const void *ptr, read size_t size, read size_t n, read FILE *stream);
 char *fgets_unlocked(char *s, int n, read FILE *stream);
 int fputs_unlocked(const char *s, read FILE *stream);
 
@@ -72,12 +78,31 @@ int dup2(read int oldfd, read int newfd);
 int dup3(read int oldfd, read int newfd, read int flags);
 int ftruncate(read int fd, read off_t length);
 int ftruncate64(read int fd, read off64_t length);
+int link(read const char *path1, read const char *path2);
+int mkdir(read const char *pathname, read mode_t mode);
+int mkfifo(read const char *pathname, read mode_t mode);
 int remove(read const char *pathname);
 int rename(read const char *oldpath, read const char *newpath);
+int rmdir(read const char *pathname);
 int symlink(read const char *oldpath, read const char *newpath);
+int system(read const char *command);
 int truncate(read const char *path, read off_t length);
 int truncate64(read const char *path, read off64_t length);
 int unlink(read const char *pathname);
+mode_t umask(read mode_t mask);
+int utime(read const char *filename, const struct utimbuf *times);
+
+#P* commands
+FILE *popen(read const char *command, read const char *type);
+int pclose(read FILE *stream);
+
+#Tempfile Creation
+int mkstemp(read char *templ);
+int mkostemp(read char *templ, read int flags);
+int mkstemps(read char *templ, int suffixlen);
+int mkostemps(read char *templ, int suffixlen, read int flags);
+FILE *tmpfile(void);
+FILE *tmpfile64(void);
 
 #Stat Functions
 int __fxstat(int __ver, read int fd, struct stat *buf);
@@ -90,3 +115,18 @@ int __xstat64(int __ver, read const char *path, struct stat64 *buf);
 #Directory related functions
 
 #Process attributes related functions
+int chdir(read const char *path);
+int fchdir(read int fd);
+int killpg(read int pgrp, read int sig);
+int seteuid(read uid_t euid);
+int setegid(read gid_t egid);
+int setgid(read gid_t gid);
+int setreuid(read uid_t ruid, read uid_t euid);
+int setregid(read gid_t rgid, read gid_t egid);
+int setuid(read uid_t uid);
+
+#Environment functions
+int clearenv(void);
+int putenv(read char *string);
+int setenv(read const char *name, read const char *value, read int overwrite);
+int unsetenv(read const char *name);
