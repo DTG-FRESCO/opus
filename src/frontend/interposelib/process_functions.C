@@ -121,6 +121,7 @@ static inline void send_func_info_msg(const uint64_t start_time,
                                     const int ret,
                                     const int errno_value,
                                     const std::string& desc)
+
 {
     FuncInfoMessage func_msg;
     func_msg.set_func_name(desc);
@@ -137,14 +138,6 @@ static inline void send_func_info_msg(const uint64_t start_time,
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
-
-    /* Reconnect to the backend */
-    if (!UDSCommClient::get_instance()->reconnect())
-    {
-        DEBUG_LOG("[%s:%d]: PID: %d could not reconnect to the backend\n",
-                __FILE__, __LINE__, getpid());
-        return;
-    }
 
     ProcUtils::serialise_and_send_data(hdr_msg);
     ProcUtils::serialise_and_send_data(func_msg);
@@ -180,9 +173,6 @@ extern "C" int execl(const char *path, const char *arg, ...)
     /* Send pre function call generic message */
     std::string desc = "execl";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     /* Call the original execv */
     uint64_t start_time = ProcUtils::get_time();
@@ -226,9 +216,6 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     /* Send pre function call generic message */
     std::string desc = "execlp";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvp)(file, &arg_vec[0]);
@@ -281,9 +268,6 @@ extern "C" int execle(const char *path, const char *arg,
     std::string desc = "execle";
     send_pre_func_generic_msg(desc);
 
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
-
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvpe)(path, &arg_vec[0], &env_vec[0]);
 
@@ -311,9 +295,6 @@ extern "C" int execv(const char *path, char *const argv[])
     /* Send pre function call generic message */
     std::string desc = "execv";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     /* Call the original execv */
     uint64_t start_time = ProcUtils::get_time();
@@ -344,9 +325,6 @@ extern "C" int execvp(const char *file, char *const argv[])
     /* Send pre function call generic message */
     std::string desc = "execvp";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvp)(file, argv);
@@ -383,9 +361,6 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     /* Send pre function call generic message */
     std::string desc = "execvpe";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvpe)(file, argv, &env_vec[0]);
@@ -424,9 +399,6 @@ extern "C" int execve(const char *filename,
     std::string desc = "execve";
     send_pre_func_generic_msg(desc);
 
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
-
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execve)(filename, argv, &env_vec[0]);
 
@@ -461,9 +433,6 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     /* Send pre function call generic message */
     std::string desc = "fexecve";
     send_pre_func_generic_msg(desc);
-
-    /* Disconnect from the backend, process will reconnect after exec */
-    UDSCommClient::get_instance()->close_connection();
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_fexecve)(fd, argv, &env_vec[0]);

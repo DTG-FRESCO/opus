@@ -32,7 +32,7 @@ bool UDSCommClient::connect(const std::string& path)
         struct sockaddr_un address;
 
 
-        while ((conn_fd = ::socket(PF_UNIX, SOCK_STREAM, 0)) < 0)
+        while ((conn_fd = ::socket(PF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) < 0)
         {
             if (errno == EINTR)
             {
