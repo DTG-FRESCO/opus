@@ -19,8 +19,6 @@ void initialise()
 {
     ProcUtils::test_and_set_flag(true);
 
-    ProcUtils::read_preload_path();
-
     std::string uds_path_str;
     ProcUtils::get_uds_path(&uds_path_str);
 
