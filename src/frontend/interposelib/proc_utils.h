@@ -14,7 +14,6 @@ class ProcUtils
         static void serialise_and_send_data(const Message& msg_obj);
         static void send_startup_message();
         static void get_uds_path(std::string* uds_path_str);
-        static void read_preload_path();
         static const std::string& get_preload_path();
         static const std::string get_user_name(const uid_t user_id);
         static const std::string get_group_name(const gid_t group_id);

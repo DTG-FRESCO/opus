@@ -17,7 +17,7 @@
 bool ProcUtils::in_func_flag = true;
 std::string ProcUtils::ld_preload_path = "";
 
-void ProcUtils::read_preload_path()
+/*void ProcUtils::read_preload_path()
 {
     char* preload_path = getenv("LD_PRELOAD");
 
@@ -27,10 +27,26 @@ void ProcUtils::read_preload_path()
                 __FILE__, __LINE__, preload_path);
 
     ld_preload_path = preload_path;
-}
+}*/
 
 const std::string& ProcUtils::get_preload_path()
 {
+    if (!ld_preload_path.empty())
+        return ld_preload_path;
+
+    char* preload_path = getenv("LD_PRELOAD");
+    if (!preload_path)
+    {
+        DEBUG_LOG("[%s:%d]: Could not read LD_PRELOAD path\n",
+                        __FILE__, __LINE__);
+    }
+    else
+    {
+        DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
+                        __FILE__, __LINE__, preload_path);
+        ld_preload_path = preload_path;
+    }
+
     return ld_preload_path;
 }
 
