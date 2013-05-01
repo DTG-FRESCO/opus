@@ -9,7 +9,7 @@ typedef int (*EXECVPE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*EXECVE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*FEXECVE_POINTER)(int, char *const[], char *const[]);
 
-
+/* Initialize function pointers */
 static FORK_POINTER real_fork = NULL;
 static EXECV_POINTER real_execv = NULL;
 static EXECVP_POINTER real_execvp = NULL;
@@ -17,9 +17,16 @@ static EXECVPE_POINTER real_execvpe = NULL;
 static EXECVE_POINTER real_execve = NULL;
 static FEXECVE_POINTER real_fexecve = NULL;
 
+using ::fresco::opus::IPCMessage::GenMsgType;
+using ::fresco::opus::IPCMessage::PayloadType;
+
+using ::fresco::opus::IPCMessage::KVPair;
+using ::fresco::opus::IPCMessage::Header;
+using ::fresco::opus::IPCMessage::GenericMessage;
+using ::fresco::opus::IPCMessage::FuncInfoMessage;
 
 
-static void setup_new_uds_connection()
+static inline void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
 
@@ -46,22 +53,23 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
     bool found_ld_preload = false;
     std::vector<char*>& env_vec = *env_vec_ptr;
 
-    if (envp == NULL) return;
-
-    std::string env_str;
-    std::string match_str = "LD_PRELOAD=";
-    while ((env = *envp) != NULL)
+    if (envp)
     {
-        env_vec.push_back(env);
-        ++envp;
-
-        env_str = env;
-        int64_t found_pos = env_str.find(match_str);
-
-        if (found_pos != (int64_t)std::string::npos)
+        std::string env_str;
+        std::string match_str = "LD_PRELOAD=";
+        while ((env = *envp) != NULL)
         {
-            found_ld_preload = true;
-            break;
+            env_vec.push_back(env);
+            ++envp;
+
+            env_str = env;
+            int64_t found_pos = env_str.find(match_str);
+
+            if (found_pos != (int64_t)std::string::npos)
+            {
+                found_ld_preload = true;
+                break;
+            }
         }
     }
 
@@ -75,11 +83,10 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
         std::string preload_str = "LD_PRELOAD=" + preload_path;
 
         DEBUG_LOG("[%s:%d]: Added LD_PRELOAD path: %s\n",
-                    __FILE__, __LINE__, preload_str.c_str());
+                __FILE__, __LINE__, preload_str.c_str());
 
         env_vec.push_back(const_cast<char*>(preload_str.c_str()));
     }
-
 
     /* Add the UDS path for communcation with backend */
     std::string uds_path;
@@ -89,7 +96,7 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
     env_vec.push_back(const_cast<char*>(uds_str.c_str()));
 
     DEBUG_LOG("[%s:%d]: Added OPUS_UDS_PATH: %s\n",
-                __FILE__, __LINE__, uds_str.c_str());
+            __FILE__, __LINE__, uds_str.c_str());
 }
 
 static inline void send_pre_func_generic_msg(const std::string& desc)
@@ -106,7 +113,7 @@ static inline void send_pre_func_generic_msg(const std::string& desc)
     const uint64_t msg_size = gen_msg.ByteSize();
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::GENERIC_MSG);
@@ -122,7 +129,7 @@ static inline void send_func_info_msg(const FuncInfoMessage& func_msg)
     const uint64_t msg_size = func_msg.ByteSize();
     const uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -184,6 +191,7 @@ extern "C" int execl(const char *path, const char *arg, ...)
     arg_kv->set_value(path);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -238,12 +246,13 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     arg_kv->set_value(file);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
 
 extern "C" int execle(const char *path, const char *arg,
-                        .../*, char *const envp[]*/)
+                            .../*, char *const envp[]*/)
 {
     va_list lst;
     char *error = NULL;
@@ -271,7 +280,7 @@ extern "C" int execle(const char *path, const char *arg,
     dlerror();
     if (!real_execvpe)
         DLSYM_CHECK(real_execvpe = \
-                    (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
+                (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -300,6 +309,7 @@ extern "C" int execle(const char *path, const char *arg,
     arg_kv->set_value(path);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -342,6 +352,7 @@ extern "C" int execv(const char *path, char *const argv[])
     arg_kv->set_value(path);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -383,6 +394,7 @@ extern "C" int execvp(const char *file, char *const argv[])
     arg_kv->set_value(file);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -430,6 +442,7 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     arg_kv->set_value(file);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -479,6 +492,7 @@ extern "C" int execve(const char *filename,
     arg_kv->set_value(filename);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -497,7 +511,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     /* Get the symbol address and store it */
     if (!real_fexecve)
         DLSYM_CHECK(real_fexecve = \
-                    (FEXECVE_POINTER)dlsym(RTLD_NEXT, "fexecve"));
+                (FEXECVE_POINTER)dlsym(RTLD_NEXT, "fexecve"));
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -530,6 +544,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     arg_kv->set_value(buffer);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return ret;
 }
@@ -569,6 +584,7 @@ extern "C" pid_t fork(void)
     func_msg.set_error_num(errno_value);
 
     send_func_info_msg(func_msg);
+    ProcUtils::test_and_set_flag(false);
 
     return pid;
 }

@@ -76,7 +76,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);

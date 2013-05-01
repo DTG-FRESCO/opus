@@ -9,42 +9,39 @@
 #include <unistd.h>
 #include <cstdint>
 #include <string>
+#include <stdexcept>
 
 #include "log.h"
 #include "uds_client.h"
 
+using ::google::protobuf::Message;
+using ::fresco::opus::IPCMessage::Header;
+using ::fresco::opus::IPCMessage::StartupMessage;
+using ::fresco::opus::IPCMessage::PayloadType;
 
+/* Initialize class static members */
 bool ProcUtils::in_func_flag = true;
 std::string ProcUtils::ld_preload_path = "";
-
-/*void ProcUtils::read_preload_path()
-{
-    char* preload_path = getenv("LD_PRELOAD");
-
-    if (!preload_path) return;
-
-    DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
-                __FILE__, __LINE__, preload_path);
-
-    ld_preload_path = preload_path;
-}*/
 
 const std::string& ProcUtils::get_preload_path()
 {
     if (!ld_preload_path.empty())
         return ld_preload_path;
 
-    char* preload_path = getenv("LD_PRELOAD");
-    if (!preload_path)
+    try
     {
-        DEBUG_LOG("[%s:%d]: Could not read LD_PRELOAD path\n",
-                        __FILE__, __LINE__);
-    }
-    else
-    {
+        char* preload_path = getenv("LD_PRELOAD");
+        if (!preload_path)
+            throw std::runtime_error("Could not read LD_PRELOAD path");
+
         DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
-                        __FILE__, __LINE__, preload_path);
+                    __FILE__, __LINE__, preload_path);
+
         ld_preload_path = preload_path;
+    }
+    catch (const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
 
     return ld_preload_path;
@@ -87,29 +84,24 @@ void ProcUtils::get_formatted_time(std::string* date_time)
 void ProcUtils::serialise_and_send_data(const Message& msg_obj)
 {
     int size = msg_obj.ByteSize();
+    char* buf = NULL;
 
-    void* buf = malloc(size);
-    if (buf == NULL)
+    try
     {
-        DEBUG_LOG("[%s:%d]: Failed to allocate buffer\n", __FILE__, __LINE__);
-        return;
+        buf = new char [size];
+
+        if (!msg_obj.SerializeToArray(buf, size))
+            throw std::runtime_error("Failed to serialise to buffer");
+
+        if (!UDSCommClient::get_instance()->send_data(buf, size))
+            throw std::runtime_error("Sending data failed");
+    }
+    catch (const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
 
-    if (!msg_obj.SerializeToArray(buf, size))
-    {
-        DEBUG_LOG("[%s:%d]: Failed to serialise to buffer\n",
-                        __FILE__, __LINE__);
-        return;
-    }
-
-    if (!UDSCommClient::get_instance()->send_data(buf, size))
-    {
-        DEBUG_LOG("[%s:%d]: Sending data failed\n", __FILE__, __LINE__);
-        free(buf);
-        return;
-    }
-
-    free(buf);
+    if (buf) delete buf;
 }
 
 /*
@@ -128,63 +120,59 @@ bool ProcUtils::test_and_set_flag(const bool value)
 
 void ProcUtils::get_uds_path(std::string* uds_path_str)
 {
-    char* uds_path = getenv("OPUS_UDS_PATH");
-    if (!uds_path)
+    try
     {
-        DEBUG_LOG("[%s:%d]: Could not read OPUS UDS path from environment\n",
-                            __FILE__, __LINE__);
-        return;
-    }
+        char* uds_path = getenv("OPUS_UDS_PATH");
+        if (!uds_path)
+            throw std::runtime_error
+                ("Could not read OPUS UDS path from environment");
 
-    if (strlen(uds_path) > UNIX_PATH_MAX)
+        if (strlen(uds_path) > UNIX_PATH_MAX)
+        {
+            std::string err_desc = "UDS path length exceeds max allowed value "
+                                    + std::to_string(UNIX_PATH_MAX);
+            throw std::runtime_error(err_desc);
+        }
+
+        *uds_path_str = uds_path;
+        DEBUG_LOG("[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
+    }
+    catch (const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: UDS path length exceeds max allowed value %d\n",
-                        __FILE__, __LINE__, UNIX_PATH_MAX);
-        return;
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
-
-    *uds_path_str = uds_path;
-    DEBUG_LOG("[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
 }
 
 const std::string ProcUtils::get_user_name(const uid_t user_id)
 {
     struct passwd pwd;
     struct passwd *result;
-    char *buf = NULL;
     size_t bufsize = -1;
+    char* buf = NULL;
     std::string user_name_str = "";
 
     bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (bufsize <= 0) bufsize = 1024;
 
-    buf = reinterpret_cast<char*>(malloc(bufsize));
-    if (buf == NULL)
+    try
     {
-        DEBUG_LOG("[%s:%d]: malloc: %s\n", __FILE__, __LINE__, strerror(errno));
-        return user_name_str;
-    }
+        buf = new char [bufsize];
 
-    int ret = getpwuid_r(user_id, &pwd, buf, bufsize, &result);
-    if (result == NULL)
-    {
-        if (ret == 0)
+        int ret = getpwuid_r(user_id, &pwd, buf, bufsize, &result);
+        if (result == NULL)
         {
-            DEBUG_LOG("[%s:%d]: User not found\n", __FILE__, __LINE__);
-        }
-        else
-        {
-            DEBUG_LOG("[%s:%d]: Error: %s\n",
-                __FILE__, __LINE__, strerror(errno));
+            if (ret == 0) throw std::runtime_error("User not found");
+            else throw std::runtime_error(strerror(errno));
         }
 
-        free(buf);
-        return user_name_str;
+        user_name_str = pwd.pw_name;
+    }
+    catch (const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
 
-    user_name_str = pwd.pw_name;
-    free(buf);
-
+    if (buf) delete buf;
     return user_name_str;
 }
 
@@ -199,33 +187,25 @@ const std::string ProcUtils::get_group_name(const gid_t group_id)
     bufsize = sysconf(_SC_GETGR_R_SIZE_MAX);
     if (bufsize <= 0) bufsize = 1024;
 
-    buf = reinterpret_cast<char*>(malloc(bufsize));
-    if (buf == NULL)
+    try
     {
-        DEBUG_LOG("[%s:%d]: malloc: %s\n", __FILE__, __LINE__, strerror(errno));
-        return group_name_str;
-    }
+        buf = new char [bufsize];
 
-    int ret = getgrgid_r(group_id, &grp, buf, bufsize, &result);
-    if (result == NULL)
-    {
-        if (ret == 0)
+        int ret = getgrgid_r(group_id, &grp, buf, bufsize, &result);
+        if (result == NULL)
         {
-            DEBUG_LOG("[%s:%d]: Group not found\n", __FILE__, __LINE__);
-        }
-        else
-        {
-            DEBUG_LOG("[%s:%d]: Error: %s\n",
-                    __FILE__, __LINE__, strerror(errno));
+            if (ret == 0) throw std::runtime_error("Group not found");
+            else throw std::runtime_error(strerror(errno));
         }
 
-        free(buf);
-        return group_name_str;
+        group_name_str = grp.gr_name;
+    }
+    catch (const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
 
-    group_name_str = grp.gr_name;
-    free(buf);
-
+    if (buf) delete buf;
     return group_name_str;
 }
 
@@ -236,11 +216,8 @@ void ProcUtils::send_startup_message()
 
     StartupMessage start_msg;
 
-    char link[1024];
-    char exe[1024];
-
-    memset(link, 0, sizeof(link));
-    memset(exe, 0, sizeof(exe));
+    char link[1024] = "";
+    char exe[1024] = "";
 
     snprintf(link, sizeof(link), "/proc/%d/exe", getpid());
     if (readlink(link, exe , sizeof(exe)) >= 0)
@@ -262,7 +239,7 @@ void ProcUtils::send_startup_message()
     const uint64_t msg_size = start_msg.ByteSize();
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::STARTUP_MSG);
