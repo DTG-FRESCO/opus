@@ -135,6 +135,7 @@ void ProcUtils::get_uds_path(std::string* uds_path_str)
         }
 
         *uds_path_str = uds_path;
+
         DEBUG_LOG("[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
     }
     catch (const std::exception& e)
@@ -147,8 +148,8 @@ const std::string ProcUtils::get_user_name(const uid_t user_id)
 {
     struct passwd pwd;
     struct passwd *result;
+    char *buf = NULL;
     size_t bufsize = -1;
-    char* buf = NULL;
     std::string user_name_str = "";
 
     bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);

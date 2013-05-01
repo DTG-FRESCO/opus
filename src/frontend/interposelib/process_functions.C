@@ -83,7 +83,7 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
         std::string preload_str = "LD_PRELOAD=" + preload_path;
 
         DEBUG_LOG("[%s:%d]: Added LD_PRELOAD path: %s\n",
-                __FILE__, __LINE__, preload_str.c_str());
+                    __FILE__, __LINE__, preload_str.c_str());
 
         env_vec.push_back(const_cast<char*>(preload_str.c_str()));
     }
@@ -96,7 +96,7 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
     env_vec.push_back(const_cast<char*>(uds_str.c_str()));
 
     DEBUG_LOG("[%s:%d]: Added OPUS_UDS_PATH: %s\n",
-            __FILE__, __LINE__, uds_str.c_str());
+                __FILE__, __LINE__, uds_str.c_str());
 }
 
 static inline void send_pre_func_generic_msg(const std::string& desc)
@@ -280,7 +280,7 @@ extern "C" int execle(const char *path, const char *arg,
     dlerror();
     if (!real_execvpe)
         DLSYM_CHECK(real_execvpe = \
-                (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
+                    (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -511,7 +511,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     /* Get the symbol address and store it */
     if (!real_fexecve)
         DLSYM_CHECK(real_fexecve = \
-                (FEXECVE_POINTER)dlsym(RTLD_NEXT, "fexecve"));
+                    (FEXECVE_POINTER)dlsym(RTLD_NEXT, "fexecve"));
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
