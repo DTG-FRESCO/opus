@@ -11,5 +11,6 @@ typedef ::fresco::opus::IPCMessage::Header HeaderMessage;
 typedef ::fresco::opus::IPCMessage::LibInfoMessage LibInfoMessage;
 typedef ::fresco::opus::IPCMessage::GenericMessage GenericMessage;
 typedef ::fresco::opus::IPCMessage::PayloadType PayloadType;
+typedef ::fresco::opus::IPCMessage::GenMsgType GenMsgType;
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_PROTOBUF_TYPEDEFS_H_

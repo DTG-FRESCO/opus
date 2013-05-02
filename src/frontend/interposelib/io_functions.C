@@ -89,7 +89,7 @@ extern "C" int open(const char *pathname, int flags, ...)
     const uint64_t msg_size = func_msg.ByteSize();
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -183,7 +183,7 @@ extern "C" int open64(const char *pathname, int flags, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -237,7 +237,7 @@ extern "C" int printf(const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -291,7 +291,7 @@ extern "C" int scanf(const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -357,7 +357,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -423,7 +423,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -477,7 +477,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
@@ -543,7 +543,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);

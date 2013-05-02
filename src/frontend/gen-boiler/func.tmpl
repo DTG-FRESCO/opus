@@ -51,9 +51,9 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     snprintf(buffer, (sizeof buffer)-1, "%d", {{arg.name}}_fd);
     tmp_arg->set_value(buffer);
     {%- elif arg.type == "uid_t" -%}
-    set_user_name(tmp_arg, {{arg.name}});
+    tmp_arg->set_value(ProcUtils::get_user_name({{arg.name}}));
     {%- elif arg.type == "gid_t" -%}
-    set_group_name(tmp_arg, {{arg.name}});
+    tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
     {%- else -%}
     memset(buffer, 0, sizeof buffer);
     snprintf(buffer, (sizeof buffer)-1, {{printf_map[arg.type]}}, {{arg.name}});
@@ -76,7 +76,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 
     uint64_t current_time = ProcUtils::get_time();
 
-    HeaderMessage hdr_msg;
+    Header hdr_msg;
     hdr_msg.set_timestamp(current_time);
     hdr_msg.set_pid((uint64_t)getpid());
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);

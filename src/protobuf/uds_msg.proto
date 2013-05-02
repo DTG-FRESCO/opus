@@ -11,6 +11,7 @@ enum PayloadType {
 enum GenMsgType {
     DISCON = 1; // Client disconnect
     SIGNAL = 2; // Unix signals recived by application
+    PRE_FUNC_CALL = 3; // Use for functions like exec which dont return on succes
 }
 
 message KVPair {
