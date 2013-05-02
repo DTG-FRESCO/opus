@@ -1,12 +1,12 @@
-typedef int (*OPEN_PTR)(const char*,int,...);
+typedef int (*OPEN_PTR)(const char*, int, ...);
 typedef int (*VPRINTF_PTR)(const char*, va_list);
-typedef int (*VFPRINTF_PTR)(FILE *,const char*, va_list);
+typedef int (*VFPRINTF_PTR)(FILE *, const char*, va_list);
 typedef int (*VSCANF_PTR)(const char*, va_list);
-typedef int (*VFSCANF_PTR)(FILE *,const char*, va_list);
+typedef int (*VFSCANF_PTR)(FILE *, const char*, va_list);
 
 
-static OPEN_PTR real_open=NULL;
-static OPEN_PTR real_open64=NULL;
+static OPEN_PTR real_open = NULL;
+static OPEN_PTR real_open64 = NULL;
 
 
 extern "C" int open(const char *pathname, int flags, ...)
@@ -95,8 +95,7 @@ extern "C" int open(const char *pathname, int flags, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -189,8 +188,7 @@ extern "C" int open64(const char *pathname, int flags, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -243,8 +241,7 @@ extern "C" int printf(const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -297,8 +294,7 @@ extern "C" int scanf(const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -363,8 +359,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -429,8 +424,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -443,7 +437,8 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     if (!real___isoc99_vscanf)
     {
-        DLSYM_CHECK(real___isoc99_vscanf = (VSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vscanf"));
+        DLSYM_CHECK(real___isoc99_vscanf =
+                (VSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vscanf"));
     }
 
     va_list args;
@@ -483,8 +478,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -497,7 +491,8 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     if (!real___isoc99_vfscanf)
     {
-        DLSYM_CHECK(real___isoc99_vfscanf = (VFSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vfscanf"));
+        DLSYM_CHECK(real___isoc99_vfscanf =
+                (VFSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vfscanf"));
     }
 
     va_list args;
@@ -549,8 +544,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;

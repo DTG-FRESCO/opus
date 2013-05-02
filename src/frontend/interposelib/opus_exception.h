@@ -1,8 +1,8 @@
 #ifndef SRC_FRONTEND_INTERPOSELIB_OPUS_EXCEPTION_H_
 #define SRC_FRONTEND_INTERPOSELIB_OPUS_EXCEPTION_H_
 
-#include <string>
 #include <stdio.h>
+#include <string>
 
 class OPUSException
 {

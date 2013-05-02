@@ -119,8 +119,7 @@ static inline void send_pre_func_generic_msg(const std::string& desc)
     hdr_msg.set_payload_type(PayloadType::GENERIC_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(gen_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, gen_msg);
 }
 
 static inline void send_func_info_msg(const FuncInfoMessage& func_msg)
@@ -135,8 +134,7 @@ static inline void send_func_info_msg(const FuncInfoMessage& func_msg)
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 }
 
 
