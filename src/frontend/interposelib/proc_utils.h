@@ -11,7 +11,11 @@ class ProcUtils
         static uint64_t get_time();
         static void get_formatted_time(std::string* date_time);
         static bool test_and_set_flag(const bool value);
-        static void serialise_and_send_data(const ::google::protobuf::Message& msg_obj);
+
+        static void serialise_and_send_data(
+                    const ::google::protobuf::Message& hdr_obj,
+                    const ::google::protobuf::Message& pay_obj);
+
         static void send_startup_message();
         static void get_uds_path(std::string* uds_path_str);
         static const std::string& get_preload_path();

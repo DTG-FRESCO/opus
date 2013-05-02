@@ -82,8 +82,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(func_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
 
     ProcUtils::test_and_set_flag(false);
     {% if func.ret != "void" -%}

@@ -39,7 +39,7 @@ const std::string& ProcUtils::get_preload_path()
 
         ld_preload_path = preload_path;
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
@@ -81,22 +81,31 @@ void ProcUtils::get_formatted_time(std::string* date_time)
 }
 
 
-void ProcUtils::serialise_and_send_data(const Message& msg_obj)
+void ProcUtils::serialise_and_send_data(const Message& header_obj,
+                                        const Message& payload_obj)
 {
-    int size = msg_obj.ByteSize();
     char* buf = NULL;
+
+    int hdr_size = header_obj.ByteSize();
+    int pay_size = payload_obj.ByteSize();
+    int total_size = hdr_size + pay_size;
 
     try
     {
-        buf = new char [size];
+        buf = new char[total_size];
 
-        if (!msg_obj.SerializeToArray(buf, size))
-            throw std::runtime_error("Failed to serialise to buffer");
+        /* Serialize the header data and store it */
+        if (!header_obj.SerializeToArray(buf, hdr_size))
+            throw std::runtime_error("Failed to serialise header");
 
-        if (!UDSCommClient::get_instance()->send_data(buf, size))
+        /* Serialize the payload data and store it */
+        if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
+            throw std::runtime_error("Failed to serialise payload");
+
+        if (!UDSCommClient::get_instance()->send_data(buf, total_size))
             throw std::runtime_error("Sending data failed");
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
@@ -138,7 +147,7 @@ void ProcUtils::get_uds_path(std::string* uds_path_str)
 
         DEBUG_LOG("[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
@@ -157,7 +166,7 @@ const std::string ProcUtils::get_user_name(const uid_t user_id)
 
     try
     {
-        buf = new char [bufsize];
+        buf = new char[bufsize];
 
         int ret = getpwuid_r(user_id, &pwd, buf, bufsize, &result);
         if (result == NULL)
@@ -168,7 +177,7 @@ const std::string ProcUtils::get_user_name(const uid_t user_id)
 
         user_name_str = pwd.pw_name;
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
@@ -190,7 +199,7 @@ const std::string ProcUtils::get_group_name(const gid_t group_id)
 
     try
     {
-        buf = new char [bufsize];
+        buf = new char[bufsize];
 
         int ret = getgrgid_r(group_id, &grp, buf, bufsize, &result);
         if (result == NULL)
@@ -201,7 +210,7 @@ const std::string ProcUtils::get_group_name(const gid_t group_id)
 
         group_name_str = grp.gr_name;
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
@@ -246,8 +255,7 @@ void ProcUtils::send_startup_message()
     hdr_msg.set_payload_type(PayloadType::STARTUP_MSG);
     hdr_msg.set_payload_len(msg_size);
 
-    ProcUtils::serialise_and_send_data(hdr_msg);
-    ProcUtils::serialise_and_send_data(start_msg);
+    ProcUtils::serialise_and_send_data(hdr_msg, start_msg);
 
     free(cwd);
 }
