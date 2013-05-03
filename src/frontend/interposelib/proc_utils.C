@@ -23,6 +23,21 @@ using ::fresco::opus::IPCMessage::PayloadType;
 bool ProcUtils::in_func_flag = true;
 std::string ProcUtils::ld_preload_path = "";
 
+
+void inline set_command_line(StartupMessage* start_msg,
+                            const int argc, char** argv)
+{
+    std::string cmd_line_str;
+
+    for (int i = 0; i < argc; i++)
+    {
+        if (i > 0) cmd_line_str += " ";
+        cmd_line_str +=  argv[i];
+    }
+
+    start_msg->set_cmd_line_args(cmd_line_str);
+}
+
 const std::string& ProcUtils::get_preload_path()
 {
     if (!ld_preload_path.empty())
@@ -81,7 +96,7 @@ void ProcUtils::get_formatted_time(std::string* date_time)
 }
 
 
-void ProcUtils::serialise_and_send_data(const Message& header_obj,
+void ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
     char* buf = NULL;
@@ -219,7 +234,7 @@ const std::string ProcUtils::get_group_name(const gid_t group_id)
     return group_name_str;
 }
 
-void ProcUtils::send_startup_message()
+void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -246,6 +261,8 @@ void ProcUtils::send_startup_message()
     start_msg.set_group_name(ProcUtils::get_group_name(getgid()));
     start_msg.set_ppid(getppid());
 
+    set_command_line(&start_msg, argc, argv);
+
     const uint64_t msg_size = start_msg.ByteSize();
     uint64_t current_time = ProcUtils::get_time();
 
@@ -258,4 +275,9 @@ void ProcUtils::send_startup_message()
     ProcUtils::serialise_and_send_data(hdr_msg, start_msg);
 
     free(cwd);
+}
+
+void ProcUtils::send_startup_message()
+{
+    ProcUtils::send_startup_message(0, NULL, NULL);
 }

@@ -7,15 +7,14 @@
 #include "proc_utils.h"
 #include "uds_client.h"
 
+__attribute__((section(".init_array")))
+    typeof(opus_init) *__opus_init = opus_init;
 
-void deinitialise()
-{
-    ProcUtils::test_and_set_flag(true);
-    UDSCommClient::get_instance()->shutdown();
-    ProcUtils::test_and_set_flag(false);
-}
+__attribute__((section(".fini_array")))
+    typeof(opus_fini) *__opus_fini = opus_fini;
 
-void initialise()
+
+void opus_init(int argc, char** argv, char** envp)
 {
     ProcUtils::test_and_set_flag(true);
 
@@ -35,6 +34,13 @@ void initialise()
         return;
     }
 
-    ProcUtils::send_startup_message();
+    ProcUtils::send_startup_message(argc, argv, envp);
+    ProcUtils::test_and_set_flag(false);
+}
+
+void opus_fini()
+{
+    ProcUtils::test_and_set_flag(true);
+    UDSCommClient::get_instance()->shutdown();
     ProcUtils::test_and_set_flag(false);
 }

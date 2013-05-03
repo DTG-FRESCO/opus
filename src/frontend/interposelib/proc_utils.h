@@ -13,10 +13,12 @@ class ProcUtils
         static bool test_and_set_flag(const bool value);
 
         static void serialise_and_send_data(
-                    const ::google::protobuf::Message& hdr_obj,
+                    const ::fresco::opus::IPCMessage::Header& hdr_obj,
                     const ::google::protobuf::Message& pay_obj);
 
         static void send_startup_message();
+        static void send_startup_message(const int argc, char** argv, char** envp);
+
         static void get_uds_path(std::string* uds_path_str);
         static const std::string& get_preload_path();
         static const std::string get_user_name(const uid_t user_id);

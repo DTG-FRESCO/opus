@@ -1,5 +1,4 @@
 
-#include <string>
 #include <vector>
 
 typedef pid_t (*FORK_POINTER)(void);
@@ -17,16 +16,8 @@ static EXECVPE_POINTER real_execvpe = NULL;
 static EXECVE_POINTER real_execve = NULL;
 static FEXECVE_POINTER real_fexecve = NULL;
 
-using ::fresco::opus::IPCMessage::GenMsgType;
-using ::fresco::opus::IPCMessage::PayloadType;
 
-using ::fresco::opus::IPCMessage::KVPair;
-using ::fresco::opus::IPCMessage::Header;
-using ::fresco::opus::IPCMessage::GenericMessage;
-using ::fresco::opus::IPCMessage::FuncInfoMessage;
-
-
-static inline void setup_new_uds_connection()
+static void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
 
