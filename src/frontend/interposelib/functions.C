@@ -21,9 +21,11 @@
 #include "proc_utils.h"
 #include "uds_client.h"
 
-using ::fresco::opus::IPCMessage::PayloadType;
 using ::fresco::opus::IPCMessage::KVPair;
 using ::fresco::opus::IPCMessage::Header;
+using ::fresco::opus::IPCMessage::GenMsgType;
+using ::fresco::opus::IPCMessage::PayloadType;
+using ::fresco::opus::IPCMessage::GenericMessage;
 using ::fresco::opus::IPCMessage::FuncInfoMessage;
 
 #include "gen_functions.C"
