@@ -77,7 +77,7 @@ extern "C" int open(const char *pathname, int flags, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -151,7 +151,7 @@ extern "C" int open64(const char *pathname, int flags, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -191,7 +191,7 @@ extern "C" int printf(const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -231,7 +231,7 @@ extern "C" int scanf(const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -280,7 +280,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -328,7 +328,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -369,7 +369,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -418,7 +418,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     return ret;

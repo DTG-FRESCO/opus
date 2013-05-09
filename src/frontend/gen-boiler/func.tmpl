@@ -59,10 +59,6 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
-    {%- elif func.ret != "char *" and func.ret != "void" -%}
-    {%- endif %}
-
-    {% if func.ret == "FILE *" -%}
     set_func_info_msg(&func_msg, func_name, ret_val, start_time, end_time, errno_value);
     {%- elif func.ret != "char *" and func.ret != "void" -%}
     set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
@@ -70,7 +66,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     {%- endif %}
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
     {% if func.ret != "void" -%}

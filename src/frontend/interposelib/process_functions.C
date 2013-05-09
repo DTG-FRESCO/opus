@@ -136,7 +136,7 @@ extern "C" int execl(const char *path, const char *arg, ...)
     arg_kv->set_key("path");
     arg_kv->set_value(path);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -187,7 +187,7 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     arg_kv->set_key("file");
     arg_kv->set_value(file);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -246,7 +246,7 @@ extern "C" int execle(const char *path, const char *arg,
     arg_kv->set_key("path");
     arg_kv->set_value(path);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -285,7 +285,7 @@ extern "C" int execv(const char *path, char *const argv[])
     arg_kv->set_key("path");
     arg_kv->set_value(path);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -323,7 +323,7 @@ extern "C" int execvp(const char *file, char *const argv[])
     arg_kv->set_key("file");
     arg_kv->set_value(file);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -367,7 +367,7 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     arg_kv->set_key("file");
     arg_kv->set_value(file);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -413,7 +413,7 @@ extern "C" int execve(const char *filename,
     arg_kv->set_key("file");
     arg_kv->set_value(filename);
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -457,7 +457,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     arg_kv->set_key("fd");
     arg_kv->set_value(std::to_string(fd));
 
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(false);
 
     return ret;
@@ -495,7 +495,7 @@ extern "C" pid_t fork(void)
 
     set_func_info_msg(&func_msg, func_name, pid,
                 start_time, end_time, errno_value);
-    send_func_info_msg(func_msg);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(false);
 
