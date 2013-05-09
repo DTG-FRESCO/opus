@@ -16,13 +16,14 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 
     if (ProcUtils::test_and_set_flag(true))
         return (*real_{{func.name}})({{macros.fn_arg_call(func)}});
-    
+
     {% for arg in func.args if arg.read -%}
     {%- if arg.type == "FILE *" -%}
     int {{arg.name}}_fd = -1;
     if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
     {%- endif -%}
     {%- endfor %}
+    std::string func_name = "{{func.name}}";
     uint64_t start_time = ProcUtils::get_time();
 
     {% if func.ret != "void" -%}
@@ -35,10 +36,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("{{func.name}}");
 
     {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
-    {% if func.args|buffer_arg %}char buffer[NUM_BUFF_SIZE];{% endif %}
     {% for arg in func.args if arg.read %}
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("{{arg.name}}");
@@ -47,42 +46,31 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     if ({{arg.name}}) {{arg.name}}_value = {{arg.name}};
     tmp_arg->set_value({{arg.name}}_value);
     {%- elif arg.type == "FILE *" -%}
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", {{arg.name}}_fd);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string({{arg.name}}_fd));
     {%- elif arg.type == "uid_t" -%}
     tmp_arg->set_value(ProcUtils::get_user_name({{arg.name}}));
     {%- elif arg.type == "gid_t" -%}
     tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
     {%- else -%}
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, {{printf_map[arg.type]}}, {{arg.name}});
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string({{arg.name}}));
     {%- endif -%}
     {%- endfor %}
 
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
-    func_msg.set_ret_val(ret_val);
     {%- elif func.ret != "char *" and func.ret != "void" -%}
-    func_msg.set_ret_val(ret);
     {%- endif %}
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
 
-    const uint64_t msg_size = func_msg.ByteSize();
+    {% if func.ret == "FILE *" -%}
+    set_func_info_msg(&func_msg, func_name, ret_val, start_time, end_time, errno_value);
+    {%- elif func.ret != "char *" and func.ret != "void" -%}
+    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
+    {%- else -%}
+    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    {%- endif %}
 
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     {% if func.ret != "void" -%}

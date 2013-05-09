@@ -57,45 +57,27 @@ extern "C" int open(const char *pathname, int flags, ...)
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("open");
+    std::string func_name = "open";
 
     KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
-
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("pathname");
     tmp_arg->set_value(pathname);
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("flags");
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", flags);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string(flags));
 
     if ((flags & O_CREAT) != 0)
     {
         tmp_arg = func_msg.add_args();
         tmp_arg->set_key("mode");
-        memset(buffer, 0, sizeof buffer);
-        snprintf(buffer, (sizeof buffer)-1, "%d", mode);
-        tmp_arg->set_value(buffer);
+        tmp_arg->set_value(std::to_string(mode));
     }
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -149,46 +131,27 @@ extern "C" int open64(const char *pathname, int flags, ...)
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("open64");
+    std::string func_name = "open64";
 
     KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
-
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("pathname");
     tmp_arg->set_value(pathname);
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("flags");
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", flags);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string(flags));
 
     if ((flags & O_CREAT) != 0)
     {
         tmp_arg = func_msg.add_args();
         tmp_arg->set_key("mode");
-        memset(buffer, 0, sizeof buffer);
-        snprintf(buffer, (sizeof buffer)-1, "%d", mode);
-        tmp_arg->set_value(buffer);
+        tmp_arg->set_value(std::to_string(mode));
     }
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -223,25 +186,12 @@ extern "C" int printf(const char *format, ...)
 
     va_end(args);
 
+    std::string func_name = "printf";
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("printf");
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -276,25 +226,12 @@ extern "C" int scanf(const char *format, ...)
 
     va_end(args);
 
+    std::string func_name = "scanf";
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("scanf");
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -332,34 +269,18 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
+    std::string func_name = "fprintf";
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("fprintf");
 
     KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", stream_fd);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string(stream_fd));
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -398,33 +319,16 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     va_end(args);
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("fscanf");
+    std::string func_name = "fscanf";
 
     KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
-
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", stream_fd);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string(stream_fd));
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -460,25 +364,12 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     va_end(args);
 
+    std::string func_name = "scanf";
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("scanf");
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -517,34 +408,17 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
+    std::string func_name = "fscanf";
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("fscanf");
 
     KVPair* tmp_arg;
-    char buffer[NUM_BUFF_SIZE];
-
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", stream_fd);
-    tmp_arg->set_value(buffer);
+    tmp_arg->set_value(std::to_string(stream_fd));
 
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    const uint64_t msg_size = func_msg.ByteSize();
-
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
+    set_func_info_msg(&func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+    send_func_info_msg(func_msg);
 
     ProcUtils::test_and_set_flag(false);
     return ret;

@@ -90,45 +90,6 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
                 __FILE__, __LINE__, uds_str.c_str());
 }
 
-static inline void send_pre_func_generic_msg(const std::string& desc)
-{
-    GenericMessage gen_msg;
-    gen_msg.set_msg_type(GenMsgType::PRE_FUNC_CALL);
-
-    gen_msg.set_msg_desc(desc);
-
-    std::string date_time;
-    ProcUtils::get_formatted_time(&date_time);
-    gen_msg.set_sys_time(date_time);
-
-    const uint64_t msg_size = gen_msg.ByteSize();
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::GENERIC_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, gen_msg);
-}
-
-static inline void send_func_info_msg(const FuncInfoMessage& func_msg)
-
-{
-    const uint64_t msg_size = func_msg.ByteSize();
-    const uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::FUNCINFO_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, func_msg);
-}
-
-
 extern "C" int execl(const char *path, const char *arg, ...)
 {
     va_list lst;
@@ -168,11 +129,7 @@ extern "C" int execl(const char *path, const char *arg, ...)
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -223,11 +180,7 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -286,11 +239,7 @@ extern "C" int execle(const char *path, const char *arg,
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -329,11 +278,7 @@ extern "C" int execv(const char *path, char *const argv[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -371,11 +316,7 @@ extern "C" int execvp(const char *file, char *const argv[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -419,11 +360,7 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -469,11 +406,7 @@ extern "C" int execve(const char *filename,
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -517,20 +450,12 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name(desc);
-    func_msg.set_ret_val(ret);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
-
-    char buffer[64];
-    memset(buffer, 0, sizeof buffer);
-    snprintf(buffer, (sizeof buffer)-1, "%d", fd);
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
     arg_kv->set_key("fd");
-    arg_kv->set_value(buffer);
+    arg_kv->set_value(std::to_string(fd));
 
     send_func_info_msg(func_msg);
     ProcUtils::test_and_set_flag(false);
@@ -551,6 +476,7 @@ extern "C" pid_t fork(void)
     if (ProcUtils::test_and_set_flag(true))
         return (*real_fork)();
 
+    std::string func_name = "fork";
     uint64_t start_time = ProcUtils::get_time();
 
     pid_t pid = (*real_fork)();
@@ -566,13 +492,11 @@ extern "C" pid_t fork(void)
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    func_msg.set_func_name("fork");
-    func_msg.set_ret_val(pid);
-    func_msg.set_begin_time(start_time);
-    func_msg.set_end_time(end_time);
-    func_msg.set_error_num(errno_value);
 
+    set_func_info_msg(&func_msg, func_name, pid,
+                start_time, end_time, errno_value);
     send_func_info_msg(func_msg);
+
     ProcUtils::test_and_set_flag(false);
 
     return pid;
