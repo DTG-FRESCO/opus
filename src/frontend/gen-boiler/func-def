@@ -25,7 +25,7 @@ FILE *freopen64(read const char *filename, read const char *type, read FILE *str
 size_t fwrite(const void *ptr, read size_t size, read size_t nmemb, read FILE *stream);
 int getc(read FILE *stream);
 int getchar(void);
-__ssize_t getline(char **lineptr, read size_t *n, read FILE *stream);
+__ssize_t getline(char **lineptr, size_t *n, read FILE *stream);
 int putc(int c, read FILE *stream);
 int putchar(int c);
 int puts(const char *s);
