@@ -7,14 +7,21 @@
 #include <pwd.h>
 #include <linux/un.h>
 #include <unistd.h>
+#include <sys/utsname.h>
+#include <sys/resource.h>
 #include <cstdint>
 #include <string>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include "log.h"
 #include "uds_client.h"
 
+#define STRINGIFY(value) #value
+
 using ::google::protobuf::Message;
+using ::fresco::opus::IPCMessage::KVPair;
 using ::fresco::opus::IPCMessage::Header;
 using ::fresco::opus::IPCMessage::StartupMessage;
 using ::fresco::opus::IPCMessage::PayloadType;
@@ -23,8 +30,118 @@ using ::fresco::opus::IPCMessage::PayloadType;
 bool ProcUtils::in_func_flag = true;
 std::string ProcUtils::ld_preload_path = "";
 
+static bool split_key_values(const std::string& env_str,
+                    std::pair<std::string, std::string>* kv_pair)
+{
+    int64_t pos = env_str.find_first_of("=");
+    if (pos == (int64_t)std::string::npos)
+        return false;
 
-void inline set_command_line(StartupMessage* start_msg,
+    kv_pair->first = env_str.substr(0, pos);
+    kv_pair->second = env_str.substr(pos+1);
+
+    return true;
+}
+
+static inline void set_rlimit_info(StartupMessage* start_msg)
+{
+    using std::pair;
+    using std::string;
+    using std::vector;
+
+    static pair<string, int> limits[] = {
+                            { STRINGIFY(RLIMIT_AS), RLIMIT_AS },
+                            { STRINGIFY(RLIMIT_CORE), RLIMIT_CORE },
+                            { STRINGIFY(RLIMIT_CPU), RLIMIT_CPU },
+                            { STRINGIFY(RLIMIT_DATA), RLIMIT_DATA },
+                            { STRINGIFY(RLIMIT_FSIZE), RLIMIT_FSIZE },
+                            { STRINGIFY(RLIMIT_LOCKS), RLIMIT_LOCKS },
+                            { STRINGIFY(RLIMIT_FSIZE), RLIMIT_FSIZE },
+                            { STRINGIFY(RLIMIT_LOCKS), RLIMIT_LOCKS },
+                            { STRINGIFY(RLIMIT_MEMLOCK), RLIMIT_MEMLOCK },
+                            { STRINGIFY(RLIMIT_MSGQUEUE), RLIMIT_MSGQUEUE },
+                            { STRINGIFY(RLIMIT_NICE), RLIMIT_NICE },
+                            { STRINGIFY(RLIMIT_NOFILE), RLIMIT_NOFILE },
+                            { STRINGIFY(RLIMIT_NPROC), RLIMIT_NPROC },
+                            { STRINGIFY(RLIMIT_RSS), RLIMIT_RSS },
+                            { STRINGIFY(RLIMIT_RTPRIO), RLIMIT_RTPRIO },
+                            { STRINGIFY(RLIMIT_RTTIME), RLIMIT_RTTIME },
+                            { STRINGIFY(RLIMIT_SIGPENDING), RLIMIT_SIGPENDING },
+                            { STRINGIFY(RLIMIT_STACK), RLIMIT_STACK }
+                        };
+
+    vector<pair<string, int> > limits_vec(limits,
+                    limits + sizeof(limits) / sizeof(pair<string, int>));
+
+    KVPair* res_limit;
+    vector<pair<string, int> >::const_iterator citer;
+    for (citer = limits_vec.begin(); citer != limits_vec.end(); ++citer)
+    {
+        struct rlimit rlim;
+        if (getrlimit((*citer).second, &rlim) < 0)
+        {
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+            continue;
+        }
+
+        res_limit = start_msg->add_resource_limit();
+        res_limit->set_key((*citer).first);
+        res_limit->set_value(std::to_string(rlim.rlim_cur));
+    }
+}
+
+static inline void set_system_info(StartupMessage* start_msg)
+{
+    struct utsname buf;
+
+    if (uname(&buf) < 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return;
+    }
+
+    KVPair* sys_data;
+    sys_data = start_msg->add_system_info();
+    sys_data->set_key("sysname");
+    sys_data->set_value(buf.sysname);
+
+    sys_data = start_msg->add_system_info();
+    sys_data->set_key("nodename");
+    sys_data->set_value(buf.nodename);
+
+    sys_data = start_msg->add_system_info();
+    sys_data->set_key("release");
+    sys_data->set_value(buf.release);
+
+    sys_data = start_msg->add_system_info();
+    sys_data->set_key("version");
+    sys_data->set_value(buf.version);
+
+    sys_data = start_msg->add_system_info();
+    sys_data->set_key("machine");
+    sys_data->set_value(buf.machine);
+}
+
+static inline void set_env_vars(StartupMessage* start_msg, char** envp)
+{
+    KVPair* env_args;
+
+    char* env_str = NULL;
+    while ((env_str = *envp) != NULL)
+    {
+        std::pair<std::string, std::string> kv_pair;
+
+        if (!split_key_values(std::string(env_str), &kv_pair))
+            continue;
+
+        env_args = start_msg->add_environment();
+        env_args->set_key(kv_pair.first);
+        env_args->set_value(kv_pair.second);
+        ++envp;
+    }
+}
+
+static inline void set_command_line(StartupMessage* start_msg,
                             const int argc, char** argv)
 {
     std::string cmd_line_str;
@@ -262,6 +379,10 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     start_msg.set_ppid(getppid());
 
     set_command_line(&start_msg, argc, argv);
+    if (envp) set_env_vars(&start_msg, envp);
+
+    set_system_info(&start_msg);
+    set_rlimit_info(&start_msg);
 
     const uint64_t msg_size = start_msg.ByteSize();
     uint64_t current_time = ProcUtils::get_time();
