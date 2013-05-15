@@ -7,27 +7,74 @@
 #include <pwd.h>
 #include <linux/un.h>
 #include <unistd.h>
+#include <link.h>
+#include <openssl/md5.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <cstdint>
 #include <string>
 #include <stdexcept>
+#include <sstream>
+#include <iomanip>
 
 #include "log.h"
 #include "uds_client.h"
 
+using std::pair;
+using std::string;
+using std::vector;
 using ::google::protobuf::Message;
+using ::fresco::opus::IPCMessage::KVPair;
 using ::fresco::opus::IPCMessage::Header;
+using ::fresco::opus::IPCMessage::GenMsgType;
 using ::fresco::opus::IPCMessage::StartupMessage;
+using ::fresco::opus::IPCMessage::LibInfoMessage;
+using ::fresco::opus::IPCMessage::GenericMessage;
+using ::fresco::opus::IPCMessage::FuncInfoMessage;
 using ::fresco::opus::IPCMessage::PayloadType;
+
+#include "message_util.h"
 
 /* Initialize class static members */
 bool ProcUtils::in_func_flag = true;
-std::string ProcUtils::ld_preload_path = "";
+string ProcUtils::ld_preload_path = "";
 
+
+static int get_loaded_libs(struct dl_phdr_info *info,
+                        size_t size, void *ret_vec)
+{
+    string lib_name;
+    vector<pair<string, string> > *lib_vec =
+                static_cast<vector<pair<string, string> > *>(ret_vec);
+
+    if (info->dlpi_name)
+        lib_name = info->dlpi_name;
+
+    if (!lib_name.empty())
+    {
+        char *real_path = realpath(info->dlpi_name, NULL);
+        if (!real_path)
+        {
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+            return -1;
+        }
+
+        string md5_sum;
+        ProcUtils::get_md5_sum(real_path, &md5_sum);
+
+        lib_vec->push_back(make_pair(real_path, md5_sum));
+        delete real_path;
+    }
+
+    return 0;
+}
 
 void inline set_command_line(StartupMessage* start_msg,
                             const int argc, char** argv)
 {
-    std::string cmd_line_str;
+    string cmd_line_str;
 
     for (int i = 0; i < argc; i++)
     {
@@ -38,7 +85,7 @@ void inline set_command_line(StartupMessage* start_msg,
     start_msg->set_cmd_line_args(cmd_line_str);
 }
 
-const std::string& ProcUtils::get_preload_path()
+const string& ProcUtils::get_preload_path()
 {
     if (!ld_preload_path.empty())
         return ld_preload_path;
@@ -75,7 +122,7 @@ uint64_t ProcUtils::get_time()
 }
 
 
-void ProcUtils::get_formatted_time(std::string* date_time)
+void ProcUtils::get_formatted_time(string* date_time)
 {
     time_t unix_time;
     struct tm timeinfo;
@@ -142,7 +189,7 @@ bool ProcUtils::test_and_set_flag(const bool value)
     return ret;
 }
 
-void ProcUtils::get_uds_path(std::string* uds_path_str)
+void ProcUtils::get_uds_path(string* uds_path_str)
 {
     try
     {
@@ -153,7 +200,7 @@ void ProcUtils::get_uds_path(std::string* uds_path_str)
 
         if (strlen(uds_path) > UNIX_PATH_MAX)
         {
-            std::string err_desc = "UDS path length exceeds max allowed value "
+            string err_desc = "UDS path length exceeds max allowed value "
                                     + std::to_string(UNIX_PATH_MAX);
             throw std::runtime_error(err_desc);
         }
@@ -168,13 +215,13 @@ void ProcUtils::get_uds_path(std::string* uds_path_str)
     }
 }
 
-const std::string ProcUtils::get_user_name(const uid_t user_id)
+const string ProcUtils::get_user_name(const uid_t user_id)
 {
     struct passwd pwd;
     struct passwd *result;
     char *buf = NULL;
     size_t bufsize = -1;
-    std::string user_name_str = "";
+    string user_name_str = "";
 
     bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (bufsize <= 0) bufsize = 1024;
@@ -201,13 +248,13 @@ const std::string ProcUtils::get_user_name(const uid_t user_id)
     return user_name_str;
 }
 
-const std::string ProcUtils::get_group_name(const gid_t group_id)
+const string ProcUtils::get_group_name(const gid_t group_id)
 {
     struct group grp;
     struct group *result;
     char *buf = NULL;
     size_t bufsize = -1;
-    std::string group_name_str = "";
+    string group_name_str = "";
 
     bufsize = sysconf(_SC_GETGR_R_SIZE_MAX);
     if (bufsize <= 0) bufsize = 1024;
@@ -262,22 +309,81 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     start_msg.set_ppid(getppid());
 
     set_command_line(&start_msg, argc, argv);
-
-    const uint64_t msg_size = start_msg.ByteSize();
-    uint64_t current_time = ProcUtils::get_time();
-
-    Header hdr_msg;
-    hdr_msg.set_timestamp(current_time);
-    hdr_msg.set_pid((uint64_t)getpid());
-    hdr_msg.set_payload_type(PayloadType::STARTUP_MSG);
-    hdr_msg.set_payload_len(msg_size);
-
-    ProcUtils::serialise_and_send_data(hdr_msg, start_msg);
-
+    set_header_and_send(start_msg, PayloadType::STARTUP_MSG);
     free(cwd);
 }
 
 void ProcUtils::send_startup_message()
 {
     ProcUtils::send_startup_message(0, NULL, NULL);
+}
+
+void ProcUtils::send_libinfo_message(const vector<pair<string,
+                                        string> >& lib_vec)
+{
+    LibInfoMessage lib_info_msg;
+    KVPair *kv_args;
+
+    vector<pair<string, string> >::const_iterator citer;
+    for (citer = lib_vec.begin(); citer != lib_vec.end(); citer++)
+    {
+        const string& lib_path = (*citer).first;
+        const string& md5_sum = (*citer).second;
+
+        kv_args = lib_info_msg.add_library();
+        kv_args->set_key(lib_path);
+        kv_args->set_value(md5_sum);
+    }
+
+    set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
+}
+
+void ProcUtils::send_loaded_libraries()
+{
+    vector<pair<string, string> > lib_vec;
+    dl_iterate_phdr(get_loaded_libs, &lib_vec);
+    ProcUtils::send_libinfo_message(lib_vec);
+}
+
+void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
+{
+    int fd = -1;
+
+    try
+    {
+        struct stat buf;
+
+        fd = open(real_path.c_str(), O_RDONLY);
+        if (fd < 0) throw std::runtime_error(strerror(errno));
+
+        if (fstat(fd, &buf) < 0)
+            throw std::runtime_error(strerror(errno));
+
+        size_t file_size = buf.st_size;
+        void *data = mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0);
+        if (data == MAP_FAILED)
+            throw std::runtime_error(strerror(errno));
+
+        unsigned char result[MD5_DIGEST_LENGTH] = "";
+        if (MD5(reinterpret_cast<unsigned char*>(data),
+                file_size, result) != NULL)
+        {
+            std::stringstream sstr;
+            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
+            {
+                sstr << std::setfill('0') << std::setw(2)
+                    << std::hex << (uint16_t)result[i];
+            }
+            *md5_sum = sstr.str();
+        }
+
+        if (munmap(data, file_size) < 0)
+            throw std::runtime_error(strerror(errno));
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    if (fd != -1) close(fd);
 }

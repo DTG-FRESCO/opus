@@ -35,6 +35,7 @@ void opus_init(int argc, char** argv, char** envp)
     }
 
     ProcUtils::send_startup_message(argc, argv, envp);
+    ProcUtils::send_loaded_libraries();
     ProcUtils::test_and_set_flag(false);
 }
 

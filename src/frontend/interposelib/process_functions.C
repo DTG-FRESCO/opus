@@ -1,3 +1,7 @@
+#include <limits.h>
+#include <stdlib.h>
+#include <link.h>
+
 
 #include <vector>
 
@@ -7,6 +11,7 @@ typedef int (*EXECVP_POINTER)(const char*, char *const argv[]);
 typedef int (*EXECVPE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*EXECVE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*FEXECVE_POINTER)(int, char *const[], char *const[]);
+typedef void* (*DLOPEN_POINTER)(const char *, int);
 
 /* Initialize function pointers */
 static FORK_POINTER real_fork = NULL;
@@ -15,7 +20,28 @@ static EXECVP_POINTER real_execvp = NULL;
 static EXECVPE_POINTER real_execvpe = NULL;
 static EXECVE_POINTER real_execve = NULL;
 static FEXECVE_POINTER real_fexecve = NULL;
+static DLOPEN_POINTER real_dlopen = NULL;
 
+
+static void get_lib_real_path(void *handle, std::string* real_path)
+{
+    struct link_map *link;
+
+    if (dlinfo(handle, RTLD_DI_LINKMAP, &link) < 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, dlerror());
+        return;
+    }
+
+    char *path = realpath(link->l_name, NULL);
+    if (!path)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return;
+    }
+
+    *real_path = path;
+}
 
 static void setup_new_uds_connection()
 {
@@ -500,4 +526,38 @@ extern "C" pid_t fork(void)
     ProcUtils::test_and_set_flag(false);
 
     return pid;
+}
+
+
+extern "C" void* dlopen(const char * filename, int flag)
+{
+    char *error = NULL;
+    dlerror();
+
+    if (!real_dlopen)
+        DLSYM_CHECK(real_dlopen = (DLOPEN_POINTER)dlsym(RTLD_NEXT, "dlopen"));
+
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_dlopen)(filename, flag);
+
+
+    void *handle = (*real_dlopen)(filename, flag);
+    if (handle)
+    {
+        std::string real_path;
+        std::string md5_sum;
+
+        get_lib_real_path(handle, &real_path);
+        ProcUtils::get_md5_sum(real_path, &md5_sum);
+
+        LibInfoMessage lib_info_msg;
+        KVPair *kv_args = lib_info_msg.add_library();
+        kv_args->set_key(real_path);
+        kv_args->set_value(md5_sum);
+
+        set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
+    }
+
+    ProcUtils::test_and_set_flag(false);
+    return handle;
 }

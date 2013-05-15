@@ -2,6 +2,8 @@
 #define SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
 
 #include <string>
+#include <vector>
+#include <utility>
 
 #include "uds_msg.pb.h"
 
@@ -17,12 +19,18 @@ class ProcUtils
                     const ::google::protobuf::Message& pay_obj);
 
         static void send_startup_message();
-        static void send_startup_message(const int argc, char** argv, char** envp);
+        static void send_startup_message(const int argc,
+                                        char** argv, char** envp);
+        static void send_loaded_libraries();
+        static void send_libinfo_message
+            (const std::vector<std::pair<std::string, std::string> >& lib_vec);
 
         static void get_uds_path(std::string* uds_path_str);
         static const std::string& get_preload_path();
         static const std::string get_user_name(const uid_t user_id);
         static const std::string get_group_name(const gid_t group_id);
+        static void get_md5_sum(const std::string& real_path,
+                                std::string* md5_sum);
 
     private:
         static bool in_func_flag;
