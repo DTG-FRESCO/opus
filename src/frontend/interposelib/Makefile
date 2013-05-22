@@ -10,7 +10,7 @@ CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 #CFLAGS2 := $(CFLAGS2) -ldl -lrt -lprotobuf
 
 LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
-LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf
+LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lssl -lcrypto
 
 SRCS	:= 	log.C \
 			proc_utils.C \
