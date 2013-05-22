@@ -34,6 +34,8 @@ message StartupMessage {
     optional string group_name = 5;
     optional int64 ppid = 6;
     repeated KVPair environment = 7;
+    repeated KVPair system_info = 8;
+    repeated KVPair resource_limit = 9;
 }
 
 message LibInfoMessage {
