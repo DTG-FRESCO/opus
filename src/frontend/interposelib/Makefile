@@ -4,7 +4,7 @@ INSDIR	:= $(TOP)
 
 LIBNAME	:= override
 
-CFLAGS2 := $(CFLAGS2) -Wall -DDEBUG -g -shared -fPIC
+CFLAGS2 := $(CFLAGS2) -O2 -Wall -DDEBUG -g -shared -fPIC
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 #CFLAGS2 := $(CFLAGS2) -ldl -lrt -lprotobuf
@@ -17,6 +17,8 @@ SRCS	:= 	log.C \
 			uds_client.C \
 			uds_msg.pb.cc \
 			functions.C \
+            signal_handler.C \
+            signal_utils.C \
 			main.C
 
 HDRS	:=	log.h \
@@ -24,6 +26,8 @@ HDRS	:=	log.h \
 			uds_comm_exception.h \
 			uds_client.h \
 			functions.h \
+            signal_handler.h \
+            signal_utils.h \
 			main.h
 
 include		$(TOP)/Maketmpl/shlib-NEW.mk
