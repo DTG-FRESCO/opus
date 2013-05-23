@@ -129,7 +129,12 @@ SignalHandler* SignalUtils::add_signal_handler(const int sig,
 
 void SignalUtils::remove_signal_handler(const int sig)
 {
-    sig_handle_map.erase(sig);
+    SignalHandler *handler = get_signal_handler(sig);
+
+    if (!handler) return;
+
+    sig_handler_map.erase(sig);
+    delete handler;
 }
 
 void SignalUtils::init_signal_capture()
