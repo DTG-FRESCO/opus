@@ -23,7 +23,7 @@ class SignalUtils
         static void remove_signal_handler(const int sig);
 
     private:
-        static std::map<int, SignalHandler*> sig_handle_map;
+        static std::map<int, SignalHandler*> sig_handler_map;
 };
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_SIGNAL_UTILS_H_

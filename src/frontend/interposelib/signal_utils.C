@@ -10,7 +10,7 @@
 #include "proc_utils.h"
 #include "message_util.h"
 
-std::map<int, SignalHandler*> SignalUtils::sig_handle_map;
+std::map<int, SignalHandler*> SignalUtils::sig_handler_map;
 
 #define call_handler(...) (*saved_handler)(__VA_ARGS__)
 
@@ -106,9 +106,9 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
 SignalHandler* SignalUtils::get_signal_handler(const int sig)
 {
     SignalHandler *prev_handler = NULL;
-    std::map<int, SignalHandler*>::iterator m_iter = sig_handle_map.find(sig);
+    std::map<int, SignalHandler*>::iterator m_iter = sig_handler_map.find(sig);
 
-    if (m_iter != sig_handle_map.end())
+    if (m_iter != sig_handler_map.end())
         prev_handler = m_iter->second;
 
     return prev_handler;
@@ -120,9 +120,9 @@ SignalHandler* SignalUtils::add_signal_handler(const int sig,
     SignalHandler *prev_handler = get_signal_handler(sig);
 
     if (prev_handler)
-        sig_handle_map.erase(sig);
+        sig_handler_map.erase(sig);
 
-    sig_handle_map[sig] = new_handler;
+    sig_handler_map[sig] = new_handler;
 
     return prev_handler;
 }
