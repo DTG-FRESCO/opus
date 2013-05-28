@@ -26,23 +26,13 @@
 
 #include "log.h"
 #include "uds_client.h"
+#include "message_util.h"
 
 #define STRINGIFY(value) #value
 
 using std::pair;
 using std::string;
 using std::vector;
-using ::google::protobuf::Message;
-using ::fresco::opus::IPCMessage::KVPair;
-using ::fresco::opus::IPCMessage::Header;
-using ::fresco::opus::IPCMessage::GenMsgType;
-using ::fresco::opus::IPCMessage::StartupMessage;
-using ::fresco::opus::IPCMessage::LibInfoMessage;
-using ::fresco::opus::IPCMessage::GenericMessage;
-using ::fresco::opus::IPCMessage::FuncInfoMessage;
-using ::fresco::opus::IPCMessage::PayloadType;
-
-#include "message_util.h"
 
 /* Initialize class static members */
 bool ProcUtils::in_func_flag = true;
@@ -72,17 +62,17 @@ static int get_loaded_libs(struct dl_phdr_info *info,
         ProcUtils::get_md5_sum(real_path, &md5_sum);
 
         lib_vec->push_back(make_pair(real_path, md5_sum));
-        delete real_path;
+        free(real_path);
     }
 
     return 0;
 }
 
-static bool split_key_values(const std::string& env_str,
-                    std::pair<std::string, std::string>* kv_pair)
+static bool split_key_values(const string& env_str,
+                    pair<string, string>* kv_pair)
 {
     int64_t pos = env_str.find_first_of("=");
-    if (pos == (int64_t)std::string::npos)
+    if (pos == (int64_t)string::npos)
         return false;
 
     kv_pair->first = env_str.substr(0, pos);
@@ -93,10 +83,6 @@ static bool split_key_values(const std::string& env_str,
 
 static inline void set_rlimit_info(StartupMessage* start_msg)
 {
-    using std::pair;
-    using std::string;
-    using std::vector;
-
     static pair<string, int> limits[] = {
                             { STRINGIFY(RLIMIT_AS), RLIMIT_AS },
                             { STRINGIFY(RLIMIT_CORE), RLIMIT_CORE },
@@ -177,9 +163,9 @@ static inline void set_env_vars(StartupMessage* start_msg, char** envp)
     char* env_str = NULL;
     while ((env_str = *envp) != NULL)
     {
-        std::pair<std::string, std::string> kv_pair;
+        pair<string, string> kv_pair;
 
-        if (!split_key_values(std::string(env_str), &kv_pair))
+        if (!split_key_values(string(env_str), &kv_pair))
             continue;
 
         env_args = start_msg->add_environment();

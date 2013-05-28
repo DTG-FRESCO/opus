@@ -6,6 +6,7 @@
 #include "log.h"
 #include "proc_utils.h"
 #include "uds_client.h"
+#include "signal_utils.h"
 
 __attribute__((section(".init_array")))
     typeof(opus_init) *__opus_init = opus_init;
@@ -17,6 +18,8 @@ __attribute__((section(".fini_array")))
 void opus_init(int argc, char** argv, char** envp)
 {
     ProcUtils::test_and_set_flag(true);
+
+    SignalUtils::init_signal_capture();
 
     std::string uds_path_str;
     ProcUtils::get_uds_path(&uds_path_str);

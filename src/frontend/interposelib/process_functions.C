@@ -1,9 +1,10 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <link.h>
-
-
 #include <vector>
+#include <stdexcept>
+#include "signal_utils.h"
+#include "signal_handler.h"
 
 typedef pid_t (*FORK_POINTER)(void);
 typedef int (*EXECV_POINTER)(const char*, char *const[]);
@@ -12,6 +13,10 @@ typedef int (*EXECVPE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*EXECVE_POINTER)(const char*, char *const[], char *const[]);
 typedef int (*FEXECVE_POINTER)(int, char *const[], char *const[]);
 typedef void* (*DLOPEN_POINTER)(const char *, int);
+typedef sighandler_t (*SIGNAL_POINTER)(int signum, sighandler_t handler);
+typedef int (*SIGACTION_POINTER)(int signum, const struct sigaction *act,
+                                struct sigaction *oldact);
+typedef void (*EXIT_POINTER)(int);  // _exit and _Exit
 
 /* Initialize function pointers */
 static FORK_POINTER real_fork = NULL;
@@ -21,6 +26,10 @@ static EXECVPE_POINTER real_execvpe = NULL;
 static EXECVE_POINTER real_execve = NULL;
 static FEXECVE_POINTER real_fexecve = NULL;
 static DLOPEN_POINTER real_dlopen = NULL;
+static SIGNAL_POINTER real_signal = NULL;
+static SIGACTION_POINTER real_sigaction = NULL;
+static EXIT_POINTER real__exit = NULL;
+static EXIT_POINTER real__Exit = NULL;
 
 
 static void get_lib_real_path(void *handle, std::string* real_path)
@@ -41,6 +50,54 @@ static void get_lib_real_path(void *handle, std::string* real_path)
     }
 
     *real_path = path;
+}
+
+static inline void exit_program(EXIT_POINTER exit_ptr,
+                const char *exit_str, const int status)
+{
+    char *error = NULL;
+    dlerror();
+
+    if (!exit_ptr)
+    {
+        DLSYM_CHECK(exit_ptr = (EXIT_POINTER)dlsym(RTLD_NEXT, exit_str));
+    }
+
+    if (ProcUtils::test_and_set_flag(true))
+        (*exit_ptr)(status);
+
+    FuncInfoMessage func_msg;
+    KVPair* tmp_arg;
+    tmp_arg = func_msg.add_args();
+    tmp_arg->set_key("status");
+    tmp_arg->set_value(std::to_string(status));
+
+    std::string func_name = exit_str;
+    uint64_t start_time = ProcUtils::get_time();
+    uint64_t end_time = 0;  // function does not return
+    int errno_value = 0;
+
+    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+
+    UDSCommClient::get_instance()->shutdown();
+
+    (*exit_ptr)(status);
+
+    // Will never reach here
+    ProcUtils::test_and_set_flag(false);
+}
+
+
+static inline void set_old_act_data(const SignalHandler* const prev,
+                                    struct sigaction *oldact)
+{
+    void *prev_handler = prev->get_handler();
+
+    if (oldact->sa_flags & SA_SIGINFO)
+        oldact->sa_sigaction = reinterpret_cast<SA_SIGACTION_PTR>(prev_handler);
+    else
+        oldact->sa_handler = reinterpret_cast<sighandler_t>(prev_handler);
 }
 
 static void setup_new_uds_connection()
@@ -528,7 +585,6 @@ extern "C" pid_t fork(void)
     return pid;
 }
 
-
 extern "C" void* dlopen(const char * filename, int flag)
 {
     char *error = NULL;
@@ -560,4 +616,119 @@ extern "C" void* dlopen(const char * filename, int flag)
 
     ProcUtils::test_and_set_flag(false);
     return handle;
+}
+
+extern "C" sighandler_t signal(int signum, sighandler_t handler)
+{
+    char *error = NULL;
+    dlerror();
+
+    /* Get the symbol address and store it */
+    if (!real_signal)
+        DLSYM_CHECK(real_signal = (SIGNAL_POINTER)dlsym(RTLD_NEXT, "signal"));
+
+    /* We are within our own library */
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_signal)(signum, handler);
+
+    sighandler_t ret = NULL;
+    SignalHandler *sh_obj = NULL;
+    SignalHandler *prev_handler = NULL;
+
+    try
+    {
+        sh_obj = new SAHandler(signum, handler);
+        sighandler_t signal_callback =
+                    SignalUtils::opus_type_one_signal_handler;
+
+        if (handler == SIG_IGN) signal_callback = handler;
+
+        ret = (*real_signal)(signum, signal_callback);
+        if (ret == SIG_ERR)
+            throw std::runtime_error("SIG_ERR");
+
+        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+
+        if (prev_handler)
+            ret = reinterpret_cast<sighandler_t>(prev_handler->get_handler());
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        if (sh_obj) delete sh_obj;
+    }
+
+    if (prev_handler) delete prev_handler;
+
+    ProcUtils::test_and_set_flag(false);
+    return ret;
+}
+
+
+extern "C" int sigaction(int signum,
+                        const struct sigaction *act,
+                        struct sigaction *oldact)
+{
+    char *error = NULL;
+    dlerror();
+
+    /* Get the symbol address and store it */
+    if (!real_sigaction)
+        DLSYM_CHECK(real_sigaction =
+                        (SIGACTION_POINTER)dlsym(RTLD_NEXT, "sigaction"));
+
+    /* We are within our own library */
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_sigaction)(signum, act, oldact);
+
+    int ret = 0;
+    SignalHandler *sh_obj = NULL;
+    SignalHandler *prev_handler = NULL;
+
+    // Cast away the constness
+    struct sigaction *sa = const_cast<struct sigaction *>(act);
+
+    try
+    {
+        if (sa->sa_flags & SA_SIGINFO)  // Type two handler
+        {
+            sh_obj = new SASigaction(signum, sa);
+            sa->sa_sigaction = SignalUtils::opus_type_two_signal_handler;
+        }
+        else  // Type one handler
+        {
+            sh_obj = new SAHandler(signum, sa);
+
+            if (sa->sa_handler != SIG_IGN)
+                sa->sa_handler = SignalUtils::opus_type_one_signal_handler;
+        }
+
+        ret = (*real_sigaction)(signum, sa, oldact);
+        if (ret < 0)
+            throw std::runtime_error(strerror(errno));
+
+        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+
+        if (oldact && prev_handler) set_old_act_data(prev_handler, oldact);
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        if (sh_obj) delete sh_obj;
+    }
+
+    if (prev_handler) delete prev_handler;
+
+    ProcUtils::test_and_set_flag(false);
+    return ret;
+}
+
+extern "C" void _exit(int status)
+{
+    exit_program(real__exit, "_exit", status);
+}
+
+extern "C" void _Exit(int status)
+{
+    exit_program(real__Exit, "_Exit", status);
 }
