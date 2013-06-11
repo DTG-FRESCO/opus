@@ -11,4 +11,12 @@
   exit(EXIT_FAILURE); \
 }
 
+typedef void* (*PTHREAD_HANDLER)(void*);
+
+struct OPUSThreadData
+{
+    PTHREAD_HANDLER real_handler;
+    void *real_args;
+};
+
 #endif  // SRC_FRONTEND_INTERPOSELIB_FUNCTIONS_H_

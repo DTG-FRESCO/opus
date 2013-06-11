@@ -96,6 +96,7 @@ def header_size():
     header = uds_msg_pb2.Header()
     header.timestamp = 0
     header.pid = 0
+    header.tid = 0
     header.payload_type = 0
     header.payload_len = 0
     header_size.size = header.ByteSize()

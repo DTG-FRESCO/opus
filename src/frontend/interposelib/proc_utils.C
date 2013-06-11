@@ -15,7 +15,7 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <sys/syscall.h>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>
@@ -23,10 +23,11 @@
 #include <string>
 #include <utility>
 #include <vector>
-
 #include "log.h"
 #include "uds_client.h"
 #include "message_util.h"
+#include "comm_thread.h"
+#include "lock_guard.h"
 
 #define STRINGIFY(value) #value
 
@@ -35,9 +36,10 @@ using std::string;
 using std::vector;
 
 /* Initialize class static members */
-bool ProcUtils::in_func_flag = true;
-string ProcUtils::ld_preload_path = "";
-
+__thread bool ProcUtils::in_func_flag = true; // TLS
+CommThread* ProcUtils::comm_thread_obj = NULL;
+volatile sig_atomic_t ProcUtils::appln_thread_count = 1;
+OPUSLock *ProcUtils::appln_thread_count_lock = NULL;
 
 static int get_loaded_libs(struct dl_phdr_info *info,
                         size_t size, void *ret_vec)
@@ -189,11 +191,8 @@ static inline void set_command_line(StartupMessage* start_msg,
     start_msg->set_cmd_line_args(cmd_line_str);
 }
 
-const string& ProcUtils::get_preload_path()
+void ProcUtils::get_preload_path(string* ld_preload_path)
 {
-    if (!ld_preload_path.empty())
-        return ld_preload_path;
-
     try
     {
         char* preload_path = getenv("LD_PRELOAD");
@@ -203,14 +202,12 @@ const string& ProcUtils::get_preload_path()
         DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
 
-        ld_preload_path = preload_path;
+        *ld_preload_path = preload_path;
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
-
-    return ld_preload_path;
 }
 
 uint64_t ProcUtils::get_time()
@@ -250,6 +247,8 @@ void ProcUtils::get_formatted_time(string* date_time)
 void ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
+    if (!comm_thread_obj) return;
+
     char* buf = NULL;
 
     int hdr_size = header_obj.ByteSize();
@@ -268,15 +267,14 @@ void ProcUtils::serialise_and_send_data(const Header& header_obj,
         if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
             throw std::runtime_error("Failed to serialise payload");
 
-        if (!UDSCommClient::get_instance()->send_data(buf, total_size))
-            throw std::runtime_error("Sending data failed");
+        if (!comm_thread_obj->enqueue_msg(buf, total_size))
+            throw std::runtime_error("Could not enqueue message");
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        if (buf) delete buf;;
     }
-
-    if (buf) delete buf;
 }
 
 /*
@@ -494,4 +492,123 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
     }
 
     if (fd != -1) close(fd);
+}
+
+pid_t ProcUtils::gettid()
+{
+    pid_t tid = -1;
+
+    if ((tid = syscall(__NR_gettid)) < 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+
+    return tid;
+}
+
+void ProcUtils::incr_appln_thread_count()
+{
+    try
+    {
+        LockGuard guard(*appln_thread_count_lock);
+        ++appln_thread_count;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    }
+}
+
+const int ProcUtils::decr_appln_thread_count()
+{
+    int ret_count = 0;
+
+    try
+    {
+        LockGuard guard(*appln_thread_count_lock);
+
+        --appln_thread_count;
+        ret_count = appln_thread_count;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    }
+
+    return ret_count;
+}
+
+void* ProcUtils::get_sym_addr(const string& symbol)
+{
+    // TODO
+    // obtain rdlock
+
+    // get ptr
+
+    // release rdlock
+
+    // return ptr
+    return NULL;
+}
+
+void* ProcUtils::add_sym_addr(const string& symbol)
+{
+    // TODO
+    // obtain wrlock
+
+    // check if pointer exists
+    // if not
+    // add pointer
+    // else get ptr
+
+    // if dlsym fails, then print dlerror
+    // and exit the program
+
+    // release wrlock
+
+    // return ptr
+    return NULL;
+}
+
+bool ProcUtils::initialize_lock()
+{
+    bool ret = true;
+
+    try
+    {
+        appln_thread_count_lock = new SimpleLock();
+
+        // TODO: create a reader writer lock in here
+    }
+    catch(const std::exception& e)
+    {
+        ret = false;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return ret;
+}
+
+void ProcUtils::reset_lock()
+{
+    //TODO: reset mutex
+}
+
+bool ProcUtils::init_libc_interposition()
+{
+    bool ret = true;
+
+    try
+    {
+        if (!initialize_lock())
+            throw std::runtime_error("Failed to initialize mutex");
+
+        // TODO: Initialize all the libc functions here
+
+    }
+    catch(const std::exception& e)
+    {
+        ret = false;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return ret;
 }

@@ -49,6 +49,7 @@ def create_blank_marker():
     header = uds_msg_pb2.Header()
     header.timestamp = 0
     header.pid = 0
+    header.tid = 0
     header.payload_type = uds_msg_pb2.BLANK_MSG
     header.payload_len = 0
 

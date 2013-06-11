@@ -18,6 +18,12 @@ typedef int (*SIGACTION_POINTER)(int signum, const struct sigaction *act,
                                 struct sigaction *oldact);
 typedef void (*EXIT_POINTER)(int);  // _exit and _Exit
 
+//Function pointers for pthreads
+typedef int (*PTHREAD_CREATE_POINTER)(pthread_t *thread,
+                        const pthread_attr_t *attr,
+                        PTHREAD_HANDLER real_handler, void *real_args);
+typedef void (*PTHREAD_EXIT_POINTER)(void *retval);
+
 /* Initialize function pointers */
 static FORK_POINTER real_fork = NULL;
 static EXECV_POINTER real_execv = NULL;
@@ -30,7 +36,54 @@ static SIGNAL_POINTER real_signal = NULL;
 static SIGACTION_POINTER real_sigaction = NULL;
 static EXIT_POINTER real__exit = NULL;
 static EXIT_POINTER real__Exit = NULL;
+static PTHREAD_CREATE_POINTER real_pthread_create = NULL;
+static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
 
+/*
+    Called by all threads that exit.
+    Sends a thread exit generic
+    message to the backend.
+*/
+static void opus_thread_cleanup_handler(void *cleanup_args)
+{
+    send_generic_msg(GenMsgType::THREAD_EXIT,
+                std::to_string(ProcUtils::gettid()));
+
+    int thread_count = ProcUtils::decr_appln_thread_count();
+    if (thread_count == 0)
+    {
+        if (ProcUtils::comm_thread_obj)
+            ProcUtils::comm_thread_obj->shutdown_thread();
+    }
+}
+
+/*
+    Wrapper thread routine for
+    the real thread handler
+*/
+static void* opus_thread_start_routine(void *args)
+{
+    ProcUtils::incr_appln_thread_count();
+
+    OPUSThreadData *opus_thread_data = static_cast<OPUSThreadData*>(args);
+
+    PTHREAD_HANDLER real_handler = opus_thread_data->real_handler;
+    void *real_args = opus_thread_data->real_args;
+
+    delete opus_thread_data; // don't need this pointer anymore
+
+    pthread_cleanup_push(opus_thread_cleanup_handler, NULL);
+
+    send_generic_msg(GenMsgType::THREAD_START,
+                    std::to_string(ProcUtils::gettid()));
+
+    ProcUtils::test_and_set_flag(false);
+    void *ret = real_handler(real_args);
+    ProcUtils::test_and_set_flag(true);
+
+    return ret;
+    pthread_cleanup_pop(1); // Added to avoid compilation error
+}
 
 static void get_lib_real_path(void *handle, std::string* real_path)
 {
@@ -80,7 +133,8 @@ static inline void exit_program(EXIT_POINTER exit_ptr,
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
-    UDSCommClient::get_instance()->shutdown();
+    if (ProcUtils::comm_thread_obj)
+        ProcUtils::comm_thread_obj->shutdown_thread();
 
     (*exit_ptr)(status);
 
@@ -89,30 +143,32 @@ static inline void exit_program(EXIT_POINTER exit_ptr,
 }
 
 
-static inline void set_old_act_data(const SignalHandler* const prev,
-                                    struct sigaction *oldact)
+static inline void set_old_act_data(void* prev, struct sigaction *oldact)
 {
-    void *prev_handler = prev->get_handler();
-
     if (oldact->sa_flags & SA_SIGINFO)
-        oldact->sa_sigaction = reinterpret_cast<SA_SIGACTION_PTR>(prev_handler);
+        oldact->sa_sigaction = reinterpret_cast<SA_SIGACTION_PTR>(prev);
     else
-        oldact->sa_handler = reinterpret_cast<sighandler_t>(prev_handler);
+        oldact->sa_handler = reinterpret_cast<sighandler_t>(prev);
 }
 
 static void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
 
-    DEBUG_LOG("[%s:%d]: Setting up new UDS connection\n", __FILE__, __LINE__);
+    SignalUtils::reset_lock();
+    ProcUtils::reset_lock();
 
-    /* Close inherited connection */
-    UDSCommClient::get_instance()->close_connection();
-
-    /* Open a new connection */
-    if (!UDSCommClient::get_instance()->reconnect())
+    if (ProcUtils::comm_thread_obj)
     {
-        DEBUG_LOG("[%s:%d]: Reconnect failed\n", __FILE__, __LINE__);
+        ProcUtils::comm_thread_obj->reset_instance();
+        ProcUtils::comm_thread_obj = NULL;
+    }
+
+    ProcUtils::comm_thread_obj = CommThread::get_instance();
+    if (!ProcUtils::comm_thread_obj)
+    {
+        DEBUG_LOG("[%s:%d]: Could not instantiate communication thread\n",
+                        __FILE__, __LINE__);
         return;
     }
 
@@ -153,7 +209,9 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
         char ld_preload_buf[PATH_MAX];
         memset(ld_preload_buf, 0, sizeof(ld_preload_buf));
 
-        std::string preload_path = ProcUtils::get_preload_path();
+        std::string preload_path;
+        ProcUtils::get_preload_path(&preload_path);
+
         std::string preload_str = "LD_PRELOAD=" + preload_path;
 
         DEBUG_LOG("[%s:%d]: Added LD_PRELOAD path: %s\n",
@@ -618,7 +676,7 @@ extern "C" void* dlopen(const char * filename, int flag)
     return handle;
 }
 
-extern "C" sighandler_t signal(int signum, sighandler_t handler)
+extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
     char *error = NULL;
     dlerror();
@@ -629,36 +687,34 @@ extern "C" sighandler_t signal(int signum, sighandler_t handler)
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_signal)(signum, handler);
+        return (*real_signal)(signum, real_handler);
 
     sighandler_t ret = NULL;
     SignalHandler *sh_obj = NULL;
-    SignalHandler *prev_handler = NULL;
 
     try
     {
-        sh_obj = new SAHandler(signum, handler);
-        sighandler_t signal_callback =
-                    SignalUtils::opus_type_one_signal_handler;
+        sh_obj = new SAHandler(signum, real_handler);
+        sighandler_t signal_handler = SignalUtils::opus_type_one_signal_handler;
 
-        if (handler == SIG_IGN) signal_callback = handler;
+        if (real_handler == SIG_IGN)
+            signal_handler = real_handler;
 
-        ret = (*real_signal)(signum, signal_callback);
-        if (ret == SIG_ERR)
-            throw std::runtime_error("SIG_ERR");
-
-        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+        /*
+           Calls the signal function and returns the
+           previous handler as an atomic operation
+        */
+        void *prev_handler = SignalUtils::call_signal(real_signal, signum,
+                                                signal_handler, sh_obj, ret);
 
         if (prev_handler)
-            ret = reinterpret_cast<sighandler_t>(prev_handler->get_handler());
+            ret = reinterpret_cast<sighandler_t>(prev_handler);
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         if (sh_obj) delete sh_obj;
     }
-
-    if (prev_handler) delete prev_handler;
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -683,7 +739,6 @@ extern "C" int sigaction(int signum,
 
     int ret = 0;
     SignalHandler *sh_obj = NULL;
-    SignalHandler *prev_handler = NULL;
 
     // Cast away the constness
     struct sigaction *sa = const_cast<struct sigaction *>(act);
@@ -703,11 +758,12 @@ extern "C" int sigaction(int signum,
                 sa->sa_handler = SignalUtils::opus_type_one_signal_handler;
         }
 
-        ret = (*real_sigaction)(signum, sa, oldact);
-        if (ret < 0)
-            throw std::runtime_error(strerror(errno));
-
-        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+        /*
+           Calls the sigaction function and returns the
+           previous handler as an atomic operation
+        */
+        void *prev_handler = SignalUtils::call_sigaction(real_sigaction, signum,
+                                                    sa, oldact, sh_obj, ret);
 
         if (oldact && prev_handler) set_old_act_data(prev_handler, oldact);
     }
@@ -716,8 +772,6 @@ extern "C" int sigaction(int signum,
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         if (sh_obj) delete sh_obj;
     }
-
-    if (prev_handler) delete prev_handler;
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -731,4 +785,92 @@ extern "C" void _exit(int status)
 extern "C" void _Exit(int status)
 {
     exit_program(real__Exit, "_Exit", status);
+}
+
+extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                            PTHREAD_HANDLER real_handler, void *real_args)
+{
+    char *error = NULL;
+    dlerror();
+
+    /* Get the symbol address and store it */
+    if (!real_pthread_create)
+    {
+        DLSYM_CHECK(real_pthread_create =
+                (PTHREAD_CREATE_POINTER)dlsym(RTLD_NEXT, "pthread_create"));
+    }
+
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_pthread_create)(thread, attr, real_handler, real_args);
+
+    std::string func_name = "pthread_create";
+    uint64_t start_time = ProcUtils::get_time();
+
+    PTHREAD_HANDLER handler = real_handler;
+    void *args = real_args;
+
+    try
+    {
+        OPUSThreadData *opus_thread_data = new OPUSThreadData();
+        opus_thread_data->real_handler = real_handler;
+        opus_thread_data->real_args = real_args;
+
+        handler = opus_thread_start_routine;
+        args = opus_thread_data;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    }
+
+    errno = 0;
+    int ret = (*real_pthread_create)(thread, attr, handler, args);
+    int errno_value = errno;
+
+    uint64_t end_time = ProcUtils::get_time();
+
+    FuncInfoMessage func_msg;
+    set_func_info_msg(&func_msg, func_name, ret, start_time,
+                        end_time, errno_value);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+
+    ProcUtils::test_and_set_flag(false);
+    return ret;
+}
+
+extern "C" void pthread_exit(void *retval)
+{
+    char *error = NULL;
+    dlerror();
+
+    /* Get the symbol address and store it */
+    if (!real_pthread_exit)
+    {
+        DLSYM_CHECK(real_pthread_exit =
+                (PTHREAD_EXIT_POINTER)dlsym(RTLD_NEXT, "pthread_exit"));
+    }
+
+    if (ProcUtils::test_and_set_flag(true))
+        (*real_pthread_exit)(retval);
+
+    FuncInfoMessage func_msg;
+
+    std::string func_name = "pthread_exit";
+    uint64_t start_time = ProcUtils::get_time();
+    uint64_t end_time = 0;
+    int errno_value = 0;
+
+    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+
+    if (getpid() != ProcUtils::gettid())
+    {
+        // This will call the cleanup handlers
+        (*real_pthread_exit)(retval);
+    }
+
+    // This is the main thread, setup a cleanup handler
+    pthread_cleanup_push(opus_thread_cleanup_handler, NULL);
+    (*real_pthread_exit)(retval);
+    pthread_cleanup_pop(1);
 }
