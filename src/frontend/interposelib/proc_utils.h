@@ -1,6 +1,7 @@
 #ifndef SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
 #define SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
 
+#include <map>
 #include <string>
 #include <vector>
 #include <utility>
@@ -40,15 +41,14 @@ class ProcUtils
         /* libc function map related functions */
         static void* get_sym_addr(const std::string& symbol);
         static void* add_sym_addr(const std::string& symbol);
-        static bool init_libc_interposition();
-        static bool initialize_lock();
-        static void reset_lock();
+        static bool initialize();
+        static void reset();
 
         static CommThread *comm_thread_obj; // made public for ease of use
 
     private:
         static __thread bool in_func_flag;
-        static std::map<std::string, void*> libc_func_map;
+        static std::map<std::string, void*> *libc_func_map;
 
         /* Count of application threads that are alive */
         static volatile sig_atomic_t appln_thread_count;

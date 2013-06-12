@@ -23,6 +23,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 #include "log.h"
 #include "uds_client.h"
 #include "message_util.h"
@@ -36,10 +37,11 @@ using std::string;
 using std::vector;
 
 /* Initialize class static members */
-__thread bool ProcUtils::in_func_flag = true; // TLS
+__thread bool ProcUtils::in_func_flag = true; // Thread local storage
 CommThread* ProcUtils::comm_thread_obj = NULL;
 volatile sig_atomic_t ProcUtils::appln_thread_count = 1;
 OPUSLock *ProcUtils::appln_thread_count_lock = NULL;
+std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
 static int get_loaded_libs(struct dl_phdr_info *info,
                         size_t size, void *ret_vec)
@@ -538,45 +540,58 @@ const int ProcUtils::decr_appln_thread_count()
 
 void* ProcUtils::get_sym_addr(const string& symbol)
 {
-    // TODO
-    // obtain rdlock
+    /*
+        The libc function pointer map should get populated
+        at process startup. The only case when a symbol will
+        not be found is when a libc function is invoked from 
+        a processes .preinit_array method.
+    */
+    if (!libc_func_map)
+        libc_func_map = new std::map<string, void*>();
 
-    // get ptr
+    std::map<string, void*>::iterator miter = libc_func_map->find(symbol);
+    if (miter != libc_func_map->end())
+        return miter->second;
 
-    // release rdlock
-
-    // return ptr
-    return NULL;
+    // Allow lazy loading of the symbol
+    return ProcUtils::add_sym_addr(symbol);
 }
 
+/*
+    This function will not be called from multiple
+    threads simultaneously as the OPUS library
+    loads the libc function map at startup
+*/
 void* ProcUtils::add_sym_addr(const string& symbol)
 {
-    // TODO
-    // obtain wrlock
+    void *func_ptr = NULL;
+    char *sym_error = NULL;
 
-    // check if pointer exists
-    // if not
-    // add pointer
-    // else get ptr
+    if (!libc_func_map)
+        libc_func_map = new std::map<string, void*>();
 
-    // if dlsym fails, then print dlerror
-    // and exit the program
+    dlerror();
+    func_ptr = dlsym(RTLD_NEXT, symbol.c_str());
+    if (func_ptr == NULL)
+    {
+        if ((sym_error = dlerror()) != NULL)
+            DEBUG_LOG("[%s:%d]: Critical error!! %s\n",
+                        __FILE__, __LINE__, sym_error);
 
-    // release wrlock
+        exit(EXIT_FAILURE);
+    }
 
-    // return ptr
-    return NULL;
+    (*libc_func_map)[symbol] = func_ptr;
+    return func_ptr;
 }
 
-bool ProcUtils::initialize_lock()
+bool ProcUtils::initialize()
 {
     bool ret = true;
 
     try
     {
         appln_thread_count_lock = new SimpleLock();
-
-        // TODO: create a reader writer lock in here
     }
     catch(const std::exception& e)
     {
@@ -587,28 +602,21 @@ bool ProcUtils::initialize_lock()
     return ret;
 }
 
-void ProcUtils::reset_lock()
+void ProcUtils::reset()
 {
-    //TODO: reset mutex
-}
-
-bool ProcUtils::init_libc_interposition()
-{
-    bool ret = true;
-
     try
     {
-        if (!initialize_lock())
-            throw std::runtime_error("Failed to initialize mutex");
+        if (appln_thread_count_lock)
+        {
+            delete appln_thread_count_lock;
+            appln_thread_count_lock = NULL;
+        }
 
-        // TODO: Initialize all the libc functions here
-
+        appln_thread_count = 1;
+        ProcUtils::initialize();
     }
     catch(const std::exception& e)
     {
-        ret = false;
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
-
-    return ret;
 }

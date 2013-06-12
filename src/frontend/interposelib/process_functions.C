@@ -1,43 +1,30 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <link.h>
+#include <cstdint>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <string>
 #include <vector>
 #include <stdexcept>
+#include "log.h"
 #include "signal_utils.h"
 #include "signal_handler.h"
+#include "func_ptr_types.h"
+#include "proc_utils.h"
+#include "message_util.h"
 
-typedef pid_t (*FORK_POINTER)(void);
-typedef int (*EXECV_POINTER)(const char*, char *const[]);
-typedef int (*EXECVP_POINTER)(const char*, char *const argv[]);
-typedef int (*EXECVPE_POINTER)(const char*, char *const[], char *const[]);
-typedef int (*EXECVE_POINTER)(const char*, char *const[], char *const[]);
-typedef int (*FEXECVE_POINTER)(int, char *const[], char *const[]);
-typedef void* (*DLOPEN_POINTER)(const char *, int);
-typedef sighandler_t (*SIGNAL_POINTER)(int signum, sighandler_t handler);
-typedef int (*SIGACTION_POINTER)(int signum, const struct sigaction *act,
-                                struct sigaction *oldact);
-typedef void (*EXIT_POINTER)(int);  // _exit and _Exit
 
-//Function pointers for pthreads
-typedef int (*PTHREAD_CREATE_POINTER)(pthread_t *thread,
-                        const pthread_attr_t *attr,
-                        PTHREAD_HANDLER real_handler, void *real_args);
-typedef void (*PTHREAD_EXIT_POINTER)(void *retval);
+typedef void* (*PTHREAD_HANDLER)(void*);
 
-/* Initialize function pointers */
-static FORK_POINTER real_fork = NULL;
-static EXECV_POINTER real_execv = NULL;
-static EXECVP_POINTER real_execvp = NULL;
-static EXECVPE_POINTER real_execvpe = NULL;
-static EXECVE_POINTER real_execve = NULL;
-static FEXECVE_POINTER real_fexecve = NULL;
-static DLOPEN_POINTER real_dlopen = NULL;
-static SIGNAL_POINTER real_signal = NULL;
-static SIGACTION_POINTER real_sigaction = NULL;
-static EXIT_POINTER real__exit = NULL;
-static EXIT_POINTER real__Exit = NULL;
-static PTHREAD_CREATE_POINTER real_pthread_create = NULL;
-static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
+struct OPUSThreadData
+{
+    PTHREAD_HANDLER real_handler;
+    void *real_args;
+};
 
 /*
     Called by all threads that exit.
@@ -105,16 +92,13 @@ static void get_lib_real_path(void *handle, std::string* real_path)
     *real_path = path;
 }
 
-static inline void exit_program(EXIT_POINTER exit_ptr,
-                const char *exit_str, const int status)
+static inline void exit_program(const char *exit_str, const int status)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = exit_str;
+    static _EXIT_POINTER exit_ptr = NULL;
 
     if (!exit_ptr)
-    {
-        DLSYM_CHECK(exit_ptr = (EXIT_POINTER)dlsym(RTLD_NEXT, exit_str));
-    }
+        exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
         (*exit_ptr)(status);
@@ -125,7 +109,6 @@ static inline void exit_program(EXIT_POINTER exit_ptr,
     tmp_arg->set_key("status");
     tmp_arg->set_value(std::to_string(status));
 
-    std::string func_name = exit_str;
     uint64_t start_time = ProcUtils::get_time();
     uint64_t end_time = 0;  // function does not return
     int errno_value = 0;
@@ -155,8 +138,8 @@ static void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
 
-    SignalUtils::reset_lock();
-    ProcUtils::reset_lock();
+    SignalUtils::reset();
+    ProcUtils::reset();
 
     if (ProcUtils::comm_thread_obj)
     {
@@ -234,7 +217,6 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
 extern "C" int execl(const char *path, const char *arg, ...)
 {
     va_list lst;
-    char *error = NULL;
     std::vector<char*> arg_vec;
 
     /* Read the argument list */
@@ -248,10 +230,12 @@ extern "C" int execl(const char *path, const char *arg, ...)
     arg_vec.push_back(NULL);
     va_end(lst);
 
+    std::string func_name = "execv";
+    static EXECV_POINTER real_execv = NULL;
+
     /* Get the symbol address and store it */
-    dlerror();
     if (!real_execv)
-        DLSYM_CHECK(real_execv = (EXECV_POINTER)dlsym(RTLD_NEXT, "execv"));
+        real_execv = (EXECV_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -286,7 +270,6 @@ extern "C" int execl(const char *path, const char *arg, ...)
 extern "C" int execlp(const char *file, const char *arg, ...)
 {
     va_list lst;
-    char *error = NULL;
     std::vector<char*> arg_vec;
 
     /* Read the argument list */
@@ -300,10 +283,12 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     arg_vec.push_back(NULL);
     va_end(lst);
 
+    std::string func_name = "execvp";
+    static EXECVP_POINTER real_execvp = NULL;
+
     /* Get the symbol address and store it */
-    dlerror();
     if (!real_execvp)
-        DLSYM_CHECK(real_execvp = (EXECVP_POINTER)dlsym(RTLD_NEXT, "execvp"));
+        real_execvp = (EXECVP_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -338,7 +323,6 @@ extern "C" int execle(const char *path, const char *arg,
                             .../*, char *const envp[]*/)
 {
     va_list lst;
-    char *error = NULL;
     std::vector<char*> arg_vec;
 
     /* Read the argument list */
@@ -359,11 +343,12 @@ extern "C" int execle(const char *path, const char *arg,
     copy_env_vars(envp, &env_vec);
     env_vec.push_back(NULL);
 
+    std::string func_name = "execvpe";
+    static EXECVPE_POINTER real_execvpe = NULL;
+
     /* Get the symbol address and store it */
-    dlerror();
     if (!real_execvpe)
-        DLSYM_CHECK(real_execvpe = \
-                    (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
+        real_execvpe = (EXECVPE_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
@@ -395,20 +380,19 @@ extern "C" int execle(const char *path, const char *arg,
 
 extern "C" int execv(const char *path, char *const argv[])
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "execv";
+    static EXECV_POINTER real_execv = NULL;
 
     /* Get the symbol address and store it */
     if (!real_execv)
-        DLSYM_CHECK(real_execv = (EXECV_POINTER)dlsym(RTLD_NEXT, "execv"));
+        real_execv = (EXECV_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_execv)(path, argv);
 
     /* Send pre function call generic message */
-    std::string desc = "execv";
-    send_pre_func_generic_msg(desc);
+    send_pre_func_generic_msg(func_name);
 
     /* Call the original execv */
     uint64_t start_time = ProcUtils::get_time();
@@ -419,7 +403,8 @@ extern "C" int execv(const char *path, char *const argv[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, func_name, ret,
+                start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -434,20 +419,19 @@ extern "C" int execv(const char *path, char *const argv[])
 
 extern "C" int execvp(const char *file, char *const argv[])
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "execvp";
+    static EXECVP_POINTER real_execvp = NULL;
 
     /* Get the symbol address and store it */
     if (!real_execvp)
-        DLSYM_CHECK(real_execvp = (EXECVP_POINTER)dlsym(RTLD_NEXT, "execvp"));
+        real_execvp = (EXECVP_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_execvp)(file, argv);
 
     /* Send pre function call generic message */
-    std::string desc = "execvp";
-    send_pre_func_generic_msg(desc);
+    send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvp)(file, argv);
@@ -457,7 +441,7 @@ extern "C" int execvp(const char *file, char *const argv[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -472,27 +456,25 @@ extern "C" int execvp(const char *file, char *const argv[])
 
 extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
 {
-    char *error = NULL;
     std::vector<char*> env_vec;
-
-    dlerror();
 
     /* Copy OPUS specific env variables if possible */
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
+    std::string func_name = "execvpe";
+    static EXECVPE_POINTER real_execvpe = NULL;
+
     /* Get the symbol address and store it */
     if (!real_execvpe)
-        DLSYM_CHECK(real_execvpe = \
-                (EXECVPE_POINTER)dlsym(RTLD_NEXT, "execvpe"));
+        real_execvpe = (EXECVPE_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_execvpe)(file, argv, &env_vec[0]);
 
     /* Send pre function call generic message */
-    std::string desc = "execvpe";
-    send_pre_func_generic_msg(desc);
+    send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execvpe)(file, argv, &env_vec[0]);
@@ -501,7 +483,7 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -518,27 +500,25 @@ extern "C" int execve(const char *filename,
                         char *const argv[],
                         char *const envp[])
 {
-    char *error = NULL;
     std::vector<char*> env_vec;
-
-    dlerror();
 
     /* Copy OPUS specific env variables if possible */
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
+    std::string func_name = "execve";
+    static EXECVE_POINTER real_execve = NULL;
+
     /* Get the symbol address and store it */
-    if (!real_execvpe)
-        DLSYM_CHECK(real_execve = \
-                (EXECVE_POINTER)dlsym(RTLD_NEXT, "execve"));
+    if (!real_execve)
+        real_execve = (EXECVE_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_execve)(filename, argv, &env_vec[0]);
 
     /* Send pre function call generic message */
-    std::string desc = "execve";
-    send_pre_func_generic_msg(desc);
+    send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_execve)(filename, argv, &env_vec[0]);
@@ -547,7 +527,7 @@ extern "C" int execve(const char *filename,
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -562,27 +542,25 @@ extern "C" int execve(const char *filename,
 
 extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
 {
-    char *error = NULL;
     std::vector<char*> env_vec;
-
-    dlerror();
 
     /* Copy OPUS specific env variables if possible */
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
+    std::string func_name = "fexecve";
+    static FEXECVE_POINTER real_fexecve = NULL;
+
     /* Get the symbol address and store it */
     if (!real_fexecve)
-        DLSYM_CHECK(real_fexecve = \
-                    (FEXECVE_POINTER)dlsym(RTLD_NEXT, "fexecve"));
+        real_fexecve = (FEXECVE_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* Call function if global flag is true */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_fexecve)(fd, argv, &env_vec[0]);
 
     /* Send pre function call generic message */
-    std::string desc = "fexecve";
-    send_pre_func_generic_msg(desc);
+    send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
     int ret = (*real_fexecve)(fd, argv, &env_vec[0]);
@@ -591,7 +569,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     int errno_value = errno;
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
 
     KVPair* arg_kv;
     arg_kv = func_msg.add_args();
@@ -607,17 +585,16 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
 
 extern "C" pid_t fork(void)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "fork";
+    static FORK_POINTER real_fork = NULL;
 
     /* Get the symbol address and store it */
     if (!real_fork)
-        DLSYM_CHECK(real_fork = (FORK_POINTER)dlsym(RTLD_NEXT, "fork"));
+        real_fork = (FORK_POINTER)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
         return (*real_fork)();
 
-    std::string func_name = "fork";
     uint64_t start_time = ProcUtils::get_time();
 
     pid_t pid = (*real_fork)();
@@ -645,15 +622,14 @@ extern "C" pid_t fork(void)
 
 extern "C" void* dlopen(const char * filename, int flag)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "dlopen";
+    static DLOPEN_POINTER real_dlopen = NULL;
 
     if (!real_dlopen)
-        DLSYM_CHECK(real_dlopen = (DLOPEN_POINTER)dlsym(RTLD_NEXT, "dlopen"));
+        real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
         return (*real_dlopen)(filename, flag);
-
 
     void *handle = (*real_dlopen)(filename, flag);
     if (handle)
@@ -678,12 +654,12 @@ extern "C" void* dlopen(const char * filename, int flag)
 
 extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "signal";
+    static SIGNAL_POINTER real_signal = NULL;
 
     /* Get the symbol address and store it */
     if (!real_signal)
-        DLSYM_CHECK(real_signal = (SIGNAL_POINTER)dlsym(RTLD_NEXT, "signal"));
+        real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
@@ -725,17 +701,22 @@ extern "C" int sigaction(int signum,
                         const struct sigaction *act,
                         struct sigaction *oldact)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "sigaction";
+    static SIGACTION_POINTER real_sigaction = NULL;
 
     /* Get the symbol address and store it */
     if (!real_sigaction)
-        DLSYM_CHECK(real_sigaction =
-                        (SIGACTION_POINTER)dlsym(RTLD_NEXT, "sigaction"));
+        real_sigaction = (SIGACTION_POINTER)ProcUtils::get_sym_addr(func_name);
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_sigaction)(signum, act, oldact);
+
+    if (!act)
+    {
+        ProcUtils::test_and_set_flag(false);
+        return (*real_sigaction)(signum, act, oldact);
+    }
 
     int ret = 0;
     SignalHandler *sh_obj = NULL;
@@ -779,31 +760,30 @@ extern "C" int sigaction(int signum,
 
 extern "C" void _exit(int status)
 {
-    exit_program(real__exit, "_exit", status);
+    exit_program("_exit", status);
 }
 
 extern "C" void _Exit(int status)
 {
-    exit_program(real__Exit, "_Exit", status);
+    exit_program("_Exit", status);
 }
 
 extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                             PTHREAD_HANDLER real_handler, void *real_args)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "pthread_create";
+    static PTHREAD_CREATE_POINTER real_pthread_create = NULL;
 
     /* Get the symbol address and store it */
     if (!real_pthread_create)
     {
-        DLSYM_CHECK(real_pthread_create =
-                (PTHREAD_CREATE_POINTER)dlsym(RTLD_NEXT, "pthread_create"));
+        real_pthread_create =
+                (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr(func_name);
     }
 
     if (ProcUtils::test_and_set_flag(true))
         return (*real_pthread_create)(thread, attr, real_handler, real_args);
 
-    std::string func_name = "pthread_create";
     uint64_t start_time = ProcUtils::get_time();
 
     PTHREAD_HANDLER handler = real_handler;
@@ -840,14 +820,14 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
 extern "C" void pthread_exit(void *retval)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "pthread_exit";
+    static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
 
     /* Get the symbol address and store it */
     if (!real_pthread_exit)
     {
-        DLSYM_CHECK(real_pthread_exit =
-                (PTHREAD_EXIT_POINTER)dlsym(RTLD_NEXT, "pthread_exit"));
+        real_pthread_exit =
+            (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr(func_name);
     }
 
     if (ProcUtils::test_and_set_flag(true))
@@ -855,7 +835,6 @@ extern "C" void pthread_exit(void *retval)
 
     FuncInfoMessage func_msg;
 
-    std::string func_name = "pthread_exit";
     uint64_t start_time = ProcUtils::get_time();
     uint64_t end_time = 0;
     int errno_value = 0;

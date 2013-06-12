@@ -8,7 +8,6 @@
 #include "signal_handler.h"
 #include "opus_lock.h"
 
-//TODO: put this typdef in a common place
 typedef sighandler_t (*SIGNAL_POINTER)(int signum, sighandler_t handler);
 typedef int (*SIGACTION_POINTER)(int signum, const struct sigaction *act,
                                 struct sigaction *oldact);
@@ -20,8 +19,8 @@ class SignalUtils
         static void opus_type_two_signal_handler(int sig,
                                         siginfo_t *info, void *u_ctx);
         static void init_signal_capture();
-        static bool initialize_lock();
-        static void reset_lock();
+        static bool initialize();
+        static void reset();
 
         static void block_all_signals(sigset_t *old_set);
         static void restore_signal_mask(sigset_t *old_set);

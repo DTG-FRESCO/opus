@@ -275,7 +275,7 @@ void SignalUtils::init_signal_capture()
     }
 }
 
-bool SignalUtils::initialize_lock()
+bool SignalUtils::initialize()
 {
     bool ret = true;
 
@@ -292,8 +292,20 @@ bool SignalUtils::initialize_lock()
     return ret;
 }
 
-void SignalUtils::reset_lock()
+void SignalUtils::reset()
 {
-    if (sig_vec_lock)
-        delete sig_vec_lock;
+    try
+    {
+        if (sig_vec_lock)
+        {
+            delete sig_vec_lock;
+            sig_vec_lock = NULL;
+        }
+
+        SignalUtils::initialize();
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
 }

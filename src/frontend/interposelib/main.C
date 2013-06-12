@@ -9,6 +9,7 @@
 #include "uds_client.h"
 #include "signal_utils.h"
 #include "comm_thread.h"
+#include "functions.h"
 
 __attribute__((section(".init_array")))
     typeof(opus_init) *__opus_init = opus_init;
@@ -21,13 +22,15 @@ void opus_init(int argc, char** argv, char** envp)
 {
     ProcUtils::test_and_set_flag(true);
 
+    opus_init_libc_funcs();
+
     try
     {
-        if (!SignalUtils::initialize_lock())
-            throw std::runtime_error("SignalUtils::initialize_lock failed!!");
+        if (!SignalUtils::initialize())
+            throw std::runtime_error("SignalUtils::initialize failed!!");
 
-        if (!ProcUtils::init_libc_interposition())
-            throw std::runtime_error("Init libc interposition failed!!");
+        if (!ProcUtils::initialize())
+            throw std::runtime_error("ProcUtils::initialize failed!!");
 
         /* Should only be called in one thread during startup */
         ProcUtils::comm_thread_obj = CommThread::get_instance();

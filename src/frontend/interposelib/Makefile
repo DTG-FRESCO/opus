@@ -4,7 +4,7 @@ INSDIR      := $(TOP)
 
 LIBNAME     := override
 
-CFLAGS2 := $(CFLAGS2) -O2 -Wall -DDEBUG -g -shared -fPIC
+CFLAGS2 := $(CFLAGS2) -O2 -Wall -g -shared -fPIC
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
@@ -18,6 +18,8 @@ SRCS    :=  log.C \
             uds_client.C \
             uds_msg.pb.cc \
             functions.C \
+            io_functions.C \
+            process_functions.C \
             signal_handler.C \
             signal_utils.C \
             comm_thread.C \
