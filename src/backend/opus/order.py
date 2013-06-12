@@ -9,6 +9,16 @@ import Queue
 import threading
 import time
 
+from opus import common_utils
+
+class QueueClearingException(common_utils.OPUSException):
+    '''Exception raised when attempting to put an item into a queue that is
+    being cleared.'''
+    def __init__(self):
+        super(QueueClearingException, self).__init__(
+                                        "Cannot insert message, queue clearing."
+                                        )
+
 
 def _cur_time():
     '''Returns the current monotonic time in milliseconds.'''
@@ -27,6 +37,7 @@ class EventOrderer(object):
         self.last_time = _cur_time()
         self.inter = 1
         self.min_inter = 100000
+        self.clearing = False
 
     def _update_inter(self):
         '''Update the queues interval count.'''
@@ -44,11 +55,13 @@ class EventOrderer(object):
 
     def _extract_cond(self):
         '''Evaluate the extraction condition, queue_size > min_window'''
-        return self.priority_queue.qsize() > self._window_size()
+        return self.clearing or self.priority_queue.qsize()>self._window_size()
 
     def push(self, msgs):
         '''Push a list of messages msgs onto the queue.'''
         with self.q_over_min:
+            if self.clearing:
+                raise QueueClearingException()
             for (pri, val) in msgs:
                 self.priority_queue.put((pri, val), False)
             self._update_inter()
@@ -63,15 +76,14 @@ class EventOrderer(object):
             item = self.priority_queue.get(False)
             return item
 
-    def clear(self):
+    def start_clear(self):
         '''Clear the queue of message returning all remaining messages as a
         list.'''
         with self.q_over_min:
-            ret = []
-            while True:
-                try:
-                    item = self.priority_queue.get(False)
-                except Queue.Empty:
-                    break
-                ret += [item]
-            return ret
+            self.clearing = True
+            self.q_over_min.notify()
+
+    def stop_clear(self):
+        '''Stop a queue clear and resume normal activities.'''
+        with self.q_over_min:
+            self.clearing = False
