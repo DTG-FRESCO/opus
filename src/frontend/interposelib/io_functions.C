@@ -159,7 +159,7 @@ extern "C" int printf(const char *format, ...)
     static VPRINTF_POINTER real_vprintf = NULL;
 
     if (!real_vprintf)
-        real_vprintf = (VPRINTF_POINTER)ProcUtils::get_sym_addr("vfprintf");
+        real_vprintf = (VPRINTF_POINTER)ProcUtils::get_sym_addr("vprintf");
 
     va_list args;
     va_start(args, format);
