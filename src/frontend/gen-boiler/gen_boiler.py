@@ -110,7 +110,7 @@ def match_func_in_line(line):
         return (func_ret.rstrip(), func_name, func_args)
 
 def get_func_ptr(line):
-    ''' Given a line this function retuns a function name as string
+    ''' Given a line this function returns a function name as string
     along with the function pointer type'''
     line = line.replace("nogen ","")
     line = line.replace("read ","")
@@ -202,23 +202,6 @@ def filter_buffer_arg(args):
         if arg['read'] and arg['type'] in PRINTF_MAP:
             return True
     return False
-
-#def render_header_file(func_ptrs):
-#    logging.info("Creating header file with function pointer type definitions")
-#    try:
-#        with open("func_ptr_types.h", "wt") as header_file:
-#            header_file.write("#ifndef SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_\n")
-#            header_file.write("#define SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_\n\n")
-#
-#            for (func_name, typedef_str) in func_ptrs:
-#                header_file.write(typedef_str)
-#                header_file.write("\n")
-#
-#            header_file.write("\n#endif  // SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_\n")
-#    except IOError as exc:
-#        logging.critical("Failed to open object output file func_ptr_types.h")
-#        logging.critical(exc)
-#        return None
 
 
 def main():

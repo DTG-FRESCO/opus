@@ -1,6 +1,6 @@
 #ifndef SRC_FRONTEND_INTERPOSELIB_FUNCTIONS_H_
 #define SRC_FRONTEND_INTERPOSELIB_FUNCTIONS_H_
 
-extern "C" void opus_init_libc_funcs();
+extern "C" void opus_init_libc_funcs(void);
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_FUNCTIONS_H_

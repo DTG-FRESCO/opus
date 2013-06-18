@@ -8,7 +8,6 @@
 #include "proc_utils.h"
 #include "uds_client.h"
 #include "signal_utils.h"
-#include "comm_thread.h"
 #include "functions.h"
 
 __attribute__((section(".init_array")))
@@ -29,13 +28,8 @@ void opus_init(int argc, char** argv, char** envp)
         if (!SignalUtils::initialize())
             throw std::runtime_error("SignalUtils::initialize failed!!");
 
-        if (!ProcUtils::initialize())
-            throw std::runtime_error("ProcUtils::initialize failed!!");
-
-        /* Should only be called in one thread during startup */
-        ProcUtils::comm_thread_obj = CommThread::get_instance();
-        if (!ProcUtils::comm_thread_obj)
-            throw std::runtime_error("Could not create comm thread object");
+        if (!ProcUtils::connect())
+            throw std::runtime_error("ProcUtils::connect failed!!");
     }
     catch(const std::exception& e)
     {
@@ -57,8 +51,6 @@ void opus_fini()
     DEBUG_LOG("[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
                 __FILE__, __LINE__, getpid(), ProcUtils::gettid());
 
-    if (ProcUtils::comm_thread_obj)
-        ProcUtils::comm_thread_obj->shutdown_thread();
-
+    ProcUtils::disconnect();
     ProcUtils::test_and_set_flag(false);
 }

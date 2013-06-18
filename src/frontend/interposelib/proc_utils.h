@@ -6,8 +6,8 @@
 #include <vector>
 #include <utility>
 #include "uds_msg.pb.h"
-#include "comm_thread.h"
 #include "opus_lock.h"
+#include "uds_client.h"
 
 class ProcUtils
 {
@@ -35,24 +35,18 @@ class ProcUtils
                                 std::string* md5_sum);
         static pid_t gettid();
 
-        static void incr_appln_thread_count();
-        static const int decr_appln_thread_count();
-
         /* libc function map related functions */
         static void* get_sym_addr(const std::string& symbol);
         static void* add_sym_addr(const std::string& symbol);
-        static bool initialize();
-        static void reset();
 
-        static CommThread *comm_thread_obj; // made public for ease of use
+        /* Backend communication related functions */
+        static bool connect();
+        static void disconnect();
 
     private:
         static __thread bool in_func_flag;
+        static __thread UDSCommClient *comm_obj;
         static std::map<std::string, void*> *libc_func_map;
-
-        /* Count of application threads that are alive */
-        static volatile sig_atomic_t appln_thread_count;
-        static OPUSLock *appln_thread_count_lock;
 };
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_

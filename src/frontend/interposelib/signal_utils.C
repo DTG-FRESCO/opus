@@ -36,19 +36,13 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
         set_signal(sig, SIG_DFL);\
         SignalUtils::restore_signal_mask(&old_set);\
                                         \
-        /* Shutdown the communication thread */   \
-        if (ProcUtils::comm_thread_obj) \
-            ProcUtils::comm_thread_obj->shutdown_thread(); \
-                                    \
         if (raise(sig) != 0)\
         {\
             DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));\
             _exit(EXIT_FAILURE);\
         }\
     }\
-                                        \
     ProcUtils::test_and_set_flag(false);
-
 
 
 static inline void set_signal(const int sig, sighandler_t handler)

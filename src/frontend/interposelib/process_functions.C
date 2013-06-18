@@ -33,15 +33,12 @@ struct OPUSThreadData
 */
 static void opus_thread_cleanup_handler(void *cleanup_args)
 {
+    ProcUtils::test_and_set_flag(true);
+
     send_generic_msg(GenMsgType::THREAD_EXIT,
                 std::to_string(ProcUtils::gettid()));
 
-    int thread_count = ProcUtils::decr_appln_thread_count();
-    if (thread_count == 0)
-    {
-        if (ProcUtils::comm_thread_obj)
-            ProcUtils::comm_thread_obj->shutdown_thread();
-    }
+    ProcUtils::disconnect();
 }
 
 /*
@@ -50,7 +47,9 @@ static void opus_thread_cleanup_handler(void *cleanup_args)
 */
 static void* opus_thread_start_routine(void *args)
 {
-    ProcUtils::incr_appln_thread_count();
+    ProcUtils::test_and_set_flag(true);
+
+    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     OPUSThreadData *opus_thread_data = static_cast<OPUSThreadData*>(args);
 
@@ -61,10 +60,22 @@ static void* opus_thread_start_routine(void *args)
 
     pthread_cleanup_push(opus_thread_cleanup_handler, NULL);
 
-    send_generic_msg(GenMsgType::THREAD_START,
-                    std::to_string(ProcUtils::gettid()));
+    try
+    {
+        if (!ProcUtils::connect())
+            throw std::runtime_error("ProcUtils::connect failed!!");
 
-    ProcUtils::test_and_set_flag(false);
+        send_generic_msg(GenMsgType::THREAD_START,
+                std::to_string(ProcUtils::gettid()));
+
+        ProcUtils::test_and_set_flag(false); // Turn on interposition
+    }
+    catch(const std::exception& e)
+    {
+        // Interposition remains turned off
+        DEBUG_LOG("[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
+    }
+
     void *ret = real_handler(real_args);
     ProcUtils::test_and_set_flag(true);
 
@@ -116,15 +127,13 @@ static inline void exit_program(const char *exit_str, const int status)
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
-    if (ProcUtils::comm_thread_obj)
-        ProcUtils::comm_thread_obj->shutdown_thread();
+    ProcUtils::disconnect();
 
     (*exit_ptr)(status);
 
     // Will never reach here
     ProcUtils::test_and_set_flag(false);
 }
-
 
 static inline void set_old_act_data(void* prev, struct sigaction *oldact)
 {
@@ -139,24 +148,22 @@ static void setup_new_uds_connection()
     ProcUtils::test_and_set_flag(true);
 
     SignalUtils::reset();
-    ProcUtils::reset();
+    ProcUtils::disconnect(); // Close inherited connection
 
-    if (ProcUtils::comm_thread_obj)
+    try
     {
-        ProcUtils::comm_thread_obj->reset_instance();
-        ProcUtils::comm_thread_obj = NULL;
-    }
+        // Open a new connection
+        if (!ProcUtils::connect())
+            throw std::runtime_error("ProcUtils::connect failed!!");
 
-    ProcUtils::comm_thread_obj = CommThread::get_instance();
-    if (!ProcUtils::comm_thread_obj)
+        ProcUtils::send_startup_message();
+        ProcUtils::test_and_set_flag(false); // Turn on interposition
+    }
+    catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: Could not instantiate communication thread\n",
-                        __FILE__, __LINE__);
-        return;
+        // Interposition remains turned off
+        DEBUG_LOG("[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
     }
-
-    ProcUtils::send_startup_message();
-    ProcUtils::test_and_set_flag(false);
 }
 
 /* Adds environment variables related to OPUS if missing */

@@ -4,7 +4,7 @@ INSDIR      := $(TOP)
 
 LIBNAME     := override
 
-CFLAGS2 := $(CFLAGS2) -O2 -Wall -DDEBUG -g -shared -fPIC
+CFLAGS2 := $(CFLAGS2) -O2 -Wall -shared -fPIC -g -DDEBUG
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
@@ -22,7 +22,6 @@ SRCS    :=  log.C \
             process_functions.C \
             signal_handler.C \
             signal_utils.C \
-            comm_thread.C \
             main.C
 
 HDRS    :=  log.h \
@@ -34,7 +33,6 @@ HDRS    :=  log.h \
             functions.h \
             signal_handler.h \
             signal_utils.h \
-            comm_thread.h \
             main.h
 
 include        $(TOP)/Maketmpl/shlib-NEW.mk

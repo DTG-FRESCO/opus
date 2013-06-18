@@ -12,7 +12,6 @@
 
 #include "log.h"
 #include "proc_utils.h"
-#include "uds_client.h"
 #include "message_util.h"
 
 #include "gen_functions.C"

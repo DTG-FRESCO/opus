@@ -366,7 +366,8 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
     if (!real___isoc99_vfscanf)
     {
         real___isoc99_vfscanf =
-            (__ISOC99_VFSCANF_POINTER)ProcUtils::get_sym_addr("__isoc99_vfscanf");
+            (__ISOC99_VFSCANF_POINTER)ProcUtils::get_sym_addr(
+                                            "__isoc99_vfscanf");
     }
 
     va_list args;

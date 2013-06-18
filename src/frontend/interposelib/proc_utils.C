@@ -27,8 +27,6 @@
 #include "log.h"
 #include "uds_client.h"
 #include "message_util.h"
-#include "comm_thread.h"
-#include "lock_guard.h"
 
 #define STRINGIFY(value) #value
 
@@ -37,10 +35,8 @@ using std::string;
 using std::vector;
 
 /* Initialize class static members */
-__thread bool ProcUtils::in_func_flag = true; // Thread local storage
-CommThread* ProcUtils::comm_thread_obj = NULL;
-volatile sig_atomic_t ProcUtils::appln_thread_count = 1;
-OPUSLock *ProcUtils::appln_thread_count_lock = NULL;
+__thread bool ProcUtils::in_func_flag = true; // TLS
+__thread UDSCommClient *ProcUtils::comm_obj = NULL; // TLS
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
 static int get_loaded_libs(struct dl_phdr_info *info,
@@ -249,7 +245,7 @@ void ProcUtils::get_formatted_time(string* date_time)
 void ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
-    if (!comm_thread_obj) return;
+    if (!comm_obj) return;
 
     char* buf = NULL;
 
@@ -269,14 +265,15 @@ void ProcUtils::serialise_and_send_data(const Header& header_obj,
         if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
             throw std::runtime_error("Failed to serialise payload");
 
-        if (!comm_thread_obj->enqueue_msg(buf, total_size))
-            throw std::runtime_error("Could not enqueue message");
+        if (!comm_obj->send_data(buf, total_size))
+            throw std::runtime_error("Sending data failed");
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
-        if (buf) delete buf;;
     }
+
+    if (buf) delete buf;
 }
 
 /*
@@ -506,38 +503,6 @@ pid_t ProcUtils::gettid()
     return tid;
 }
 
-void ProcUtils::incr_appln_thread_count()
-{
-    try
-    {
-        LockGuard guard(*appln_thread_count_lock);
-        ++appln_thread_count;
-    }
-    catch(const std::exception& e)
-    {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-    }
-}
-
-const int ProcUtils::decr_appln_thread_count()
-{
-    int ret_count = 0;
-
-    try
-    {
-        LockGuard guard(*appln_thread_count_lock);
-
-        --appln_thread_count;
-        ret_count = appln_thread_count;
-    }
-    catch(const std::exception& e)
-    {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-    }
-
-    return ret_count;
-}
-
 void* ProcUtils::get_sym_addr(const string& symbol)
 {
     /*
@@ -585,13 +550,20 @@ void* ProcUtils::add_sym_addr(const string& symbol)
     return func_ptr;
 }
 
-bool ProcUtils::initialize()
+bool ProcUtils::connect()
 {
     bool ret = true;
 
     try
     {
-        appln_thread_count_lock = new SimpleLock();
+        std::string uds_path_str;
+        get_uds_path(&uds_path_str);
+
+        if (uds_path_str.empty())
+            throw std::runtime_error("Cannot connect!! UDS path is empty");
+
+        // Connect to the backend
+        comm_obj = new UDSCommClient(uds_path_str);
     }
     catch(const std::exception& e)
     {
@@ -602,21 +574,11 @@ bool ProcUtils::initialize()
     return ret;
 }
 
-void ProcUtils::reset()
+void ProcUtils::disconnect()
 {
-    try
+    if (comm_obj)
     {
-        if (appln_thread_count_lock)
-        {
-            delete appln_thread_count_lock;
-            appln_thread_count_lock = NULL;
-        }
-
-        appln_thread_count = 1;
-        ProcUtils::initialize();
-    }
-    catch(const std::exception& e)
-    {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        delete comm_obj;
+        comm_obj = NULL;
     }
 }
