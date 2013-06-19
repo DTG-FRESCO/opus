@@ -38,26 +38,6 @@ def get_credentials(client_fd):
     pid, uid, gid = struct.unpack('3i', credentials)
     return pid, uid, gid
 
-def stash_template():
-    '''Returns a fixed dictionary template to stash messages'''
-    if hasattr(stash_template, "stash_map"):
-        return common_utils.FixedDict(stash_template.stash_map)
-    stash_template.stash_map = {}
-    stash_template.stash_map['header'] = None # Header in bytes
-    stash_template.stash_map['header_object'] = None # Protobuf format
-    stash_template.stash_map['payload_len'] = 0
-    stash_template.stash_map['payload'] = None # Payload in bytes
-    stash_template.stash_map['payload_object'] = None # Protobuf format
-    return common_utils.FixedDict(stash_template.stash_map)
-
-def reset_stash(stash_map):
-    '''Resets the values for a given stash map'''
-    stash_map['header'] = None
-    stash_map['header_object'] = None
-    stash_map['payload_len'] = 0
-    stash_map['payload'] = None
-    stash_map['payload_object'] = None
-
 def mono_time_in_nanosecs():
     '''Returns a monotonic time if 
     available, else returns 0'''
@@ -120,12 +100,11 @@ class UDSCommunicationManager(CommunicationManager):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__(*args, **kwargs)
         unlink_uds_path(uds_path)
-        self.input_fds = []
+        self.input_client_map = {} # fileno to sock object map
         self.uds_path = uds_path # Configurable
         self.max_server_conn = max_conn # Configurable
         self.select_timeout = select_timeout # Configurable
         self.server_socket = None
-        self.msg_stash_map = {} # Map that holds a stash_info map per fd
 
         try:
             self.server_socket = socket.socket(socket.AF_UNIX, 
@@ -138,49 +117,58 @@ class UDSCommunicationManager(CommunicationManager):
             logging.error("Error: %s", str(err))
             raise common_utils.OPUSException("socket error")
         self.server_socket.setblocking(0) # Make the socket non-blocking
-        self.input_fds = [self.server_socket]
+        self.epoll = select.epoll()
+        self.epoll.register(self.server_socket.fileno(),
+                        select.EPOLLIN | select.EPOLLERR)
 
     def do_poll(self):
         '''Returns a list of tuples for all ready file descriptors'''
         ret_list = [] # List of tuples of form (header, payload)
 
         try:
-            input_ready, _, _ = select.select(self.input_fds, [], [], 
-                                                self.select_timeout)
+            event_list = self.epoll.poll(self.select_timeout)
         except (select.error, socket.error) as err:
             logging.error("Error: %s", str(err))
             return ret_list
 
-        if not input_ready:
-            logging.debug("select timed out")
+        if not event_list:
+            logging.debug("epoll timed out")
             return ret_list
 
-        for sock_fd in input_ready:
-            if sock_fd == self.server_socket:
+        for fileno, event in event_list:
+            if fileno == self.server_socket.fileno():
                 self.__handle_new_connection()
-            else:
-                self.__handle_client(sock_fd, ret_list)
+            elif event & select.EPOLLIN:
+                self.__handle_client(self.input_client_map[fileno], ret_list)
+            elif event & select.EPOLLHUP:
+                logging.debug("Got an EPOLLHUP event")
+                self.__handle_close_connection(self.input_client_map[fileno],
+                                                ret_list)
+            elif event & select.EPOLLERR:
+                logging.debug("Got an EPOLLERR event")
 
         return ret_list
 
     def __handle_client(self, sock_fd, ret_list):
         '''Receives data from client or closes the client connection'''
-        status_code = self.__read_data(sock_fd)
+        status_code, header_buf, payload_buf = self.__read_data(sock_fd)
 
         if status_code == UDSCommunicationManager.StatusCode.success:
             logging.debug("Got valid data")
-            ret_list.append((self.msg_stash_map[sock_fd]['header'], 
-                            self.msg_stash_map[sock_fd]['payload']))
-            reset_stash(self.msg_stash_map[sock_fd])
+            ret_list += [(header_buf, payload_buf)]
         elif status_code == UDSCommunicationManager.StatusCode.close_connection:
-            ret_list.append(tuple(create_close_conn_obj(sock_fd)))
-            if sock_fd in self.input_fds:
-                self.input_fds.remove(sock_fd)
-            logging.debug('closing socket: %d', sock_fd.fileno())
-            sock_fd.close()
-            reset_stash(self.msg_stash_map[sock_fd])
+            self.__handle_close_connection(sock_fd, ret_list)
         elif status_code == UDSCommunicationManager.StatusCode.try_again_later:
             logging.debug("Will try again later")
+
+    def __handle_close_connection(self, sock_fd, ret_list):
+        '''Handles close event or hang up event on the client socket'''
+        self.epoll.unregister(sock_fd.fileno())
+        ret_list.append(tuple(create_close_conn_obj(sock_fd)))
+        if sock_fd in self.input_client_map:
+            del self.input_client_map[sock_fd.fileno()]
+        logging.debug('closing socket: %d', sock_fd.fileno())
+        sock_fd.close()
 
     def __handle_new_connection(self):
         '''Accepts and adds the new connection to the fd list'''
@@ -189,8 +177,9 @@ class UDSCommunicationManager(CommunicationManager):
         logging.debug("Got a new connection from pid: %d, uid: %d, gid: %d",
                         pid, uid, gid)
         client_fd.setblocking(0) # Make the socket non-blocking
-        self.input_fds.append(client_fd) # Add it to the input fd list
-        self.msg_stash_map[client_fd] = stash_template()
+        self.epoll.register(client_fd.fileno(),
+                        select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
+        self.input_client_map[client_fd.fileno()] = client_fd
 
     def __receive(self, sock_fd, size):
         '''Receives data for a given size from a socket'''
@@ -219,51 +208,37 @@ class UDSCommunicationManager(CommunicationManager):
             size -= len(data)
         return buf, status_code
 
-    def __get_payload(self, sock_fd, stash_ref):
-        '''Receives the payload and stashes it'''
-        payload_buf, status_code = self.__receive(sock_fd, 
-                                                stash_ref['payload_len'])
-        if status_code != UDSCommunicationManager.StatusCode.success:
-            return status_code
-
-        payload = stash_ref['payload_object']
-        payload.ParseFromString(payload_buf)
-        logging.debug("Payload: %s", payload.__str__())
-        stash_ref['payload'] = payload_buf
-        stash_ref['payload_object'] = payload
-        return status_code
-
     def __read_data(self, sock_fd):
         '''Receives data from a socket object and
         returns a header and payload pair in bytes'''
-        stash_ref = self.msg_stash_map[sock_fd] # Take a ref
 
-        # Read the header in not present
-        if not stash_ref['header']:
-            hdr_buf, status_code = self.__receive(sock_fd, 
-                                        common_utils.header_size())
-            if status_code != UDSCommunicationManager.StatusCode.success:
-                return status_code
-            stash_ref['header'] = hdr_buf
-            header = uds_msg_pb2.Header()
-            header.ParseFromString(hdr_buf)
-            stash_ref['header_object'] = header
-            logging.debug("Header: %s", header.__str__())
+        # Read header data and obtain the payload len
+        hdr_buf, status_code = self.__receive(sock_fd,
+                                common_utils.header_size())
+        if status_code != UDSCommunicationManager.StatusCode.success:
+            return status_code, None, None
+        header = uds_msg_pb2.Header()
+        header.ParseFromString(hdr_buf)
+        logging.debug("Header: %s", header.__str__())
 
-            # Find out the payload length and type
-            payload = common_utils.get_payload_type(header)
-            stash_ref['payload_object'] = payload
-            stash_ref['payload_len'] = header.payload_len
-            return self.__get_payload(sock_fd, stash_ref)
+        # Find out the payload length and type
+        payload_buf, status_code = self.__receive(sock_fd, header.payload_len)
+        if status_code != UDSCommunicationManager.StatusCode.success:
+            return status_code, None, None
 
-        # We already have a header, now receive the payload
-        return self.__get_payload(sock_fd, stash_ref)
+        # Deserialization only needed for debuggin during development
+        payload = common_utils.get_payload_type(header)
+        payload.ParseFromString(payload_buf)
+        logging.debug("Payload: %s", payload.__str__())
+        return status_code, hdr_buf, payload_buf
 
     def close(self):
         '''Close all connections and cleanup'''
+        self.epoll.unregister(self.server_socket.fileno())
         self.server_socket.close()
-        for sock_fd in self.input_fds:
-            sock_fd.close()
+        for fileno in self.input_client_map:
+            self.epoll.unregister(fileno)
+            self.input_client_map[fileno].close()
         unlink_uds_path(self.uds_path)
 
 
