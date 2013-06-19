@@ -144,9 +144,6 @@ class UDSCommunicationManager(CommunicationManager):
                 logging.debug("Got an EPOLLHUP event")
                 self.__handle_close_connection(self.input_client_map[fileno],
                                                 ret_list)
-            elif event & select.EPOLLERR:
-                logging.debug("Got an EPOLLERR event")
-
         return ret_list
 
     def __handle_client(self, sock_fd, ret_list):
