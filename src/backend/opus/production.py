@@ -64,6 +64,7 @@ def create_close_conn_obj(sock_fd):
     header = uds_msg_pb2.Header()
     header.timestamp = mono_time_in_nanosecs()
     header.pid = pid
+    header.tid = pid  # We dont have the tid
     header.payload_type = uds_msg_pb2.GENERIC_MSG
     header.payload_len = gen_msg.ByteSize()
 

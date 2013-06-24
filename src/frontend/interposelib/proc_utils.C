@@ -15,7 +15,7 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <sys/syscall.h>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>
@@ -23,7 +23,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#include <map>
 #include "log.h"
 #include "uds_client.h"
 #include "message_util.h"
@@ -35,9 +35,9 @@ using std::string;
 using std::vector;
 
 /* Initialize class static members */
-bool ProcUtils::in_func_flag = true;
-string ProcUtils::ld_preload_path = "";
-
+__thread bool ProcUtils::in_func_flag = true; // TLS
+__thread UDSCommClient *ProcUtils::comm_obj = NULL; // TLS
+std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
 static int get_loaded_libs(struct dl_phdr_info *info,
                         size_t size, void *ret_vec)
@@ -189,11 +189,8 @@ static inline void set_command_line(StartupMessage* start_msg,
     start_msg->set_cmd_line_args(cmd_line_str);
 }
 
-const string& ProcUtils::get_preload_path()
+void ProcUtils::get_preload_path(string* ld_preload_path)
 {
-    if (!ld_preload_path.empty())
-        return ld_preload_path;
-
     try
     {
         char* preload_path = getenv("LD_PRELOAD");
@@ -203,14 +200,12 @@ const string& ProcUtils::get_preload_path()
         DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
 
-        ld_preload_path = preload_path;
+        *ld_preload_path = preload_path;
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
-
-    return ld_preload_path;
 }
 
 uint64_t ProcUtils::get_time()
@@ -250,6 +245,8 @@ void ProcUtils::get_formatted_time(string* date_time)
 void ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
+    if (!comm_obj) return;
+
     char* buf = NULL;
 
     int hdr_size = header_obj.ByteSize();
@@ -268,7 +265,7 @@ void ProcUtils::serialise_and_send_data(const Header& header_obj,
         if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
             throw std::runtime_error("Failed to serialise payload");
 
-        if (!UDSCommClient::get_instance()->send_data(buf, total_size))
+        if (!comm_obj->send_data(buf, total_size))
             throw std::runtime_error("Sending data failed");
     }
     catch(const std::exception& e)
@@ -494,4 +491,94 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
     }
 
     if (fd != -1) close(fd);
+}
+
+pid_t ProcUtils::gettid()
+{
+    pid_t tid = -1;
+
+    if ((tid = syscall(__NR_gettid)) < 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+
+    return tid;
+}
+
+void* ProcUtils::get_sym_addr(const string& symbol)
+{
+    /*
+        The libc function pointer map should get populated
+        at process startup. The only case when a symbol will
+        not be found is when a libc function is invoked from 
+        a processes .preinit_array method.
+    */
+    if (!libc_func_map)
+        libc_func_map = new std::map<string, void*>();
+
+    std::map<string, void*>::iterator miter = libc_func_map->find(symbol);
+    if (miter != libc_func_map->end())
+        return miter->second;
+
+    // Allow lazy loading of the symbol
+    return ProcUtils::add_sym_addr(symbol);
+}
+
+/*
+    This function will not be called from multiple
+    threads simultaneously as the OPUS library
+    loads the libc function map at startup
+*/
+void* ProcUtils::add_sym_addr(const string& symbol)
+{
+    void *func_ptr = NULL;
+    char *sym_error = NULL;
+
+    if (!libc_func_map)
+        libc_func_map = new std::map<string, void*>();
+
+    dlerror();
+    func_ptr = dlsym(RTLD_NEXT, symbol.c_str());
+    if (func_ptr == NULL)
+    {
+        if ((sym_error = dlerror()) != NULL)
+            DEBUG_LOG("[%s:%d]: Critical error!! %s\n",
+                        __FILE__, __LINE__, sym_error);
+
+        exit(EXIT_FAILURE);
+    }
+
+    (*libc_func_map)[symbol] = func_ptr;
+    return func_ptr;
+}
+
+bool ProcUtils::connect()
+{
+    bool ret = true;
+
+    try
+    {
+        std::string uds_path_str;
+        get_uds_path(&uds_path_str);
+
+        if (uds_path_str.empty())
+            throw std::runtime_error("Cannot connect!! UDS path is empty");
+
+        // Connect to the backend
+        comm_obj = new UDSCommClient(uds_path_str);
+    }
+    catch(const std::exception& e)
+    {
+        ret = false;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return ret;
+}
+
+void ProcUtils::disconnect()
+{
+    if (comm_obj)
+    {
+        delete comm_obj;
+        comm_obj = NULL;
+    }
 }

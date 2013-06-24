@@ -14,6 +14,15 @@ SignalHandler::~SignalHandler()
     /* Do nothing */
 }
 
+void SignalHandler::check_and_reset_handler_flag(int *flags)
+{
+    if (*flags & SA_RESETHAND)
+    {
+        reset_handler_flag = true;
+        *flags &= ~SA_RESETHAND;
+    }
+}
+
 SAHandler::SAHandler(const int sig, sighandler_t handler)
                     : SignalHandler(sig), signal_handler(handler)
 {
@@ -21,7 +30,7 @@ SAHandler::SAHandler(const int sig, sighandler_t handler)
         callable_flag = false;
 }
 
-SAHandler::SAHandler(const int sig, const struct sigaction *act)
+SAHandler::SAHandler(const int sig, struct sigaction *act)
                     : SignalHandler(sig)
 {
     if (!act) return;
@@ -31,8 +40,7 @@ SAHandler::SAHandler(const int sig, const struct sigaction *act)
     if (signal_handler == SIG_DFL || signal_handler == SIG_IGN)
         callable_flag = false;
 
-    if (act->sa_flags & SA_RESETHAND)
-        reset_handler_flag = true;
+    check_and_reset_handler_flag(&act->sa_flags);
 }
 
 void SAHandler::operator()(const int sig)
@@ -55,15 +63,14 @@ SASigaction::SASigaction(const int sig, SA_SIGACTION_PTR handler)
 {
 }
 
-SASigaction::SASigaction(const int sig, const struct sigaction *act)
+SASigaction::SASigaction(const int sig, struct sigaction *act)
                     : SignalHandler(sig)
 {
     if (!act) return;
 
     signal_handler = act->sa_sigaction;
 
-    if (act->sa_flags & SA_RESETHAND)
-        reset_handler_flag = true;
+    check_and_reset_handler_flag(&act->sa_flags);
 }
 
 void SASigaction::operator()(const int sig)

@@ -1,21 +1,17 @@
 {% import 'macros.tmpl' as macros %}
-
-{% for func in fn_list %}
-static {{func.ret}} (*real_{{func.name}})({{macros.fn_arg_types(func)}})=NULL;{% endfor %}
+#include "func_ptr_types.h"
 
 {% for func in fn_list -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "{{func.name}}";
+    static {{func.name|upper}}_POINTER func_ptr = NULL;
 
-    if (!real_{{func.name}})
-    {
-        DLSYM_CHECK(real_{{func.name}} = ({{func.ret}}(*)({{macros.fn_arg_types(func)}}))dlsym(RTLD_NEXT, "{{func.name}}"));
-    }
+    if (!func_ptr)
+        func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr(func_name));
 
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_{{func.name}})({{macros.fn_arg_call(func)}});
+        return (*func_ptr)({{macros.fn_arg_call(func)}});
 
     {% for arg in func.args if arg.read -%}
     {%- if arg.type == "FILE *" -%}
@@ -23,13 +19,12 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
     {%- endif -%}
     {%- endfor %}
-    std::string func_name = "{{func.name}}";
     uint64_t start_time = ProcUtils::get_time();
 
     {% if func.ret != "void" -%}
-    {{func.ret}} ret = (*real_{{func.name}})({{macros.fn_arg_call(func)}});
+    {{func.ret}} ret = (*func_ptr)({{macros.fn_arg_call(func)}});
     {%- else -%}
-    (*real_{{func.name}})({{macros.fn_arg_call(func)}});
+    (*func_ptr)({{macros.fn_arg_call(func)}});
     {%- endif %}
     int errno_value = errno;
 
@@ -76,5 +71,10 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {%- endif %}
 }
 
-
 {% endfor %}
+
+void opus_init_libc_funcs(void)
+{
+    {% for func in fn_list %} ProcUtils::add_sym_addr("{{func.name}}");
+    {% endfor %}
+}

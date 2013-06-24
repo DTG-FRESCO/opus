@@ -6,18 +6,20 @@
 #include <linux/un.h>
 #include <cstdint>
 #include <string>
+#include <stdexcept>
 #include "log.h"
 #include "uds_client.h"
 #include "uds_comm_exception.h"
 
-UDSCommClient* UDSCommClient::comm_obj = NULL;
-
-UDSCommClient* UDSCommClient::get_instance()
+UDSCommClient::UDSCommClient(const std::string& path) : conn_fd(-1)
 {
-    if (comm_obj == NULL)
-        UDSCommClient::comm_obj = new UDSCommClient();
+    if (!connect(path))
+        throw std::runtime_error("Connect failed!!");
+}
 
-    return comm_obj;
+UDSCommClient::~UDSCommClient()
+{
+    shutdown();
 }
 
 bool UDSCommClient::connect(const std::string& path)
@@ -165,10 +167,4 @@ void UDSCommClient::shutdown()
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     close_connection();
-
-    if (comm_obj != NULL)
-    {
-        delete comm_obj;
-        comm_obj = NULL;
-    }
 }

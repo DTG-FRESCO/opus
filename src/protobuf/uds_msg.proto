@@ -12,6 +12,8 @@ enum GenMsgType {
     DISCON = 1; // Client disconnect
     SIGNAL = 2; // Unix signals recived by application
     PRE_FUNC_CALL = 3; // Use for functions like exec which dont return on succes
+    THREAD_START = 4; // Sent during start of the thread routine
+    THREAD_EXIT = 5; // Sent when a thread terminates
 }
 
 message KVPair {
@@ -24,6 +26,7 @@ message Header {
     required fixed64 pid = 2;
     required PayloadType payload_type = 3;
     required fixed64 payload_len = 4;
+    required fixed64 tid = 5;
 }
 
 message StartupMessage {

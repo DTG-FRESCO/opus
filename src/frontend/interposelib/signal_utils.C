@@ -9,49 +9,40 @@
 #include "log.h"
 #include "proc_utils.h"
 #include "message_util.h"
+#include "lock_guard.h"
 
-std::map<int, SignalHandler*> SignalUtils::sig_handler_map;
+std::vector<SignalHandler*> SignalUtils::sig_handler_vec(NSIG, NULL);
+OPUSLock *SignalUtils::sig_vec_lock = NULL;
 
-#define call_handler(...) (*saved_handler)(__VA_ARGS__)
-
-#define HANDLER_BODY(...) \
+#define HANDLER_BODY(ptr_type, ...) \
     ProcUtils::test_and_set_flag(true); \
-                                        \
+                        \
     sigset_t old_set; \
     SignalUtils::block_all_signals(&old_set); \
                                               \
     send_generic_msg(GenMsgType::SIGNAL, std::to_string(sig));\
                                                             \
-    SignalHandler *saved_handler = SignalUtils::get_signal_handler(sig);\
-                                                                \
-    if (saved_handler && saved_handler->is_handler_callable())\
+    void *real_handler = NULL; \
+    if ((real_handler = get_real_handler(sig)) != NULL)\
     {\
         SignalUtils::restore_signal_mask(&old_set);\
                                                     \
         ProcUtils::test_and_set_flag(false); \
-        call_handler(__VA_ARGS__);\
+        reinterpret_cast<ptr_type>(real_handler)(__VA_ARGS__);\
         ProcUtils::test_and_set_flag(true); \
-                                \
-        if (saved_handler->get_reset_handler_flag())\
-        {                                               \
-            SignalUtils::remove_signal_handler(sig); \
-            set_signal(sig, SignalUtils::opus_type_one_signal_handler);\
-        }\
     }\
     else\
     {\
         set_signal(sig, SIG_DFL);\
         SignalUtils::restore_signal_mask(&old_set);\
-                                                    \
+                                        \
         if (raise(sig) != 0)\
         {\
             DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));\
             _exit(EXIT_FAILURE);\
         }\
     }\
-                                        \
     ProcUtils::test_and_set_flag(false);
-
 
 
 static inline void set_signal(const int sig, sighandler_t handler)
@@ -63,13 +54,13 @@ static inline void set_signal(const int sig, sighandler_t handler)
 
 void SignalUtils::opus_type_one_signal_handler(int sig)
 {
-    HANDLER_BODY(sig);
+    HANDLER_BODY(sighandler_t, sig);
 }
 
 void SignalUtils::opus_type_two_signal_handler(int sig,
                                 siginfo_t *info, void *u_ctx)
 {
-    HANDLER_BODY(sig, info, u_ctx);
+    HANDLER_BODY(SA_SIGACTION_PTR, sig, info, u_ctx);
 }
 
 void SignalUtils::block_all_signals(sigset_t *old_set)
@@ -81,7 +72,7 @@ void SignalUtils::block_all_signals(sigset_t *old_set)
         if (sigfillset(&new_set) < 0)
             throw std::runtime_error(strerror(errno));
 
-        if (sigprocmask(SIG_BLOCK, &new_set, old_set) < 0)
+        if (pthread_sigmask(SIG_BLOCK, &new_set, old_set) < 0)
             throw std::runtime_error(strerror(errno));
     }
     catch(const std::exception& e)
@@ -94,7 +85,7 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
 {
     try
     {
-        if (sigprocmask(SIG_SETMASK, old_set, NULL) < 0)
+        if (pthread_sigmask(SIG_SETMASK, old_set, NULL) < 0)
             throw std::runtime_error(strerror(errno));
     }
     catch(const std::exception& e)
@@ -103,39 +94,153 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
     }
 }
 
+void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
+                                const int signum,
+                                const sighandler_t& signal_handler,
+                                SignalHandler *sh_obj,
+                                sighandler_t& ret)
+{
+    void *prev_handler = NULL;
+
+    try
+    {
+        /* Obtain a lock */
+        LockGuard guard(*sig_vec_lock);
+
+        ret = (*real_signal)(signum, signal_handler);
+        if (ret == SIG_ERR)
+            throw std::runtime_error("SIG_ERR");
+
+        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+    }
+    catch(const std::exception& e)
+    {
+        throw e;
+    }
+
+    return prev_handler;
+}
+
+void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
+                                    const int signum,
+                                    const struct sigaction *sa,
+                                    struct sigaction *oldact,
+                                    SignalHandler *sh_obj,
+                                    int& ret)
+{
+    void *prev_handler = NULL;
+
+    try
+    {
+        /* Obtain a lock */
+        LockGuard guard(*sig_vec_lock);
+
+        ret = (*real_sigaction)(signum, sa, oldact);
+        if (ret < 0)
+            throw std::runtime_error(strerror(errno));
+
+        prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
+    }
+    catch(const std::exception& e)
+    {
+        throw e;
+    }
+
+    return prev_handler;
+}
+
+
+/*
+    Retrieves the original handler to call.
+    Restores signal to default state if
+    SA_RESETHAND flag is set.
+*/
+void* SignalUtils::get_real_handler(const int sig)
+{
+    void *real_handler = NULL;
+
+    try
+    {
+        LockGuard guard(*sig_vec_lock);
+        SignalHandler *saved_handler = SignalUtils::get_signal_handler(sig);
+
+        if (saved_handler && saved_handler->is_handler_callable())
+        {
+            real_handler = saved_handler->get_handler();
+
+            if (saved_handler->get_reset_handler_flag())
+            {
+                SignalUtils::remove_signal_handler(sig);
+                set_signal(sig, SignalUtils::opus_type_one_signal_handler);
+            }
+        }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s", __FILE__, __LINE__, e.what());
+    }
+
+    return real_handler;
+}
+
+
+/*
+    This function must be called
+    after acquiring sig_vec_lock
+*/
 SignalHandler* SignalUtils::get_signal_handler(const int sig)
 {
-    SignalHandler *prev_handler = NULL;
-    std::map<int, SignalHandler*>::iterator m_iter = sig_handler_map.find(sig);
-
-    if (m_iter != sig_handler_map.end())
-        prev_handler = m_iter->second;
-
-    return prev_handler;
+    return sig_handler_vec[sig];
 }
 
-SignalHandler* SignalUtils::add_signal_handler(const int sig,
-                                    SignalHandler* new_handler)
+/*
+    This function must be called
+    after acquiring sig_vec_lock
+*/
+void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
 {
-    SignalHandler *prev_handler = get_signal_handler(sig);
+    void *real_handler = NULL;
 
-    if (prev_handler)
-        sig_handler_map.erase(sig);
+    try
+    {
+        SignalHandler *prev_handler = get_signal_handler(sig);
+        sig_handler_vec[sig] = new_handler;
 
-    sig_handler_map[sig] = new_handler;
+        if (prev_handler)
+        {
+            real_handler = prev_handler->get_handler();
+            delete prev_handler;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
 
-    return prev_handler;
+    return real_handler;
 }
 
+/*
+    This function must be called
+    after acquiring sig_vec_lock
+*/
 void SignalUtils::remove_signal_handler(const int sig)
 {
-    SignalHandler *handler = get_signal_handler(sig);
+    try
+    {
+        SignalHandler *handler = sig_handler_vec[sig];
 
-    if (!handler) return;
+        if (!handler) return;
 
-    sig_handler_map.erase(sig);
-    delete handler;
+        delete handler;
+        sig_handler_vec[sig] = NULL;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
 }
+
 
 void SignalUtils::init_signal_capture()
 {
@@ -161,5 +266,40 @@ void SignalUtils::init_signal_capture()
             DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
             continue;
         }
+    }
+}
+
+bool SignalUtils::initialize()
+{
+    bool ret = true;
+
+    try
+    {
+        sig_vec_lock = new SimpleLock();
+    }
+    catch(const std::exception& e)
+    {
+        ret = false;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return ret;
+}
+
+void SignalUtils::reset()
+{
+    try
+    {
+        if (sig_vec_lock)
+        {
+            delete sig_vec_lock;
+            sig_vec_lock = NULL;
+        }
+
+        SignalUtils::initialize();
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }

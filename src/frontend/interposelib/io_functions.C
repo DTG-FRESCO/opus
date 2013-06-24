@@ -1,23 +1,24 @@
-typedef int (*OPEN_PTR)(const char*, int, ...);
-typedef int (*VPRINTF_PTR)(const char*, va_list);
-typedef int (*VFPRINTF_PTR)(FILE *, const char*, va_list);
-typedef int (*VSCANF_PTR)(const char*, va_list);
-typedef int (*VFSCANF_PTR)(FILE *, const char*, va_list);
-
-
-static OPEN_PTR real_open = NULL;
-static OPEN_PTR real_open64 = NULL;
+#include <cstdint>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <string>
+#include "log.h"
+#include "func_ptr_types.h"
+#include "proc_utils.h"
+#include "message_util.h"
 
 
 extern "C" int open(const char *pathname, int flags, ...)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "open";
+    static OPEN_POINTER real_open = NULL;
 
     if (!real_open)
-    {
-        DLSYM_CHECK(real_open = (OPEN_PTR)dlsym(RTLD_NEXT, "open"));
-    }
+        real_open = (OPEN_POINTER)ProcUtils::get_sym_addr(func_name);
 
     mode_t mode;
 
@@ -57,7 +58,6 @@ extern "C" int open(const char *pathname, int flags, ...)
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    std::string func_name = "open";
 
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
@@ -85,13 +85,11 @@ extern "C" int open(const char *pathname, int flags, ...)
 
 extern "C" int open64(const char *pathname, int flags, ...)
 {
-    char *error = NULL;
-    dlerror();
+    std::string func_name = "open64";
+    static OPEN64_POINTER real_open64 = NULL;
 
     if (!real_open64)
-    {
-        DLSYM_CHECK(real_open64 = (OPEN_PTR)dlsym(RTLD_NEXT, "open64"));
-    }
+        real_open64 = (OPEN64_POINTER)ProcUtils::get_sym_addr(func_name);
 
     mode_t mode;
 
@@ -131,7 +129,6 @@ extern "C" int open64(const char *pathname, int flags, ...)
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    std::string func_name = "open64";
 
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
@@ -159,13 +156,10 @@ extern "C" int open64(const char *pathname, int flags, ...)
 
 extern "C" int printf(const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static VPRINTF_POINTER real_vprintf = NULL;
 
     if (!real_vprintf)
-    {
-        DLSYM_CHECK(real_vprintf = (VPRINTF_PTR)dlsym(RTLD_NEXT, "vprintf"));
-    }
+        real_vprintf = (VPRINTF_POINTER)ProcUtils::get_sym_addr("vprintf");
 
     va_list args;
     va_start(args, format);
@@ -199,13 +193,10 @@ extern "C" int printf(const char *format, ...)
 
 extern "C" int scanf(const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static VSCANF_POINTER real_vscanf = NULL;
 
     if (!real_vscanf)
-    {
-        DLSYM_CHECK(real_vscanf = (VSCANF_PTR)dlsym(RTLD_NEXT, "vscanf"));
-    }
+        real_vscanf = (VSCANF_POINTER)ProcUtils::get_sym_addr("vscanf");
 
     va_list args;
     va_start(args, format);
@@ -239,13 +230,10 @@ extern "C" int scanf(const char *format, ...)
 
 extern "C" int fprintf(FILE *stream, const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static VFPRINTF_POINTER real_vfprintf = NULL;
 
     if (!real_vfprintf)
-    {
-        DLSYM_CHECK(real_vfprintf = (VFPRINTF_PTR)dlsym(RTLD_NEXT, "vfprintf"));
-    }
+        real_vfprintf = (VFPRINTF_POINTER)ProcUtils::get_sym_addr("vfprintf");
 
     va_list args;
     va_start(args, format);
@@ -288,13 +276,10 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
 extern "C" int fscanf(FILE *stream, const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static VFSCANF_POINTER real_vfscanf = NULL;
 
     if (!real_vfscanf)
-    {
-        DLSYM_CHECK(real_vfscanf = (VFSCANF_PTR)dlsym(RTLD_NEXT, "vfscanf"));
-    }
+        real_vfscanf = (VFSCANF_POINTER)ProcUtils::get_sym_addr("vfscanf");
 
     va_list args;
     va_start(args, format);
@@ -318,8 +303,8 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
     std::string func_name = "fscanf";
+    FuncInfoMessage func_msg;
 
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
@@ -336,13 +321,12 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
 extern "C" int __isoc99_scanf(const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static __ISOC99_VSCANF_POINTER real___isoc99_vscanf = NULL;
 
     if (!real___isoc99_vscanf)
     {
-        DLSYM_CHECK(real___isoc99_vscanf =
-                (VSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vscanf"));
+        real___isoc99_vscanf =
+            (__ISOC99_VSCANF_POINTER)ProcUtils::get_sym_addr("__isoc99_vscanf");
     }
 
     va_list args;
@@ -377,13 +361,13 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
 extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 {
-    char *error = NULL;
-    dlerror();
+    static __ISOC99_VFSCANF_POINTER real___isoc99_vfscanf = NULL;
 
     if (!real___isoc99_vfscanf)
     {
-        DLSYM_CHECK(real___isoc99_vfscanf =
-                (VFSCANF_PTR)dlsym(RTLD_NEXT, "__isoc99_vfscanf"));
+        real___isoc99_vfscanf =
+            (__ISOC99_VFSCANF_POINTER)ProcUtils::get_sym_addr(
+                                            "__isoc99_vfscanf");
     }
 
     va_list args;

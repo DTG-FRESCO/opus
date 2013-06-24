@@ -2,9 +2,9 @@
 #define SRC_FRONTEND_INTERPOSELIB_LOG_H_
 
 #ifdef DEBUG
-#define DEBUG_LOG debug_msg
+#define DEBUG_LOG(...) debug_msg(__VA_ARGS__)
 #else
-#define DEBUG_LOG
+#define DEBUG_LOG(...)
 #endif
 
 void debug_msg(const char* msg, ...);

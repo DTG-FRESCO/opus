@@ -109,15 +109,45 @@ def match_func_in_line(line):
 
         return (func_ret.rstrip(), func_name, func_args)
 
+def get_func_ptr(line):
+    ''' Given a line this function returns a function name as string
+    along with the function pointer type'''
+    line = line.replace("nogen ","")
+    line = line.replace("read ","")
+
+    outer = re.match(DEFINITION_REG, line)
+    if outer is None:
+        logging.error("Invalid line: %s"
+                      "All lines should either be empty, start with a # "
+                      "or contain a valid function definition.",
+                      line)
+        raise InvalidLineException()
+    else:
+        (func_ret, func_name, arg_list) = outer.groups()
+        func_ptr_name = "*" + func_name.upper() + "_POINTER"
+        typedef_str = "typedef " + func_ret + "(" + func_ptr_name + ")" + "(" + arg_list + ");"
+
+        return (func_name, typedef_str)
 
 def gather_funcs(file_handle):
     '''Parse a given file_handle, extracting function definitions from each
     line and returning a list of function objects.'''
     funcs = []
+    func_ptrs = []
+
     for line in file_handle:
+        tmp_line_str = line
         if line == "\n" or line.startswith("#"):
             continue
         try:
+            func_name_str, func_ptr_type = get_func_ptr(tmp_line_str)
+            func_ptr_info = {'func_name_str': func_name_str,
+                            'func_ptr_type': func_ptr_type }
+            func_ptrs += [func_ptr_info]
+
+            if line.startswith("nogen"):
+                continue
+
             (func_ret, func_name, func_args) = match_func_in_line(line)
         except FunctionParsingException:
             logging.error("Failed to parse the following function definition: "
@@ -131,7 +161,7 @@ def gather_funcs(file_handle):
         logging.info("Gathered function from file: %s", function_info)
 
         funcs += [function_info]
-    return funcs
+    return funcs, func_ptrs
 
 
 def init_logging():
@@ -174,7 +204,6 @@ def filter_buffer_arg(args):
     return False
 
 
-
 def main():
     '''Main function, parses command line arguments, parses the given file of
     function definitions then renders the two templates using the information
@@ -209,9 +238,8 @@ def main():
             return None
 
     logging.info("Gathering function definitions from the source locaiton.")
-    
-    funcs = gather_funcs(file_handle)
-    
+
+    funcs, func_ptrs = gather_funcs(file_handle)
     file_handle.close()
 
     logging.info("Initialising the Jinja template loader.")
@@ -219,6 +247,20 @@ def main():
 
     env.filters['capture_arg'] = filter_capture_arg
     env.filters['buffer_arg'] = filter_buffer_arg
+
+    logging.info("Beginning rendering of header file.")
+    try:
+        header_name = "func_ptr_types.h"
+        with open(header_name, "wt") as header_file:
+            logging.info("Rendering the header template to the header file %s.",
+                         header_name)
+            header_tmpl = env.get_template("header.tmpl")
+            header_file.write(header_tmpl.render(func_ptr_types=func_ptrs))
+    except IOError as exc:
+        logging.critical("Failed to open header output file %s.", header_name)
+        logging.critical(exc)
+        return None
+    logging.info("Completing rendering of header file.")
 
     logging.info("Beginning rendering of object file.")
     try:

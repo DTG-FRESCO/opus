@@ -27,6 +27,7 @@ namespace
         hdr_msg.set_pid((uint64_t)getpid());
         hdr_msg.set_payload_type(pay_type);
         hdr_msg.set_payload_len(msg_size);
+        hdr_msg.set_tid(ProcUtils::gettid());
 
         ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }
