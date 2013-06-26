@@ -43,7 +43,8 @@ extern "C" int open(const char *pathname, int flags, ...)
     }
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret;
     if ((flags & O_CREAT) != 0)
     {
@@ -62,7 +63,10 @@ extern "C" int open(const char *pathname, int flags, ...)
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("pathname");
-    tmp_arg->set_value(pathname);
+    std::string pathname_value;
+    if (pathname) pathname_value = pathname;
+    pathname_value = ProcUtils::canonicalise_path(pathname_value);
+    tmp_arg->set_value(pathname_value);
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("flags");
@@ -114,7 +118,8 @@ extern "C" int open64(const char *pathname, int flags, ...)
     }
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret;
     if ((flags & O_CREAT) != 0)
     {
@@ -133,7 +138,10 @@ extern "C" int open64(const char *pathname, int flags, ...)
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("pathname");
-    tmp_arg->set_value(pathname);
+    std::string pathname_value;
+    if (pathname) pathname_value = pathname;
+    pathname_value = ProcUtils::canonicalise_path(pathname_value);
+    tmp_arg->set_value(pathname_value);
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("flags");
@@ -172,7 +180,8 @@ extern "C" int printf(const char *format, ...)
     }
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real_vprintf)(format, args);
     int errno_value = errno;
 
@@ -209,7 +218,8 @@ extern "C" int scanf(const char *format, ...)
     }
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real_vscanf)(format, args);
     int errno_value = errno;
 
@@ -249,7 +259,8 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
     if (stream) stream_fd = fileno(stream);
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real_vfprintf)(stream, format, args);
     int errno_value = errno;
 
@@ -295,7 +306,8 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     if (stream) stream_fd = fileno(stream);
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real_vfscanf)(stream, format, args);
     int errno_value = errno;
 
@@ -340,7 +352,8 @@ extern "C" int __isoc99_scanf(const char *format, ...)
     }
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real___isoc99_vscanf)(format, args);
     int errno_value = errno;
 
@@ -384,7 +397,8 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
     if (stream) stream_fd = fileno(stream);
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     int ret = (*real___isoc99_vfscanf)(stream, format, args);
     int errno_value = errno;
 

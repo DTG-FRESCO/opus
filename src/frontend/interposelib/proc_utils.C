@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <libgen.h>
 #include <link.h>
 #include <linux/un.h>
 #include <openssl/md5.h>
@@ -582,3 +583,42 @@ void ProcUtils::disconnect()
         comm_obj = NULL;
     }
 }
+
+const string ProcUtils::canonicalise_path(string path)
+{
+    string pathname;
+    char* real_path = NULL;
+    real_path = realpath(path.c_str(), real_path);
+    if (real_path)
+    { 
+        pathname = real_path;
+        free(real_path);
+        return pathname;
+    }
+    else
+    {
+        return path;
+    }
+}
+
+const string ProcUtils::abs_path(string path)
+{
+    string path_tail;
+    string path_head;
+    path_head = dirname(const_cast<char*>(path.c_str()));
+    path_tail = basename(const_cast<char*>(path.c_str()));
+    char* real_path = NULL;
+    real_path = realpath(path_head.c_str(), NULL);
+    if (!real_path)
+    {
+        return path;
+    }
+    else
+    {
+        path_head = real_path;
+        path_head.append("/");
+        path_head.append(path_tail);
+        return path_head;
+    }
+}
+
