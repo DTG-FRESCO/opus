@@ -4,12 +4,29 @@ INSDIR      := $(TOP)
 
 LIBNAME     := override
 
-CFLAGS2 := $(CFLAGS2) -O2 -Wall -shared -fPIC -g -DDEBUG
+NULLSTRING :=
+INTERPOSE_ON_FLAG := -DVFORK_INTERPOSE
+UNAME := $(shell uname -m)
+
+ifeq ($(UNAME), x86_64)
+    VFORK_WRAPPER  := opus_vfork_wrapper_x86_64.S
+else
+    ifeq ($(UNAME), i686)
+        VFORK_WRAPPER  := opus_vfork_wrapper_x86_32.S
+    else
+        INTERPOSE_ON_FLAG := $(NULLSTRING)
+        VFORK_WRAPPER := $(NULLSTRING)
+    endif
+endif
+
+CFLAGS2 := $(CFLAGS2) -fPIC -O2 -Wall -shared -DDEBUG
+CFLAGS2 := $(CFLAGS2) $(INTERPOSE_ON_FLAG)
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
 LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
 LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lssl -lcrypto -lpthread
+
 
 SRCS    :=  log.C \
             opus_lock.C \
@@ -22,7 +39,9 @@ SRCS    :=  log.C \
             process_functions.C \
             signal_handler.C \
             signal_utils.C \
-            main.C
+            main.C \
+            opus_vfork.C \
+            $(VFORK_WRAPPER)
 
 HDRS    :=  log.h \
             opus_lock.h \
@@ -33,6 +52,7 @@ HDRS    :=  log.h \
             functions.h \
             signal_handler.h \
             signal_utils.h \
-            main.h
+            main.h \
+            opus_vfork.h
 
 include        $(TOP)/Maketmpl/shlib-NEW.mk
