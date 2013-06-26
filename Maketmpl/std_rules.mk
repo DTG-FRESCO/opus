@@ -28,6 +28,13 @@ PB_CXX_SRCS	:= $(filter %.pb.cc,$(SRCS))
 PB_CXX_DEPS	:= $(PB_CXX_SRCS:.pb.cc=.pb.d)
 PB_CXX_OBJS	:= $(PB_CXX_SRCS:.pb.cc=.pb.o)
 
+#======================================================================
+# Assembly files .S extension
+#======================================================================
+AS_SRCS := $(filter %.S,$(SRCS))
+AS_DEPS := $(AS_SRCS:.S=.d)
+AS_OBJS := $(AS_SRCS:.S=.o)
+
 #=====================================================================
 # Compute .l (lex ) related files
 #==================================================================
@@ -60,7 +67,8 @@ PB_CXX_OBJS	:= $(PB_CXX_SRCS:.pb.cc=.pb.o)
 #======================================================================
 DEPS	:=	$(C_DEPS) \
 		$(CXX_DEPS) \
-		$(PB_CXX_DEPS)
+		$(PB_CXX_DEPS) \
+        $(AS_DEPS)
 #		$(LEX_DEPS) \
 #		$(PROC_DEPS) \
 #		$(ESQL_DEPS) 
@@ -177,7 +185,8 @@ DEPS	:= $(strip $(DEPS))
 #======================================================================
 OBJS	:=	$(C_OBJS) \
 		$(CXX_OBJS) \
-		$(PB_CXX_OBJS)
+		$(PB_CXX_OBJS) \
+        $(AS_OBJS)
 #		$(PROC_OBJS) \
 #		$(ESQL_OBJS) \
 #		$(LEX_OBJS)
@@ -271,6 +280,12 @@ DSTBIN		= $(PROGRAM:%=$(INSBINDIR)/%)
 # protobuf C++ compliation rule
 #======================================================================
 %.pb.o:		%.pb.cc
+		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
+
+#======================================================================
+# Assembly files compliation rule
+#======================================================================
+%.o:		%.S
 		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
 
 #======================================================================
