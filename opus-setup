@@ -4,3 +4,4 @@ export PROJ_INCLUDE=$PROJ_HOME/include
 export PROTO_INC_PATH=/home/nb466/protocolBuffers/include
 export PROTO_LIB_PATH=/home/nb466/protocolBuffers/lib
 export OPUS_UDS_PATH=$PROJ_HOME/src/backend/demo_socket
+export PYTHONPATH=$PROJ_HOME/src/backend/
