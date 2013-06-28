@@ -1,0 +1,9 @@
+{% import 'macros.tmpl' as macros -%}
+#ifndef SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_
+#define SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_
+
+{% for fptr in func_ptr_types %}
+{{fptr.func_ptr_type}}
+{% endfor %}
+
+#endif  // SRC_FRONTEND_INTERPOSELIB_FUNC_PTR_TYPES_H_
