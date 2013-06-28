@@ -147,7 +147,9 @@ static void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
 
+#ifdef CAPTURE_SIGNALS
     SignalUtils::reset();
+#endif
     ProcUtils::disconnect(); // Close inherited connection
 
     try
@@ -659,6 +661,7 @@ extern "C" void* dlopen(const char * filename, int flag)
     return handle;
 }
 
+#ifdef CAPTURE_SIGNALS
 extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
     std::string func_name = "signal";
@@ -671,6 +674,12 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
         return (*real_signal)(signum, real_handler);
+
+    if (!SignalUtils::is_signal_valid(signum))
+    {
+        ProcUtils::test_and_set_flag(false);
+        return (*real_signal)(signum, real_handler);
+    }
 
     sighandler_t ret = NULL;
     SignalHandler *sh_obj = NULL;
@@ -702,8 +711,10 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     ProcUtils::test_and_set_flag(false);
     return ret;
 }
+#endif
 
 
+#ifdef CAPTURE_SIGNALS
 extern "C" int sigaction(int signum,
                         const struct sigaction *act,
                         struct sigaction *oldact)
@@ -719,7 +730,7 @@ extern "C" int sigaction(int signum,
     if (ProcUtils::test_and_set_flag(true))
         return (*real_sigaction)(signum, act, oldact);
 
-    if (!act)
+    if (!act || !SignalUtils::is_signal_valid(signum))
     {
         ProcUtils::test_and_set_flag(false);
         return (*real_sigaction)(signum, act, oldact);
@@ -764,6 +775,7 @@ extern "C" int sigaction(int signum,
     ProcUtils::test_and_set_flag(false);
     return ret;
 }
+#endif
 
 extern "C" void _exit(int status)
 {

@@ -21,6 +21,7 @@ class SignalUtils
         static void init_signal_capture();
         static bool initialize();
         static void reset();
+        static bool is_signal_valid(const int sig);
 
         static void block_all_signals(sigset_t *old_set);
         static void restore_signal_mask(sigset_t *old_set);
@@ -47,6 +48,7 @@ class SignalUtils
         static void remove_signal_handler(const int sig);
 
     private:
+        static std::vector<bool> *sig_valid_ptr;
         static OPUSLock *sig_vec_lock;
         static std::vector<SignalHandler*> sig_handler_vec;
 };

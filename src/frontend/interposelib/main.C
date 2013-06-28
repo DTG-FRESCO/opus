@@ -25,8 +25,10 @@ void opus_init(int argc, char** argv, char** envp)
 
     try
     {
+#ifdef CAPTURE_SIGNALS
         if (!SignalUtils::initialize())
             throw std::runtime_error("SignalUtils::initialize failed!!");
+#endif
 
         if (!ProcUtils::connect())
             throw std::runtime_error("ProcUtils::connect failed!!");
@@ -37,7 +39,9 @@ void opus_init(int argc, char** argv, char** envp)
         return; // Interposition is turned off
     }
 
+#ifdef CAPTURE_SIGNALS
     SignalUtils::init_signal_capture();
+#endif
     ProcUtils::send_startup_message(argc, argv, envp);
     ProcUtils::send_loaded_libraries();
 

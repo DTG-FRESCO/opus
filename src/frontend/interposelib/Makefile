@@ -5,6 +5,7 @@ INSDIR      := $(TOP)
 LIBNAME     := override
 
 CFLAGS2 := $(CFLAGS2) -O2 -Wall -shared -fPIC -g -DDEBUG
+CFLAGS2 := $(CFLAGS2) -DCAPTURE_SIGNALS
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
