@@ -113,6 +113,8 @@ def get_func_ptr(line):
     along with the function pointer type'''
     line = line.replace("nogen ","")
     line = line.replace("read ","")
+    line = line.replace("can ", "")
+    line = line.replace("abs ", "")
 
     outer = re.match(DEFINITION_REG, line)
     if outer is None:
