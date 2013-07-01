@@ -849,7 +849,7 @@ extern "C" void pthread_exit(void *retval)
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
-    if (getpid() != ProcUtils::gettid())
+    if (ProcUtils::getpid() != ProcUtils::gettid())
     {
         // This will call the cleanup handlers
         (*real_pthread_exit)(retval);

@@ -24,7 +24,7 @@ namespace
 
         Header hdr_msg;
         hdr_msg.set_timestamp(current_time);
-        hdr_msg.set_pid((uint64_t)getpid());
+        hdr_msg.set_pid(static_cast<uint64_t>(ProcUtils::getpid()));
         hdr_msg.set_payload_type(pay_type);
         hdr_msg.set_payload_len(msg_size);
         hdr_msg.set_tid(ProcUtils::gettid());

@@ -49,7 +49,7 @@ void opus_fini()
     ProcUtils::test_and_set_flag(true);
 
     DEBUG_LOG("[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
-                __FILE__, __LINE__, getpid(), ProcUtils::gettid());
+                __FILE__, __LINE__, ProcUtils::getpid(), ProcUtils::gettid());
 
     ProcUtils::disconnect();
     ProcUtils::test_and_set_flag(false);

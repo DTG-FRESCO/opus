@@ -34,6 +34,7 @@ class ProcUtils
         static void get_md5_sum(const std::string& real_path,
                                 std::string* md5_sum);
         static pid_t gettid();
+        static pid_t getpid();
 
         /* libc function map related functions */
         static void* get_sym_addr(const std::string& symbol);
