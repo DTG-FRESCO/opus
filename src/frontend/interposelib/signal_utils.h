@@ -12,6 +12,10 @@ typedef sighandler_t (*SIGNAL_POINTER)(int signum, sighandler_t handler);
 typedef int (*SIGACTION_POINTER)(int signum, const struct sigaction *act,
                                 struct sigaction *oldact);
 
+/**
+ * Utility class for signal handling
+ * functionality within OPUS.
+ */
 class SignalUtils
 {
     public:

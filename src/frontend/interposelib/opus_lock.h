@@ -3,6 +3,10 @@
 
 #include <pthread.h>
 
+/**
+ * Abstract base class for locks
+ * used within the OPUS front-end
+ */
 class OPUSLock
 {
     public:
@@ -17,6 +21,10 @@ class OPUSLock
         virtual ~OPUSLock() = 0;
 };
 
+/**
+ * Implements a regular mutex lock
+ * based on native posix thread lib
+ */
 class SimpleLock : public OPUSLock
 {
     public:
@@ -36,6 +44,11 @@ class SimpleLock : public OPUSLock
         SimpleLock& operator=(const SimpleLock&);
 };
 
+/**
+ * Implements a condition variable
+ * based on native posix thread lib
+ * Sub-class of simple lock.
+ */
 class ConditionLock : public SimpleLock
 {
     public:
@@ -53,10 +66,14 @@ class ConditionLock : public SimpleLock
         pthread_cond_t cond;
 };
 
-
+/**
+ * Implements a read write lock
+ * based on native posix thread lib
+ */
 class ReadWriteLock : public OPUSLock
 {
     public:
+        /** Type of read write lock */
         enum LockType { READ_LOCK, WRITE_LOCK };
 
         ReadWriteLock();

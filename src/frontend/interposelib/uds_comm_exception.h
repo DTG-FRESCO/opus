@@ -4,6 +4,9 @@
 #include <string>
 #include "opus_exception.h"
 
+/**
+ * Class for UDS communication exception
+ */
 class UDSCommException : public OPUSException
 {
     public:

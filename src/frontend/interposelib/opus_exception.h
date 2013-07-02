@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string>
 
+/**
+ * Base class for exception handling
+ */
 class OPUSException
 {
     public:

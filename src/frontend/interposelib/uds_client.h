@@ -3,6 +3,9 @@
 
 #include <string>
 
+/**
+ * Unix Domain Socket client communication class
+ */
 class UDSCommClient
 {
     public:

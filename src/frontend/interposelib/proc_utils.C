@@ -34,11 +34,17 @@ using std::pair;
 using std::string;
 using std::vector;
 
-/* Initialize class static members */
-__thread bool ProcUtils::in_func_flag = true; // TLS
-__thread UDSCommClient *ProcUtils::comm_obj = NULL; // TLS
+/** Thread local storage */
+__thread bool ProcUtils::in_func_flag = true;
+__thread UDSCommClient *ProcUtils::comm_obj = NULL;
+
+/** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
+/**
+ * Callback function passed to dl_iterate_phdr.
+ * Adds the loaded library to the passed vector.
+ */
 static int get_loaded_libs(struct dl_phdr_info *info,
                         size_t size, void *ret_vec)
 {
@@ -68,6 +74,12 @@ static int get_loaded_libs(struct dl_phdr_info *info,
     return 0;
 }
 
+
+/**
+ * Splits a string of type key=value
+ * using = as the delimiter and creates
+ * an std::pair object.
+ */
 static bool split_key_values(const string& env_str,
                     pair<string, string>* kv_pair)
 {
@@ -81,6 +93,10 @@ static bool split_key_values(const string& env_str,
     return true;
 }
 
+/**
+ * Retrieves the process resource limits and
+ * populates the startup message with this data.
+ */
 static inline void set_rlimit_info(StartupMessage* start_msg)
 {
     static pair<string, int> limits[] = {
@@ -124,6 +140,10 @@ static inline void set_rlimit_info(StartupMessage* start_msg)
     }
 }
 
+/**
+ * Retrieves the system information using uname
+ * and populates the startup message with this data.
+ */
 static inline void set_system_info(StartupMessage* start_msg)
 {
     struct utsname buf;
@@ -156,6 +176,11 @@ static inline void set_system_info(StartupMessage* start_msg)
     sys_data->set_value(buf.machine);
 }
 
+/**
+ * Reads all the environment variables inherited
+ * by the process and populates this infromation
+ * as part of the process startup message.
+ */
 static inline void set_env_vars(StartupMessage* start_msg, char** envp)
 {
     KVPair* env_args;
@@ -175,6 +200,10 @@ static inline void set_env_vars(StartupMessage* start_msg, char** envp)
     }
 }
 
+/**
+ * Reads the command line parameters passed to the process
+ * binary and populates the startup message with this data.
+ */
 static inline void set_command_line(StartupMessage* start_msg,
                             const int argc, char** argv)
 {
@@ -189,6 +218,9 @@ static inline void set_command_line(StartupMessage* start_msg,
     start_msg->set_cmd_line_args(cmd_line_str);
 }
 
+/**
+ * Retrieves the value of LD_PRELOAD_PATH environment variable.
+ */
 void ProcUtils::get_preload_path(string* ld_preload_path)
 {
     try
@@ -208,6 +240,9 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
     }
 }
 
+/**
+ * Returns the raw monotonic clock time of the system
+ */
 uint64_t ProcUtils::get_time()
 {
     struct timespec tp;
@@ -220,7 +255,9 @@ uint64_t ProcUtils::get_time()
     return nsecs;
 }
 
-
+/**
+ * Retrieves current time and date in a specific format
+ */
 void ProcUtils::get_formatted_time(string* date_time)
 {
     time_t unix_time;
@@ -241,7 +278,10 @@ void ProcUtils::get_formatted_time(string* date_time)
     *date_time = buffer;
 }
 
-
+/**
+ * Serializes the header and payload data
+ * and sends this data to the OPUS backend.
+ */
 void ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
@@ -276,10 +316,13 @@ void ProcUtils::serialise_and_send_data(const Header& header_obj,
     if (buf) delete buf;
 }
 
-/*
-   Returns true if we are already 
-   inside an overridden libc function
-*/
+/**
+ * Sets a global flag which can be used to
+ * indicate that a glibc call was made by
+ * code within the OPUS front-end. This can
+ * also be used to toggle off provenance
+ * capture in the frontend.
+ */
 bool ProcUtils::test_and_set_flag(const bool value)
 {
     bool ret = in_func_flag & value;
@@ -290,6 +333,9 @@ bool ProcUtils::test_and_set_flag(const bool value)
     return ret;
 }
 
+/**
+ * Reads the UDS path from the environment
+ */
 void ProcUtils::get_uds_path(string* uds_path_str)
 {
     try
@@ -316,6 +362,9 @@ void ProcUtils::get_uds_path(string* uds_path_str)
     }
 }
 
+/**
+ * Given a user ID, the user name string is returned
+ */
 const string ProcUtils::get_user_name(const uid_t user_id)
 {
     struct passwd pwd;
@@ -349,6 +398,9 @@ const string ProcUtils::get_user_name(const uid_t user_id)
     return user_name_str;
 }
 
+/**
+ * Given a group ID, the group name string is returned
+ */
 const string ProcUtils::get_group_name(const gid_t group_id)
 {
     struct group grp;
@@ -382,6 +434,14 @@ const string ProcUtils::get_group_name(const gid_t group_id)
     return group_name_str;
 }
 
+/**
+ * Sends a process startup message to the OPUS backend.
+ * As part of the message, the following data is populated,
+ *      - command line params
+ *      - environment variables
+ *      - system info
+ *      - resource limits
+ */
 void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -418,11 +478,18 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     free(cwd);
 }
 
+/**
+ * Calls send_startup_message without command line params
+ */
 void ProcUtils::send_startup_message()
 {
     ProcUtils::send_startup_message(0, NULL, NULL);
 }
 
+/**
+ * Sends a message to the OPUS backend with the paths
+ * and md5 sum of all libraries loaded by the process.
+ */
 void ProcUtils::send_libinfo_message(const vector<pair<string,
                                         string> >& lib_vec)
 {
@@ -443,6 +510,9 @@ void ProcUtils::send_libinfo_message(const vector<pair<string,
     set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
 }
 
+/**
+ * Invokes callback function and send_libinfo_message
+ */
 void ProcUtils::send_loaded_libraries()
 {
     vector<pair<string, string> > lib_vec;
@@ -450,6 +520,9 @@ void ProcUtils::send_loaded_libraries()
     ProcUtils::send_libinfo_message(lib_vec);
 }
 
+/**
+ * Obtains the md5 checksum when given a valid file path
+ */
 void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
 {
     int fd = -1;
@@ -503,6 +576,10 @@ pid_t ProcUtils::gettid()
     return tid;
 }
 
+/**
+ * Given a symbol (glibc function name), this method
+ * returns the address of the symbol if found.
+ */
 void* ProcUtils::get_sym_addr(const string& symbol)
 {
     /*
@@ -523,9 +600,10 @@ void* ProcUtils::get_sym_addr(const string& symbol)
 }
 
 /*
-    This function will not be called from multiple
-    threads simultaneously as the OPUS library
-    loads the libc function map at startup
+    Allows lazy loading of glibc function symbols. This
+    can happen if an application calls a glibc function
+    in its .preinit_array section. Will break if multiple
+    threads are created in the .preinit_array section.
 */
 void* ProcUtils::add_sym_addr(const string& symbol)
 {
@@ -550,6 +628,10 @@ void* ProcUtils::add_sym_addr(const string& symbol)
     return func_ptr;
 }
 
+/**
+ * Wrapper to instantiate the
+ * thread local connection object.
+ */
 bool ProcUtils::connect()
 {
     bool ret = true;
@@ -574,6 +656,10 @@ bool ProcUtils::connect()
     return ret;
 }
 
+/**
+ * Wrapper to destroy the
+ * thread local connection object.
+ */
 void ProcUtils::disconnect()
 {
     if (comm_obj)

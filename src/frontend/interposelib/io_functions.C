@@ -11,7 +11,9 @@
 #include "proc_utils.h"
 #include "message_util.h"
 
-
+/**
+ * Interposition function for open
+ */
 extern "C" int open(const char *pathname, int flags, ...)
 {
     std::string func_name = "open";
@@ -83,6 +85,9 @@ extern "C" int open(const char *pathname, int flags, ...)
     return ret;
 }
 
+/**
+ * Interposition function for open64
+ */
 extern "C" int open64(const char *pathname, int flags, ...)
 {
     std::string func_name = "open64";
@@ -154,6 +159,9 @@ extern "C" int open64(const char *pathname, int flags, ...)
     return ret;
 }
 
+/**
+ * Interposition function for printf
+ */
 extern "C" int printf(const char *format, ...)
 {
     static VPRINTF_POINTER real_vprintf = NULL;
@@ -191,6 +199,9 @@ extern "C" int printf(const char *format, ...)
     return ret;
 }
 
+/**
+ * Interposition function for scanf
+ */
 extern "C" int scanf(const char *format, ...)
 {
     static VSCANF_POINTER real_vscanf = NULL;
@@ -228,6 +239,9 @@ extern "C" int scanf(const char *format, ...)
     return ret;
 }
 
+/**
+ * Interposition function for fprintf
+ */
 extern "C" int fprintf(FILE *stream, const char *format, ...)
 {
     static VFPRINTF_POINTER real_vfprintf = NULL;
@@ -274,6 +288,9 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
     return ret;
 }
 
+/**
+ * Interposition function for fscanf
+ */
 extern "C" int fscanf(FILE *stream, const char *format, ...)
 {
     static VFSCANF_POINTER real_vfscanf = NULL;
@@ -319,6 +336,9 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     return ret;
 }
 
+/**
+ * Interposition function for __isoc99_scanf
+ */
 extern "C" int __isoc99_scanf(const char *format, ...)
 {
     static __ISOC99_VSCANF_POINTER real___isoc99_vscanf = NULL;
@@ -359,6 +379,9 @@ extern "C" int __isoc99_scanf(const char *format, ...)
     return ret;
 }
 
+/**
+ * Interposition function for __isoc99_fscanf
+ */
 extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 {
     static __ISOC99_VFSCANF_POINTER real___isoc99_vfscanf = NULL;

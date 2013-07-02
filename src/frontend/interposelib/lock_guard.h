@@ -3,6 +3,11 @@
 
 #include "opus_lock.h"
 
+/**
+ * An RAII class to release
+ * a lock automatically once
+ * the object goes out of scope
+ */
 class LockGuard
 {
     public:

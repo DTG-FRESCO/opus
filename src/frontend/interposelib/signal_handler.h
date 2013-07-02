@@ -5,7 +5,11 @@
 
 typedef void (*SA_SIGACTION_PTR)(int, siginfo_t *, void *);
 
-/* Abstract Base class */
+/**
+ * Abstract base class for signal handling logic.
+ * The OPUS front-end stores and tracks the application's
+ * signal handlers along with relevant flags.
+ */
 class SignalHandler
 {
     public:
@@ -28,10 +32,10 @@ class SignalHandler
 };
 
 
-/*
-    Deals with the single
-    argument signal handler
-*/
+/**
+ * Deals with type one signal handler
+ * the takes a single argument
+ */
 class SAHandler : public SignalHandler
 {
     public:
@@ -46,10 +50,10 @@ class SAHandler : public SignalHandler
         sighandler_t signal_handler;
 };
 
-/*
-    Deals with the more
-    elaborate signal handler
-*/
+/**
+ * Deals with type two signal handler
+ * that takes three arguments.
+ */
 class SASigaction : public SignalHandler
 {
     public:

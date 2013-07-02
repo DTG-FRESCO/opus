@@ -1,8 +1,7 @@
-/*
- This file contains protocol buffer message
- utility functions that may be inlined.
-*/
-
+/**
+ * This file contains protocol buffer message
+ * utility functions that may be inlined.
+ */
 namespace
 {
     using ::google::protobuf::Message;

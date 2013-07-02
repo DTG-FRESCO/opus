@@ -14,4 +14,5 @@
 #include "proc_utils.h"
 #include "message_util.h"
 
+/** Include the generated interposition functions */
 #include "gen_functions.C"

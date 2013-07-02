@@ -9,6 +9,10 @@
 #include "opus_lock.h"
 #include "uds_client.h"
 
+/**
+ * A utility class that encapsulates common
+ * process functions used by the library
+ */
 class ProcUtils
 {
     public:

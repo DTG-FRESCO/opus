@@ -11,9 +11,18 @@
 #include "message_util.h"
 #include "lock_guard.h"
 
+/**
+ * Initialization of static class members
+ */
 std::vector<SignalHandler*> SignalUtils::sig_handler_vec(NSIG, NULL);
 OPUSLock *SignalUtils::sig_vec_lock = NULL;
 
+/**
+ * This variadic macro is used for both type one
+ * and type two signal handlers. The handler
+ * type is passed to the function macro along
+ * with arguments for the handler.
+ */
 #define HANDLER_BODY(ptr_type, ...) \
     ProcUtils::test_and_set_flag(true); \
                         \
@@ -44,7 +53,9 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     }\
     ProcUtils::test_and_set_flag(false);
 
-
+/**
+ * Calls signal and performs error checks
+ */
 static inline void set_signal(const int sig, sighandler_t handler)
 {
     sighandler_t ret = ::signal(sig, handler);
@@ -52,17 +63,29 @@ static inline void set_signal(const int sig, sighandler_t handler)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
 }
 
+/**
+ * OPUS signal handler wrapper
+ * for type one signal handlers
+ */
 void SignalUtils::opus_type_one_signal_handler(int sig)
 {
     HANDLER_BODY(sighandler_t, sig);
 }
 
+/**
+ * OPUS signal handler wrapper
+ * for type two signal handlers
+ */
 void SignalUtils::opus_type_two_signal_handler(int sig,
                                 siginfo_t *info, void *u_ctx)
 {
     HANDLER_BODY(SA_SIGACTION_PTR, sig, info, u_ctx);
 }
 
+/**
+ * Blocks all signals from being
+ * delivered to the calling thread.
+ */
 void SignalUtils::block_all_signals(sigset_t *old_set)
 {
     sigset_t new_set;
@@ -81,6 +104,10 @@ void SignalUtils::block_all_signals(sigset_t *old_set)
     }
 }
 
+/**
+ * Restores the signal mask to the
+ * previous state for the calling thread.
+ */
 void SignalUtils::restore_signal_mask(sigset_t *old_set)
 {
     try
@@ -94,6 +121,13 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
     }
 }
 
+/**
+ * Wrapper for call to signal. A lock is obtained before
+ * calling signal bacause we are tracking the previous
+ * signal handler for a given signal and in a multi-threaded
+ * process, obtaining a lock prevents the wrong
+ * previous handler from being returned.
+ */
 void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
                                 const int signum,
                                 const sighandler_t& signal_handler,
@@ -121,6 +155,13 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
     return prev_handler;
 }
 
+/**
+ * Wrapper for call to sigaction. A lock is obtained before
+ * calling sigaction bacause we are tracking the previous
+ * signal handler for a given signal and in a multi-threaded
+ * process, obtaining a lock prevents the wrong previous
+ * handler from being populated in the oldact structure.
+ */
 void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
                                     const int signum,
                                     const struct sigaction *sa,
@@ -150,11 +191,11 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
 }
 
 
-/*
-    Retrieves the original handler to call.
-    Restores signal to default state if
-    SA_RESETHAND flag is set.
-*/
+/**
+ * Retrieves the original handler to call.
+ * Restores signal to default state if
+ * SA_RESETHAND flag is set.
+ */
 void* SignalUtils::get_real_handler(const int sig)
 {
     void *real_handler = NULL;
@@ -184,18 +225,20 @@ void* SignalUtils::get_real_handler(const int sig)
 }
 
 
-/*
-    This function must be called
-    after acquiring sig_vec_lock
+/**
+ * Returns the signal handler object for a given signal.
+ * This function must be called after acquiring sig_vec_lock
 */
 SignalHandler* SignalUtils::get_signal_handler(const int sig)
 {
     return sig_handler_vec[sig];
 }
 
-/*
-    This function must be called
-    after acquiring sig_vec_lock
+/**
+ * Stores the signal handler registered by the process for
+ * a given signal in a vector and removes the previous
+ * signal handler and returns it to the caller. This
+ * function must be called after acquiring sig_vec_lock.
 */
 void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
 {
@@ -220,10 +263,10 @@ void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
     return real_handler;
 }
 
-/*
-    This function must be called
-    after acquiring sig_vec_lock
-*/
+/**
+ * Removes the stored signal handler from the signal vector.
+ * This function must be called after acquiring sig_vec_lock
+ */
 void SignalUtils::remove_signal_handler(const int sig)
 {
     try
@@ -241,7 +284,10 @@ void SignalUtils::remove_signal_handler(const int sig)
     }
 }
 
-
+/**
+ * Installs signal handlers for
+ * signals that we need to capture.
+ */
 void SignalUtils::init_signal_capture()
 {
     static const int signal_list[] = { SIGFPE, SIGSEGV, SIGBUS, SIGABRT, SIGIOT,
@@ -269,6 +315,10 @@ void SignalUtils::init_signal_capture()
     }
 }
 
+/**
+ * Initialize the lock used by the SignalUtils class.
+ * Usually called during process startup.
+ */
 bool SignalUtils::initialize()
 {
     bool ret = true;
@@ -286,6 +336,11 @@ bool SignalUtils::initialize()
     return ret;
 }
 
+/**
+ * Reinitialize the lock used by the SignalUtils class.
+ * Usually called when a process inherits the address space
+ * from its parent and needs to reset state.
+ */
 void SignalUtils::reset()
 {
     try
