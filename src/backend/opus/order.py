@@ -42,7 +42,7 @@ class EventOrderer(object):
     def _update_inter(self):
         '''Update the queues interval count.'''
         t_now = _cur_time()
-        t_diff = (t_now-self.last_time)
+        t_diff = (t_now - self.last_time)
         self.last_time = t_now
         self.inter = (self.inter * self._EMWA_CONSTANT +
                       t_diff * (1 - self._EMWA_CONSTANT))
