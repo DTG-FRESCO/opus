@@ -22,7 +22,7 @@ class QueueClearingException(common_utils.OPUSException):
 
 def _cur_time():
     '''Returns the current monotonic time in milliseconds.'''
-    return time.clock_gettime(time.CLOCK_MONOTONIC_RAW)*1000000
+    return time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1000000
 
 
 class EventOrderer(object):
@@ -44,18 +44,19 @@ class EventOrderer(object):
         t_now = _cur_time()
         t_diff = (t_now-self.last_time)
         self.last_time = t_now
-        self.inter = (self.inter*self._EMWA_CONSTANT +
-                      t_diff*(1-self._EMWA_CONSTANT))
+        self.inter = (self.inter * self._EMWA_CONSTANT +
+                      t_diff * (1 - self._EMWA_CONSTANT))
         if self.inter < self.min_inter:
             self.min_inter = self.inter
 
     def _window_size(self):
         '''Return the current minimum window size.'''
-        return max(self.max_wind*(self.min_inter/self.inter), self.max_wind)
+        return max(self.max_wind * (self.min_inter / self.inter), self.max_wind)
 
     def _extract_cond(self):
         '''Evaluate the extraction condition, queue_size > min_window'''
-        return self.clearing or self.priority_queue.qsize()>self._window_size()
+        return (self.clearing or 
+                self.priority_queue.qsize() > self._window_size())
 
     def push(self, msgs):
         '''Push a list of messages msgs onto the queue.'''
