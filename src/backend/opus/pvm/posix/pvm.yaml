@@ -1,0 +1,343 @@
+close:
+  action: close
+  arg: fd
+
+creat:
+  action: open
+  arg: pathname
+
+creat64:
+  action: open
+  arg: pathname
+
+fclose:
+  action: close
+  arg: fp
+
+fgetc:
+  action: read
+  arg: stream
+
+fgets:
+  action: read
+  arg: stream 
+
+fopen:
+  action: open
+  arg: path
+
+fopen64:
+  action: open
+  arg: path
+
+fprintf:
+  action: write
+  arg: stream
+
+fputc:
+  action: write
+  arg: stream
+
+fputs:
+  action: write
+  arg: stream
+
+fread:
+  action: read
+  arg: stream
+
+fscanf:
+  action: read
+  arg: stream 
+
+fwrite:
+  action: write
+  arg: stream
+
+getc:
+  action: read
+  arg: stream
+
+getchar:
+  action: read
+  arg: 0
+
+getline:
+  action: read
+  arg: stream
+
+open:
+  action: open
+  arg: pathname
+
+open64:
+  action: open
+  arg: pathname
+
+putc:
+  action: write
+  arg: stream
+
+putchar:
+  action: write
+  arg: 1
+
+puts:
+  action: write
+  arg: 1
+
+pread:
+  action: read
+  arg: fd
+
+printf:
+  action: write
+  arg: 1
+
+pwrite:
+  action: write
+  arg: fd
+
+read:
+  action: read
+  arg: fd
+
+scanf:
+  action: read
+  arg: 0
+
+vfprintf:
+  action: write
+  arg: stream
+
+vprintf:
+  action: write
+  arg: 1
+
+vscanf:
+  action: read
+  arg: 0
+
+vfscanf:
+  action: read
+  arg: stream
+
+write:
+  action: write
+  arg: fd
+
+getc_unlocked:
+  action: read
+  arg: stream
+
+getchar_unlocked:
+  action: read
+  arg: 0
+
+putc_unlocked:
+  action: write
+  arg: stream
+
+putchar_unlocked:
+  action: write
+  arg: 1
+
+fgetc_unlocked:
+  action: read
+  arg: stream
+
+fputc_unlocked:
+  action: write
+  arg: stream
+
+fread_unlocked:
+  action: read
+  arg: stream
+
+fwrite_unlocked:
+  action: write
+  arg: stream
+
+fgets_unlocked:
+  action: read
+  arg: stream
+
+fputs_unlocked:
+  action: write
+  arg: stream
+
+fseek:
+  action: null
+  arg: stream
+
+fseeko:
+  action: null
+  arg: stream
+
+fsetpos:
+  action: null
+  arg: stream
+
+fsetpos64:
+  action: null
+  arg: stream
+
+lseek:
+  action: null
+  arg: fd
+
+lseek64:
+  action: null
+  arg: fd
+
+rewind:
+  action: null
+  arg: stream
+
+chmod:
+  action: touch
+  arg: path
+
+chown:
+  action: touch
+  arg: path
+
+fchmod:
+  action: write
+  arg: fd
+
+fchown:
+  action: write
+  arg: fd
+
+lchown:
+  action: touch
+  arg: path
+
+ftruncate:
+  action: write
+  arg: fd
+
+ftruncate64:
+  action: write
+  arg: fd
+
+mkdir:
+  action: touch
+  arg: pathname
+
+mkfifo:
+  action: touch
+  arg: pathname
+
+remove:
+  action: delete
+  arg: pathname
+
+rmdir:
+  action: delete
+  arg: pathname
+
+symlink:
+  action: touch
+  arg: newpath
+
+truncate:
+  action: touch
+  arg: path
+
+truncate64:
+  action: touch
+  arg: path
+
+unlink:
+  action: delete
+  arg: pathname
+
+mkstemp:
+  action: open
+  arg: templ
+
+mkostemp:
+  action: open
+  arg: templ
+
+mkstemps:
+  action: open
+  arg: templ
+
+mkostemps:
+  action: open
+  arg: templ
+
+__fxstat:
+  action: read
+  arg: fd
+
+__fxstat64:
+  action: read
+  arg: fd
+
+__lxstat:
+  action: touch
+  arg: path
+
+__lxstat64:
+  action: touch
+  arg: path
+
+__xstat:
+  action: touch
+  arg: path
+
+__xstat64:
+  action: touch
+  arg: path
+
+execl:
+  action: event
+  arg: 0
+
+execlp:
+  action: event
+  arg: 0
+
+execle:
+  action: event
+  arg: 0
+
+execv:
+  action: event
+  arg: 0
+
+execvp:
+  action: event
+  arg: 0
+
+execvpe:
+  action: event
+  arg: 0
+
+execve:
+  action: event
+  arg: 0
+
+fexecve:
+  action: event
+  arg: 0
+
+fork:
+  action: event
+  arg: 0
+
+utime:
+  action: touch
+  arg: filename
+
+system:
+  action: event
+  arg: 0
+
+pclose:
+  action: close
+  arg: stream

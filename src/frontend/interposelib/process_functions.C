@@ -254,6 +254,8 @@ extern "C" int execl(const char *path, const char *arg, ...)
 
     /* Call the original execv */
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execv)(path, &arg_vec[0]);
 
     /* This part will execute only if exec fails */
@@ -306,6 +308,8 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     send_pre_func_generic_msg(desc);
 
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execvp)(file, &arg_vec[0]);
 
     /* This part will execute only if exec fails */
@@ -366,6 +370,8 @@ extern "C" int execle(const char *path, const char *arg,
     send_pre_func_generic_msg(desc);
 
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execvpe)(path, &arg_vec[0], &env_vec[0]);
 
     uint64_t end_time = ProcUtils::get_time();
@@ -403,6 +409,8 @@ extern "C" int execv(const char *path, char *const argv[])
 
     /* Call the original execv */
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execv)(path, argv);
 
     /* This part will execute only if exec fails */
@@ -441,6 +449,8 @@ extern "C" int execvp(const char *file, char *const argv[])
     send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execvp)(file, argv);
 
     /* This part will execute only if exec fails */
@@ -484,6 +494,8 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execvpe)(file, argv, &env_vec[0]);
 
     uint64_t end_time = ProcUtils::get_time();
@@ -528,6 +540,8 @@ extern "C" int execve(const char *filename,
     send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
     int ret = (*real_execve)(filename, argv, &env_vec[0]);
 
     uint64_t end_time = ProcUtils::get_time();
@@ -570,6 +584,8 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     send_pre_func_generic_msg(func_name);
 
     uint64_t start_time = ProcUtils::get_time();
+        
+    errno = 0;
     int ret = (*real_fexecve)(fd, argv, &env_vec[0]);
 
     uint64_t end_time = ProcUtils::get_time();
@@ -603,7 +619,8 @@ extern "C" pid_t fork(void)
         return (*real_fork)();
 
     uint64_t start_time = ProcUtils::get_time();
-
+    
+    errno = 0;
     pid_t pid = (*real_fork)();
     if (pid == 0)
     {

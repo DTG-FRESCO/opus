@@ -43,6 +43,9 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
+        static const std::string canonicalise_path(std::string path);
+        static const std::string abs_path(std::string path);
+
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;

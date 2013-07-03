@@ -24,15 +24,6 @@ DEFINITION_REG = "([\w* _]+(?:\*| ))([\w_]+)\((.*?)\);"
 ARG_SPLIT_REG = ",*\s*([^,]+),*"
 ARG_DEF_REG = "^([\w* _]+(?:\*| ))([\w_]+)$"
 
-PRINTF_MAP = {"int": '"%d"',
-              "long int": '"%ld"',
-              "long": '"%ld"',
-              "off_t": '"%ld"',
-              "mode_t": '"%u"',
-              "size_t *": '"%p"',
-              "off64_t": '"%ld"',
-              "size_t": '"%lu"',
-              "FILE *": ''}
 
 class FunctionParsingException(Exception):
     '''General base exception class for any errors in parsing the function
@@ -54,18 +45,24 @@ def match_single_arg(arg):
     '''Given a single function argument string parse the arguments name,
     type and read value and return them.
 
-    Returns (type,name,read)'''
+    Returns (type,name,read,can,abs)'''
     (read_sub, count) = re.subn("read ", "", arg)
     arg_read = count > 0
 
-    arg_def = re.match(ARG_DEF_REG, read_sub)
+    (can_sub, count) = re.subn("can ", "", read_sub)
+    arg_can = count > 0
+
+    (abs_sub, count) = re.subn("abs ", "", can_sub)
+    arg_abs = count > 0
+
+    arg_def = re.match(ARG_DEF_REG, abs_sub)
 
     if arg_def is None:
         logging.error("Invalid Argument: %s", arg)
         raise InvalidArgumentException()
     else:
         (arg_type, arg_name) = arg_def.groups()
-    return (arg_type.rstrip(), arg_name, arg_read)
+    return (arg_type.rstrip(), arg_name, arg_read, arg_can, arg_abs)
 
 
 def match_args_from_list(args):
@@ -74,11 +71,13 @@ def match_args_from_list(args):
     ret = []
     inner_matches = re.findall(ARG_SPLIT_REG, args)
     for arg in inner_matches:
-        (arg_type, arg_name, arg_read) = match_single_arg(arg)
+        (arg_type, arg_name, arg_read, arg_can, arg_abs) = match_single_arg(arg)
 
         arg_info = {'type': arg_type,
                     'name': arg_name,
-                    'read': arg_read}
+                    'read': arg_read,
+                    'can':  arg_can,
+                    'abs':  arg_abs}
 
         logging.info("Gathered argument from line: %s", arg_info)
 
@@ -114,6 +113,8 @@ def get_func_ptr(line):
     along with the function pointer type'''
     line = line.replace("nogen ","")
     line = line.replace("read ","")
+    line = line.replace("can ", "")
+    line = line.replace("abs ", "")
 
     outer = re.match(DEFINITION_REG, line)
     if outer is None:
@@ -196,14 +197,6 @@ def filter_capture_arg(args):
     return False
 
 
-def filter_buffer_arg(args):
-    '''Check the args list for any arguments that need conversion to strings.'''
-    for arg in args:
-        if arg['read'] and arg['type'] in PRINTF_MAP:
-            return True
-    return False
-
-
 def main():
     '''Main function, parses command line arguments, parses the given file of
     function definitions then renders the two templates using the information
@@ -246,7 +239,6 @@ def main():
     env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
 
     env.filters['capture_arg'] = filter_capture_arg
-    env.filters['buffer_arg'] = filter_buffer_arg
 
     logging.info("Beginning rendering of header file.")
     try:
@@ -268,9 +260,7 @@ def main():
             logging.info("Rendering the object template to the object file %s.",
                          args.output_dest)
             object_tmpl = env.get_template("func.tmpl")
-            object_file.write(object_tmpl.render(fn_list=funcs,
-                                                 printf_map=PRINTF_MAP)
-                                                )
+            object_file.write(object_tmpl.render(fn_list=funcs))
     except IOError as exc:
         logging.critical("Failed to open object output file %s.",
                          args.output_dest)

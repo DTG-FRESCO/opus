@@ -26,14 +26,20 @@ lib
 include
 
 #
+#Protobuf Ignores
+#
+src/protobuf/*.h
+src/protobuf/*.cc
+src/protobuf/*.py
+
+#
 #Specific C excludes
 #
-src/protobuf/uds_msg.pb.*
 src/frontend/interposelib/uds_msg.pb.*
+src/frontend/interposelib/prov_db.pb.*
 src/frontend/interposelib/a.out
 
 #
 #Specific Py excludes
 #
-src/protobuf/uds_msg_pb2.py
-src/backend/opus/uds_msg_pb2.py
+src/backend/opus/*_pb2.py
