@@ -270,3 +270,27 @@ def process_put_env(tran, p_id, env, overwrite):
         m_id = new_meta(tran, name, val, time_stamp)
         m_obj = tran.get(m_id)
         p_obj.env.add().id = m_id
+
+
+def set_rw_lnk(tran, l_id, state):
+    '''Sets the link between l_id and the global it is connected to. The link is
+    set to either state or the appropriate combination(if the link is already
+    READ trying to set it to WRITE will result in RaW).'''
+    l_obj = tran.get(l_id)
+    if len(l_obj.file_object) == 1:
+        g_id = l_obj.file_object[0].id
+        g_obj = tran.get(g_id)
+        if((state == prov_db.READ and 
+            l_obj.file_object[0].state == prov_db.WRITE) or
+           (state == prov_db.WRITE and 
+            l_obj.file_object[0].state == prov_db.READ) or
+           l_obj.file_object[0].state == prov_db.RaW):
+            new_state = prov_db.RaW
+        else:
+            new_state = state
+
+        l_obj.file_object[0].state = new_state
+        for lnk in g_obj.process_object:
+            if lnk.id == l_id:
+                lnk.state = new_state
+                break
