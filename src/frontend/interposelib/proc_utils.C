@@ -390,11 +390,9 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
 
     StartupMessage start_msg;
 
-    char link[1024] = "";
     char exe[1024] = "";
 
-    snprintf(link, sizeof(link), "/proc/%d/exe", getpid());
-    if (readlink(link, exe , sizeof(exe)) >= 0)
+    if (readlink("/proc/self/exe", exe , sizeof(exe)) >= 0)
     {
         start_msg.set_exec_name(exe);
     }
@@ -502,6 +500,37 @@ pid_t ProcUtils::gettid()
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
 
     return tid;
+}
+
+pid_t ProcUtils::getpid()
+{
+    pid_t pid = -1;
+    char *proc_pid_path = NULL;
+
+    try
+    {
+        proc_pid_path = realpath("/proc/self", NULL);
+        if (!proc_pid_path)
+            throw std::runtime_error(strerror(errno));
+
+        string pid_path(proc_pid_path);
+
+        int64_t found_pos = pid_path.rfind("/");
+        if (found_pos == (int64_t)string::npos)
+            throw std::runtime_error("Could not find pid from /proc/self");
+
+        string pid_str = pid_path.substr(found_pos + 1);
+        pid = atoi(pid_str.c_str());
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        pid = ::getpid(); // use glibc's getpid
+    }
+
+    if (proc_pid_path) free(proc_pid_path);
+
+    return pid;
 }
 
 void* ProcUtils::get_sym_addr(const string& symbol)
