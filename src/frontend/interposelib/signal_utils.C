@@ -11,6 +11,7 @@
 #include "message_util.h"
 #include "lock_guard.h"
 
+std::vector<bool> *SignalUtils::sig_valid_ptr = false;
 std::vector<SignalHandler*> SignalUtils::sig_handler_vec(NSIG, NULL);
 OPUSLock *SignalUtils::sig_vec_lock = NULL;
 
@@ -241,31 +242,49 @@ void SignalUtils::remove_signal_handler(const int sig)
     }
 }
 
+bool SignalUtils::is_signal_valid(const int sig)
+{
+    return (*sig_valid_ptr)[sig];
+}
 
 void SignalUtils::init_signal_capture()
 {
-    static const int signal_list[] = { SIGFPE, SIGSEGV, SIGBUS, SIGABRT, SIGIOT,
-                                    SIGTRAP, SIGSYS, SIGTERM, SIGINT, SIGQUIT,
-                                    SIGHUP, SIGALRM, SIGVTALRM, SIGPROF, SIGIO,
-                                    SIGPOLL, SIGTSTP, SIGTTIN, SIGTTOU, SIGPIPE,
-                                    SIGXCPU, SIGXFSZ, SIGUSR1, SIGUSR2, SIGPWR,
-                                    SIGSTKFLT, SIGILL, SIGSYS, SIGUNUSED };
+    try
+    {
+        static const int signal_list[] = {
+            SIGFPE, SIGSEGV, SIGBUS, SIGABRT, SIGIOT,
+            SIGTRAP, SIGSYS, SIGTERM, SIGINT, SIGQUIT,
+            SIGHUP, SIGALRM, SIGVTALRM, SIGPROF, SIGIO,
+            SIGPOLL, SIGTSTP, SIGTTIN, SIGTTOU, SIGPIPE,
+            SIGXCPU, SIGXFSZ, SIGUSR1, SIGUSR2, SIGPWR,
+            SIGSTKFLT, SIGILL, SIGSYS, SIGUNUSED };
 
-    std::vector<int> signals_vec(signal_list,
+        std::vector<int> signals_vec(signal_list,
                 signal_list + sizeof(signal_list) / sizeof(int));
 
-    struct sigaction sa;
-    sa.sa_sigaction = SignalUtils::opus_type_two_signal_handler;
-    sigfillset(&sa.sa_mask);
-    sa.sa_flags = SA_SIGINFO;
+        if (!sig_valid_ptr)
+            sig_valid_ptr = new std::vector<bool>(NSIG, false);
 
-    for (size_t i = 0; i < signals_vec.size(); ++i)
-    {
-        if (sigaction(signals_vec[i], &sa, NULL) < 0)
+        struct sigaction sa;
+        sa.sa_sigaction = SignalUtils::opus_type_two_signal_handler;
+        sigfillset(&sa.sa_mask);
+        sa.sa_flags = SA_SIGINFO;
+
+        for (size_t i = 0; i < signals_vec.size(); ++i)
         {
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-            continue;
+            const int sig = signals_vec[i];
+            (*sig_valid_ptr)[sig] = true;
+
+            if (sigaction(sig, &sa, NULL) < 0)
+            {
+                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+                continue;
+            }
         }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
