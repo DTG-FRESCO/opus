@@ -518,7 +518,7 @@ pid_t ProcUtils::getpid()
         if (found_pos == (int64_t)string::npos)
             throw std::runtime_error("Could not find pid from /proc/self");
 
-        string pid_str = pid_path.substr(found_pos+1);
+        string pid_str = pid_path.substr(found_pos + 1);
         pid = atoi(pid_str.c_str());
     }
     catch(const std::exception& e)

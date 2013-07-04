@@ -5,18 +5,13 @@ INSDIR      := $(TOP)
 LIBNAME     := override
 
 NULLSTRING :=
-INTERPOSE_ON_FLAG := -DVFORK_INTERPOSE
-UNAME := $(shell uname -m)
+INTERPOSE_ON_FLAG := $(NULLSTRING)
+VFORK_WRAPPER := $(NULLSTRING)
+ARCH := $(shell uname -m)
 
-ifeq ($(UNAME), x86_64)
-    VFORK_WRAPPER  := opus_vfork_wrapper_x86_64.S
-else
-    ifeq ($(UNAME), i686)
-        VFORK_WRAPPER  := opus_vfork_wrapper_x86_32.S
-    else
-        INTERPOSE_ON_FLAG := $(NULLSTRING)
-        VFORK_WRAPPER := $(NULLSTRING)
-    endif
+ifeq ($(ARCH), $(filter $(ARCH), x86_64 i686))
+    VFORK_WRAPPER := $(ARCH)/vfork_wrapper.S
+    INTERPOSE_ON_FLAG := -DVFORK_INTERPOSE
 endif
 
 CFLAGS2 := $(CFLAGS2) -fPIC -O2 -Wall -shared -DDEBUG
@@ -26,7 +21,6 @@ CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
 LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
 LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lssl -lcrypto -lpthread
-
 
 SRCS    :=  log.C \
             opus_lock.C \
@@ -55,4 +49,4 @@ HDRS    :=  log.h \
             main.h \
             opus_vfork.h
 
-include        $(TOP)/Maketmpl/shlib-NEW.mk
+include     $(TOP)/Maketmpl/shlib-NEW.mk

@@ -274,7 +274,7 @@ DSTBIN		= $(PROGRAM:%=$(INSBINDIR)/%)
 # C++ compliation rule
 #======================================================================
 %.o:		%.C
-		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
+		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $< -o $(<:.C=.o)
 
 #======================================================================
 # protobuf C++ compliation rule
@@ -286,7 +286,7 @@ DSTBIN		= $(PROGRAM:%=$(INSBINDIR)/%)
 # Assembly files compliation rule
 #======================================================================
 %.o:		%.S
-		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $<
+		$(DPY)$(CXX) $(INCPATHSW) $(CFLAGS2) -c $< -o $(<:.S=.o)
 
 #======================================================================
 # Pro*C/C++ SQL (pc) compilation rules
