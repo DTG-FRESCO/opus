@@ -5,6 +5,9 @@
 
 #define MAX_MSG_SIZE 4096
 
+/**
+ * Gets the current time in H:M:S format
+ */
 static void get_time_stamp(char *time_stamp)
 {
     time_t current_time = time(0);
@@ -14,9 +17,9 @@ static void get_time_stamp(char *time_stamp)
     strftime(time_stamp, 9, "%H:%M:%S", &date_time);
 }
 
-/*
-   Prints message to stderr
-*/
+/**
+ *  Logs debug messages to standard error
+ */
 void debug_msg(const char* msg, ...)
 {
     va_list list;

@@ -16,7 +16,12 @@ __attribute__((section(".init_array")))
 __attribute__((section(".fini_array")))
     typeof(opus_fini) *__opus_fini = opus_fini;
 
-
+/**
+ * Initializes datastructures and functionalities
+ * within OPUS. Also sends the process startup
+ * message along with the environent information
+ * to the backend.
+ */
 void opus_init(int argc, char** argv, char** envp)
 {
     ProcUtils::test_and_set_flag(true);
@@ -48,6 +53,10 @@ void opus_init(int argc, char** argv, char** envp)
     ProcUtils::test_and_set_flag(false);
 }
 
+/**
+ * Called when a process terminates. The connection
+ * to the backend is closed gracefully.
+ */
 void opus_fini()
 {
     ProcUtils::test_and_set_flag(true);

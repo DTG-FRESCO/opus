@@ -2,11 +2,18 @@
 
 #include <stdexcept>
 
+/**
+ * Acquire lock during object construction
+ */
 LockGuard::LockGuard(OPUSLock& _l) : lock(_l)
 {
     lock.acquire();
 }
 
+/**
+ * Acquire appropriate type of RW
+ * lock during object construction
+ */
 LockGuard::LockGuard(OPUSLock& _l,
             const ReadWriteLock::LockType lock_type)
             : lock(_l)
@@ -19,6 +26,9 @@ LockGuard::LockGuard(OPUSLock& _l,
         throw std::runtime_error("Invalid lock type");
 }
 
+/**
+ * Releases the lock
+ */
 LockGuard::~LockGuard()
 {
     lock.release();

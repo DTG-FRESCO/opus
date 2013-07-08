@@ -11,17 +11,28 @@
 #include "uds_client.h"
 #include "uds_comm_exception.h"
 
+/**
+ * Constructor establishes a UDS
+ * connection to the OPUS backend
+ */
 UDSCommClient::UDSCommClient(const std::string& path) : conn_fd(-1)
 {
     if (!connect(path))
         throw std::runtime_error("Connect failed!!");
 }
 
+/**
+ * Destructor shuts down the UDS
+ * connection with the OPUS backend
+ */
 UDSCommClient::~UDSCommClient()
 {
     shutdown();
 }
 
+/**
+ * Opens a UDS connection to the specified path
+ */
 bool UDSCommClient::connect(const std::string& path)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -70,6 +81,10 @@ bool UDSCommClient::connect(const std::string& path)
     return true;
 }
 
+/**
+ * Reestablishes the UDS connection
+ * with the existing path.
+ */
 bool UDSCommClient::reconnect()
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -78,6 +93,10 @@ bool UDSCommClient::reconnect()
     return connect(uds_path);
 }
 
+/**
+ * Sends data_size bytes of data
+ * pointed to by the data pointer
+ */
 bool UDSCommClient::send_data(const void* const data, const int data_size)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -126,6 +145,10 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
     return true;
 }
 
+/**
+ * Converts a string object to char
+ * bytes and sends the data over UDS
+ */
 bool UDSCommClient::send_data(const std::string& data)
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -137,6 +160,9 @@ bool UDSCommClient::send_data(const std::string& data)
     return send_data((const void*)data_ptr, data_size);
 }
 
+/**
+ * Closes the UDS socket descriptor
+ */
 void UDSCommClient::close_connection()
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",
@@ -160,7 +186,9 @@ void UDSCommClient::close_connection()
     }
 }
 
-
+/**
+ * Closes the UDS socket descriptor
+ */
 void UDSCommClient::shutdown()
 {
     DEBUG_LOG("[%s:%d]: Entering %s\n",

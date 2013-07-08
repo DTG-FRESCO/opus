@@ -20,17 +20,22 @@
 
 typedef void* (*PTHREAD_HANDLER)(void*);
 
+/**
+ * Structure to store the original
+ * application thread handler
+ * along with arguments passed
+ */
 struct OPUSThreadData
 {
     PTHREAD_HANDLER real_handler;
     void *real_args;
 };
 
-/*
-    Called by all threads that exit.
-    Sends a thread exit generic
-    message to the backend.
-*/
+/**
+ * Called by all threads that exit.
+ * Sends a thread exit generic
+ * message to the backend
+ */
 static void opus_thread_cleanup_handler(void *cleanup_args)
 {
     ProcUtils::test_and_set_flag(true);
@@ -41,10 +46,12 @@ static void opus_thread_cleanup_handler(void *cleanup_args)
     ProcUtils::disconnect();
 }
 
-/*
-    Wrapper thread routine for
-    the real thread handler
-*/
+/**
+ * OPUS thread handler wrapper routine.
+ * Establishes a new connection to the backend.
+ * Sends a thread start message and installs
+ * a thread cleanup handler.
+ */
 static void* opus_thread_start_routine(void *args)
 {
     ProcUtils::test_and_set_flag(true);
@@ -83,6 +90,10 @@ static void* opus_thread_start_routine(void *args)
     pthread_cleanup_pop(1); // Added to avoid compilation error
 }
 
+/**
+ * Given a dlopen handle, this function
+ * obtains the real path of the library
+ */
 static void get_lib_real_path(void *handle, std::string* real_path)
 {
     struct link_map *link;
@@ -103,6 +114,11 @@ static void get_lib_real_path(void *handle, std::string* real_path)
     *real_path = path;
 }
 
+/**
+ * Invoked by the _exit or _Exit wrappers.
+ * Disconnects from the OPUS backend and
+ * calls the real _exit or _Exit functions.
+ */
 static inline void exit_program(const char *exit_str, const int status)
 {
     std::string func_name = exit_str;
@@ -135,6 +151,11 @@ static inline void exit_program(const char *exit_str, const int status)
     ProcUtils::test_and_set_flag(false);
 }
 
+/**
+ * If the oldact pointer is not null,
+ * the previous signal handler will be
+ * returned in the sigaction structure.
+ */
 static inline void set_old_act_data(void* prev, struct sigaction *oldact)
 {
     if (oldact->sa_flags & SA_SIGINFO)
@@ -143,6 +164,11 @@ static inline void set_old_act_data(void* prev, struct sigaction *oldact)
         oldact->sa_handler = reinterpret_cast<sighandler_t>(prev);
 }
 
+/**
+ * Called when a process is forked. The child
+ * process closes the inherited UDS connection
+ * and opens and new connection.
+ */
 static void setup_new_uds_connection()
 {
     ProcUtils::test_and_set_flag(true);
@@ -168,7 +194,10 @@ static void setup_new_uds_connection()
     }
 }
 
-/* Adds environment variables related to OPUS if missing */
+/**
+ * Adds environment variables related to OPUS
+ * if missing before the call to exec is made.
+ */
 static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
 {
     char *env = NULL;
@@ -223,6 +252,9 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
                 __FILE__, __LINE__, uds_str.c_str());
 }
 
+/**
+ * Interposition function for execl
+ */
 extern "C" int execl(const char *path, const char *arg, ...)
 {
     va_list lst;
@@ -278,6 +310,9 @@ extern "C" int execl(const char *path, const char *arg, ...)
     return ret;
 }
 
+/**
+ * Interposition function for execlp
+ */
 extern "C" int execlp(const char *file, const char *arg, ...)
 {
     va_list lst;
@@ -332,6 +367,9 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     return ret;
 }
 
+/**
+ * Interposition function for execle
+ */
 extern "C" int execle(const char *path, const char *arg,
                             .../*, char *const envp[]*/)
 {
@@ -393,6 +431,9 @@ extern "C" int execle(const char *path, const char *arg,
     return ret;
 }
 
+/**
+ * Interposition function for execv
+ */
 extern "C" int execv(const char *path, char *const argv[])
 {
     std::string func_name = "execv";
@@ -434,6 +475,9 @@ extern "C" int execv(const char *path, char *const argv[])
     return ret;
 }
 
+/**
+ * Interposition function for execvp
+ */
 extern "C" int execvp(const char *file, char *const argv[])
 {
     std::string func_name = "execvp";
@@ -473,6 +517,9 @@ extern "C" int execvp(const char *file, char *const argv[])
     return ret;
 }
 
+/**
+ * Interposition function for execvpe
+ */
 extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
 {
     std::vector<char*> env_vec;
@@ -517,6 +564,9 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     return ret;
 }
 
+/**
+ * Interposition function for execve
+ */
 extern "C" int execve(const char *filename,
                         char *const argv[],
                         char *const envp[])
@@ -563,6 +613,9 @@ extern "C" int execve(const char *filename,
     return ret;
 }
 
+/**
+ * Interposition function for fexecve
+ */
 extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
 {
     std::vector<char*> env_vec;
@@ -607,7 +660,9 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     return ret;
 }
 
-
+/**
+ * Interposition function for fork
+ */
 extern "C" pid_t fork(void)
 {
     std::string func_name = "fork";
@@ -646,6 +701,9 @@ extern "C" pid_t fork(void)
     return pid;
 }
 
+/**
+ * Interposition function for dlopen
+ */
 extern "C" void* dlopen(const char * filename, int flag)
 {
     std::string func_name = "dlopen";
@@ -679,6 +737,9 @@ extern "C" void* dlopen(const char * filename, int flag)
 }
 
 #ifdef CAPTURE_SIGNALS
+/**
+ * Interposition function for signal
+ */
 extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
     std::string func_name = "signal";
@@ -730,8 +791,10 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 }
 #endif
 
-
 #ifdef CAPTURE_SIGNALS
+/**
+ * Interposition function for sigaction
+ */
 extern "C" int sigaction(int signum,
                         const struct sigaction *act,
                         struct sigaction *oldact)
@@ -794,16 +857,25 @@ extern "C" int sigaction(int signum,
 }
 #endif
 
+/**
+ * Interposition function for _exit
+ */
 extern "C" void _exit(int status)
 {
     exit_program("_exit", status);
 }
 
+/**
+ * Interposition function for _Exit
+ */
 extern "C" void _Exit(int status)
 {
     exit_program("_Exit", status);
 }
 
+/**
+ * Interposition function for pthread_create
+ */
 extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                             PTHREAD_HANDLER real_handler, void *real_args)
 {
@@ -854,6 +926,9 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     return ret;
 }
 
+/**
+ * Interposition function for pthread_exit
+ */
 extern "C" void pthread_exit(void *retval)
 {
     std::string func_name = "pthread_exit";
