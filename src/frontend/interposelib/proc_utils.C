@@ -220,15 +220,29 @@ static inline void set_command_line(StartupMessage* start_msg,
 }
 
 /**
+ * Given an environment variable key
+ * this function returns its value
+ */
+char* ProcUtils::get_env_val(const string& env_key)
+{
+    char* val = getenv(env_key.c_str());
+    if (!val)
+    {
+        string err_desc = "Could not read environment variable " + env_key;
+        throw std::runtime_error(err_desc);
+    }
+
+    return val;
+}
+
+/**
  * Retrieves the value of LD_PRELOAD_PATH environment variable.
  */
 void ProcUtils::get_preload_path(string* ld_preload_path)
 {
     try
     {
-        char* preload_path = getenv("LD_PRELOAD");
-        if (!preload_path)
-            throw std::runtime_error("Could not read LD_PRELOAD path");
+        char *preload_path = get_env_val("LD_PRELOAD");
 
         DEBUG_LOG("[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
@@ -283,10 +297,16 @@ void ProcUtils::get_formatted_time(string* date_time)
  * Serializes the header and payload data
  * and sends this data to the OPUS backend.
  */
-void ProcUtils::serialise_and_send_data(const Header& header_obj,
+bool ProcUtils::serialise_and_send_data(const Header& header_obj,
                                         const Message& payload_obj)
 {
-    if (!comm_obj) return;
+    bool ret = true;
+
+    if (!comm_obj)
+    {
+        ret = false;
+        return ret;
+    }
 
     char* buf = NULL;
 
@@ -311,10 +331,14 @@ void ProcUtils::serialise_and_send_data(const Header& header_obj,
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        disconnect(); // Close the socket with the OPUS backend
+        ret = false;
     }
 
     if (buf) delete buf;
+
+    return ret;
 }
 
 /**
@@ -341,11 +365,7 @@ void ProcUtils::get_uds_path(string* uds_path_str)
 {
     try
     {
-        char* uds_path = getenv("OPUS_UDS_PATH");
-        if (!uds_path)
-            throw std::runtime_error
-                ("Could not read OPUS UDS path from environment");
-
+        char* uds_path = get_env_val("OPUS_UDS_PATH");
         if (strlen(uds_path) > UNIX_PATH_MAX)
         {
             string err_desc = "UDS path length exceeds max allowed value "
@@ -359,7 +379,7 @@ void ProcUtils::get_uds_path(string* uds_path_str)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -392,7 +412,7 @@ const string ProcUtils::get_user_name(const uid_t user_id)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     if (buf) delete buf;
@@ -428,7 +448,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     if (buf) delete buf;
@@ -565,6 +585,10 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
     if (fd != -1) close(fd);
 }
 
+/**
+ * Returns the thread ID of
+ * the calling thread
+ */
 pid_t ProcUtils::gettid()
 {
     pid_t tid = -1;
@@ -575,6 +599,11 @@ pid_t ProcUtils::gettid()
     return tid;
 }
 
+/**
+ * Reads the process ID from /proc as in case
+ * of vfork, the glibc getpid function returns
+ * the incorrect pid.
+ */
 pid_t ProcUtils::getpid()
 {
     pid_t pid = -1;
@@ -699,41 +728,44 @@ void ProcUtils::disconnect()
     }
 }
 
-const string ProcUtils::canonicalise_path(string path)
+/**
+ * Canonicalises a given pathname
+ */
+void ProcUtils::canonicalise_path(string* path)
 {
     string pathname;
-    char* real_path = NULL;
-    real_path = realpath(path.c_str(), real_path);
-    if (real_path)
-    { 
-        pathname = real_path;
-        free(real_path);
-        return pathname;
-    }
-    else
+
+    char* real_path = realpath(path->c_str(), NULL);
+    if (!real_path)
     {
-        return path;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return;
     }
+
+    *path = real_path;
+    free(real_path);
 }
 
-const string ProcUtils::abs_path(string path)
+/**
+ * Finds the absolute path of a given path
+ */
+void ProcUtils::abs_path(string* path)
 {
     string path_tail;
     string path_head;
-    path_head = dirname(const_cast<char*>(path.c_str()));
-    path_tail = basename(const_cast<char*>(path.c_str()));
-    char* real_path = NULL;
-    real_path = realpath(path_head.c_str(), NULL);
+
+    path_head = dirname(const_cast<char*>(path->c_str()));
+    path_tail = basename(const_cast<char*>(path->c_str()));
+
+    char* real_path = realpath(path_head.c_str(), NULL);
     if (!real_path)
     {
-        return path;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return;
     }
-    else
-    {
-        path_head = real_path;
-        path_head.append("/");
-        path_head.append(path_tail);
-        return path_head;
-    }
+
+    *path = real_path;
+    path->append("/");
+    path->append(path_tail);
 }
 

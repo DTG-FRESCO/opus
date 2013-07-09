@@ -38,16 +38,16 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("{{arg.name}}");
     {% if arg.type == "char *" or arg.type == "const char *" -%}
-    std::string {{arg.name}}_value;
-    if ({{arg.name}}) {{arg.name}}_value = {{arg.name}};
-
-    {%- if arg.can -%}
-    {{arg.name}}_value = ProcUtils::canonicalise_path({{arg.name}}_value);
-    {%- elif arg.abs -%}
-    {{arg.name}}_value = ProcUtils::abs_path({{arg.name}}_value);
-    {%- endif -%}
-
-    tmp_arg->set_value({{arg.name}}_value);
+    if ({{arg.name}})
+    {
+        std::string {{arg.name}}_value({{arg.name}});
+        {%- if arg.can -%}
+        ProcUtils::canonicalise_path(&{{arg.name}}_value);
+        {%- elif arg.abs -%}
+        ProcUtils::abs_path(&{{arg.name}}_value);
+        {%- endif -%}
+        tmp_arg->set_value({{arg.name}}_value);
+    }
     {%- elif arg.type == "FILE *" -%}
     tmp_arg->set_value(std::to_string({{arg.name}}_fd));
     {%- elif arg.type == "uid_t" -%}
@@ -69,7 +69,14 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     {%- endif %}
 
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
+    {
+        {% if func.ret != "void" -%}
+        return ret;
+        {%- else -%}
+        return;
+        {%- endif %}
+    }
 
     ProcUtils::test_and_set_flag(false);
     {% if func.ret != "void" -%}

@@ -1,12 +1,12 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <link.h>
-#include <cstdint>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -16,6 +16,75 @@
 #include "func_ptr_types.h"
 #include "proc_utils.h"
 #include "message_util.h"
+
+#define STRINGIFY(value) #value
+
+/**
+ * Macros to minimize repetitive
+ * code used in all exec functions
+ */
+#define PRE_EXEC_CALL(fptr_type, fname, desc, arg1, ...) \
+    static fptr_type real_fptr = NULL; \
+                                        \
+    /* Get the symbol address and store it */\
+    if (!real_fptr)\
+        real_fptr = (fptr_type)ProcUtils::get_sym_addr(fname); \
+                                                \
+    /* Call function if global flag is true */ \
+    if (ProcUtils::test_and_set_flag(true)) \
+        return (*real_fptr)(arg1, __VA_ARGS__); \
+                                            \
+    /* Send pre function call generic message */ \
+    bool conn_ret = send_pre_func_generic_msg(desc); \
+                                                    \
+    /* Call the original exec */ \
+    uint64_t start_time = ProcUtils::get_time();
+
+#define POST_EXEC_CALL(desc, arg1_val) \
+                                    \
+    if (!conn_ret) return ret; \
+                                    \
+    /* This part will execute only if exec fails */ \
+    uint64_t end_time = ProcUtils::get_time(); \
+    int errno_value = errno; \
+                                \
+    FuncInfoMessage func_msg; \
+    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value); \
+                        \
+    KVPair* arg_kv; \
+    arg_kv = func_msg.add_args(); \
+    arg_kv->set_key(STRINGIFY(arg1)); \
+    arg_kv->set_value(arg1_val); \
+                            \
+    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG)) \
+        return ret; \
+                    \
+    ProcUtils::test_and_set_flag(false); \
+    return ret;
+
+/**
+ * This function macro is used by exec functions
+ * that do not pass environment variables
+ */
+#define EXEC_FUNC(fptr_type, fname, desc, arg1, ...) \
+    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
+    errno = 0; \
+    int ret = (*real_fptr)(arg1, __VA_ARGS__); \
+    POST_EXEC_CALL(desc, arg1);
+
+/**
+ * This function macro is used by exec functions
+ * that pass environment variables. The environment
+ * data allocated on the heap is released if exec fails.
+ */
+#define EXEC_FUNC_ENV(fptr_type, fname, desc, arg1, ...) \
+    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
+    errno = 0; \
+    int ret = (*real_fptr)(arg1, __VA_ARGS__); \
+                                                \
+    /* If exec returns, it indicates an error. Free allocated memory */ \
+    cleanup_allocated_memory(&env_vec); \
+    POST_EXEC_CALL(desc, arg1);
 
 
 typedef void* (*PTHREAD_HANDLER)(void*);
@@ -72,10 +141,11 @@ static void* opus_thread_start_routine(void *args)
         if (!ProcUtils::connect())
             throw std::runtime_error("ProcUtils::connect failed!!");
 
-        send_generic_msg(GenMsgType::THREAD_START,
-                std::to_string(ProcUtils::gettid()));
-
-        ProcUtils::test_and_set_flag(false); // Turn on interposition
+        if (send_generic_msg(GenMsgType::THREAD_START,
+                    std::to_string(ProcUtils::gettid())))
+        {
+            ProcUtils::test_and_set_flag(false); // Turn on interposition
+        }
     }
     catch(const std::exception& e)
     {
@@ -195,61 +265,143 @@ static void setup_new_uds_connection()
 }
 
 /**
+ * Frees all environment variables
+ * allocated on the heap.
+ */
+static void cleanup_allocated_memory(std::vector<char*>* env_vec)
+{
+    std::vector<char*>::iterator iter;
+    for (iter = env_vec->begin(); iter != env_vec->end(); ++iter)
+    {
+        delete *iter;
+        *iter = NULL;
+    }
+}
+
+/**
+ * Allocates memory for an environment variable
+ * on the heap and returns a pointer to it.
+ */
+static char* alloc_and_copy(const std::string& env_str)
+{
+    char *env_data = NULL;
+
+    try
+    {
+        const int len = env_str.length();
+        env_data = new char[len + 1]();
+        strncpy(env_data, env_str.c_str(), len);
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return env_data;
+}
+
+/**
+ * Checks if the OPUS library is present in the
+ * LD_PRELOAD environment variable. If not present,
+ * the OPUS library path is appended to LD_PRELOAD
+ */
+static void check_and_add_opus_lib(std::string* env_str)
+{
+    try
+    {
+        char *opus_lib_name = ProcUtils::get_env_val("OPUS_LIB_NAME");
+
+        int64_t pos = env_str->find(opus_lib_name);
+        if (pos != (int64_t)std::string::npos)
+            return; // Libraray already present
+
+        std::string preload_path;
+        ProcUtils::get_preload_path(&preload_path);
+
+        if (!preload_path.empty()) // Append OPUS library to existing value
+            *env_str += " " + preload_path;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+}
+
+/**
+ * Adds the UDS path to the list of environment
+ * variables being passed to the execed program
+ */
+static void add_uds_path(std::vector<char*>* env_vec_ptr)
+{
+    std::string uds_path;
+    ProcUtils::get_uds_path(&uds_path);
+
+    std::string uds_str = "OPUS_UDS_PATH=" + uds_path;
+    char *env_data = alloc_and_copy(uds_str);
+    if (!env_data) return;
+
+    env_vec_ptr->push_back(env_data);
+
+    DEBUG_LOG("[%s:%d]: Added OPUS_UDS_PATH: %s\n",
+                __FILE__, __LINE__, env_data);
+
+}
+
+/**
  * Adds environment variables related to OPUS
  * if missing before the call to exec is made.
  */
 static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
 {
     char *env = NULL;
-    bool found_ld_preload = false;
-    std::vector<char*>& env_vec = *env_vec_ptr;
+    bool found = false;
 
     if (envp)
     {
         std::string env_str;
-        std::string match_str = "LD_PRELOAD=";
+        std::string match_str("LD_PRELOAD");
+
         while ((env = *envp) != NULL)
         {
-            env_vec.push_back(env);
-            ++envp;
-
             env_str = env;
-            int64_t found_pos = env_str.find(match_str);
 
+            /* Check if LD_PRELOAD is present */
+            int64_t found_pos = env_str.find(match_str);
             if (found_pos != (int64_t)std::string::npos)
             {
-                found_ld_preload = true;
-                break;
+                check_and_add_opus_lib(&env_str);
+                found = true;
             }
+
+            char *env_data = alloc_and_copy(env_str);
+            if (env_data) env_vec_ptr->push_back(env_data);
+
+            ++envp;
         }
     }
 
     /* Add the LD_PRELOAD path if not already present */
-    if (!found_ld_preload)
+    if (!found)
     {
-        char ld_preload_buf[PATH_MAX];
-        memset(ld_preload_buf, 0, sizeof(ld_preload_buf));
-
         std::string preload_path;
         ProcUtils::get_preload_path(&preload_path);
 
         std::string preload_str = "LD_PRELOAD=" + preload_path;
+        char *env_data = alloc_and_copy(preload_str);
+        if (!env_data)
+        {
+            DEBUG_LOG("[%s:%d]: Could not add LD_PRELOAD path\n",
+                        __FILE__, __LINE__);
+            return;
+        }
+
+        env_vec_ptr->push_back(env_data);
 
         DEBUG_LOG("[%s:%d]: Added LD_PRELOAD path: %s\n",
-                    __FILE__, __LINE__, preload_str.c_str());
-
-        env_vec.push_back(const_cast<char*>(preload_str.c_str()));
+                    __FILE__, __LINE__, env_data);
     }
 
-    /* Add the UDS path for communcation with backend */
-    std::string uds_path;
-    ProcUtils::get_uds_path(&uds_path);
-
-    std::string uds_str = "OPUS_UDS_PATH=" + uds_path;
-    env_vec.push_back(const_cast<char*>(uds_str.c_str()));
-
-    DEBUG_LOG("[%s:%d]: Added OPUS_UDS_PATH: %s\n",
-                __FILE__, __LINE__, uds_str.c_str());
+    add_uds_path(env_vec_ptr);
 }
 
 /**
@@ -271,43 +423,7 @@ extern "C" int execl(const char *path, const char *arg, ...)
     arg_vec.push_back(NULL);
     va_end(lst);
 
-    std::string func_name = "execv";
-    static EXECV_POINTER real_execv = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execv)
-        real_execv = (EXECV_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execv)(path, &arg_vec[0]);
-
-    /* Send pre function call generic message */
-    std::string desc = "execl";
-    send_pre_func_generic_msg(desc);
-
-    /* Call the original execv */
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execv)(path, &arg_vec[0]);
-
-    /* This part will execute only if exec fails */
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("path");
-    arg_kv->set_value(path);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC(EXECV_POINTER, "execv", "execl", path, &arg_vec[0]);
 }
 
 /**
@@ -329,42 +445,7 @@ extern "C" int execlp(const char *file, const char *arg, ...)
     arg_vec.push_back(NULL);
     va_end(lst);
 
-    std::string func_name = "execvp";
-    static EXECVP_POINTER real_execvp = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execvp)
-        real_execvp = (EXECVP_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execvp)(file, &arg_vec[0]);
-
-    /* Send pre function call generic message */
-    std::string desc = "execlp";
-    send_pre_func_generic_msg(desc);
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execvp)(file, &arg_vec[0]);
-
-    /* This part will execute only if exec fails */
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("file");
-    arg_kv->set_value(file);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC(EXECVP_POINTER, "execvp", "execlp", file, &arg_vec[0]);
 }
 
 /**
@@ -394,41 +475,8 @@ extern "C" int execle(const char *path, const char *arg,
     copy_env_vars(envp, &env_vec);
     env_vec.push_back(NULL);
 
-    std::string func_name = "execvpe";
-    static EXECVPE_POINTER real_execvpe = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execvpe)
-        real_execvpe = (EXECVPE_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execvpe)(path, &arg_vec[0], &env_vec[0]);
-
-    /* Send pre function call generic message */
-    std::string desc = "execle";
-    send_pre_func_generic_msg(desc);
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execvpe)(path, &arg_vec[0], &env_vec[0]);
-
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("path");
-    arg_kv->set_value(path);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC_ENV(EXECVPE_POINTER, "execvpe", "execle",
+                    path, &arg_vec[0], &env_vec[0]);
 }
 
 /**
@@ -436,43 +484,7 @@ extern "C" int execle(const char *path, const char *arg,
  */
 extern "C" int execv(const char *path, char *const argv[])
 {
-    std::string func_name = "execv";
-    static EXECV_POINTER real_execv = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execv)
-        real_execv = (EXECV_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execv)(path, argv);
-
-    /* Send pre function call generic message */
-    send_pre_func_generic_msg(func_name);
-
-    /* Call the original execv */
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execv)(path, argv);
-
-    /* This part will execute only if exec fails */
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret,
-                start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("path");
-    arg_kv->set_value(path);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC(EXECV_POINTER, "execv", "execv", path, argv);
 }
 
 /**
@@ -480,41 +492,7 @@ extern "C" int execv(const char *path, char *const argv[])
  */
 extern "C" int execvp(const char *file, char *const argv[])
 {
-    std::string func_name = "execvp";
-    static EXECVP_POINTER real_execvp = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execvp)
-        real_execvp = (EXECVP_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execvp)(file, argv);
-
-    /* Send pre function call generic message */
-    send_pre_func_generic_msg(func_name);
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execvp)(file, argv);
-
-    /* This part will execute only if exec fails */
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("file");
-    arg_kv->set_value(file);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC(EXECVP_POINTER, "execvp", "execvp", file, argv);
 }
 
 /**
@@ -528,48 +506,16 @@ extern "C" int execvpe(const char *file, char *const argv[], char *const envp[])
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
-    std::string func_name = "execvpe";
-    static EXECVPE_POINTER real_execvpe = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execvpe)
-        real_execvpe = (EXECVPE_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execvpe)(file, argv, &env_vec[0]);
-
-    /* Send pre function call generic message */
-    send_pre_func_generic_msg(func_name);
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execvpe)(file, argv, &env_vec[0]);
-
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("file");
-    arg_kv->set_value(file);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC_ENV(EXECVPE_POINTER, "execvpe", "execvpe",
+                    file, argv, &env_vec[0]);
 }
 
 /**
  * Interposition function for execve
  */
-extern "C" int execve(const char *filename,
-                        char *const argv[],
-                        char *const envp[])
+extern "C" int execve(const char *file,
+                    char *const argv[],
+                    char *const envp[])
 {
     std::vector<char*> env_vec;
 
@@ -577,40 +523,7 @@ extern "C" int execve(const char *filename,
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
-    std::string func_name = "execve";
-    static EXECVE_POINTER real_execve = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_execve)
-        real_execve = (EXECVE_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_execve)(filename, argv, &env_vec[0]);
-
-    /* Send pre function call generic message */
-    send_pre_func_generic_msg(func_name);
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret = (*real_execve)(filename, argv, &env_vec[0]);
-
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("file");
-    arg_kv->set_value(filename);
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    EXEC_FUNC_ENV(EXECVE_POINTER, "execve", "execve", file, argv, &env_vec[0]);
 }
 
 /**
@@ -624,40 +537,10 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     copy_env_vars(const_cast<char**>(envp), &env_vec);
     env_vec.push_back(NULL);
 
-    std::string func_name = "fexecve";
-    static FEXECVE_POINTER real_fexecve = NULL;
-
-    /* Get the symbol address and store it */
-    if (!real_fexecve)
-        real_fexecve = (FEXECVE_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    /* Call function if global flag is true */
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_fexecve)(fd, argv, &env_vec[0]);
-
-    /* Send pre function call generic message */
-    send_pre_func_generic_msg(func_name);
-
-    uint64_t start_time = ProcUtils::get_time();
-        
+    PRE_EXEC_CALL(FEXECVE_POINTER, "fexecve", "fexecve", fd, argv, &env_vec[0]);
     errno = 0;
-    int ret = (*real_fexecve)(fd, argv, &env_vec[0]);
-
-    uint64_t end_time = ProcUtils::get_time();
-    int errno_value = errno;
-
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
-
-    KVPair* arg_kv;
-    arg_kv = func_msg.add_args();
-    arg_kv->set_key("fd");
-    arg_kv->set_value(std::to_string(fd));
-
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(false);
-
-    return ret;
+    int ret = (*real_fptr)(fd, argv, &env_vec[0]);
+    POST_EXEC_CALL("fexecve", std::to_string(fd));
 }
 
 /**
@@ -676,7 +559,7 @@ extern "C" pid_t fork(void)
         return (*real_fork)();
 
     uint64_t start_time = ProcUtils::get_time();
-    
+
     errno = 0;
     pid_t pid = (*real_fork)();
     if (pid == 0)
@@ -694,10 +577,11 @@ extern "C" pid_t fork(void)
 
     set_func_info_msg(&func_msg, func_name, pid,
                 start_time, end_time, errno_value);
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+
+    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
+        return pid;
 
     ProcUtils::test_and_set_flag(false);
-
     return pid;
 }
 
@@ -729,7 +613,8 @@ extern "C" void* dlopen(const char * filename, int flag)
         kv_args->set_key(real_path);
         kv_args->set_value(md5_sum);
 
-        set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
+        if (!set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG))
+            return handle;
     }
 
     ProcUtils::test_and_set_flag(false);
@@ -920,7 +805,9 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     FuncInfoMessage func_msg;
     set_func_info_msg(&func_msg, func_name, ret, start_time,
                         end_time, errno_value);
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+
+    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
+        return ret;
 
     ProcUtils::test_and_set_flag(false);
     return ret;

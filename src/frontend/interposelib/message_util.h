@@ -15,7 +15,7 @@ namespace
     using ::fresco::opus::IPCMessage::StartupMessage;
 
 
-    inline void set_header_and_send(const Message& pay_msg,
+    inline bool set_header_and_send(const Message& pay_msg,
             const PayloadType pay_type)
     {
         const uint64_t msg_size = pay_msg.ByteSize();
@@ -28,10 +28,10 @@ namespace
         hdr_msg.set_payload_len(msg_size);
         hdr_msg.set_tid(ProcUtils::gettid());
 
-        ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
+        return ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }
 
-    inline void send_generic_msg(const GenMsgType gen_msg_type,
+    inline bool send_generic_msg(const GenMsgType gen_msg_type,
             const std::string& desc)
     {
         GenericMessage gen_msg;
@@ -42,12 +42,12 @@ namespace
         ProcUtils::get_formatted_time(&date_time);
         gen_msg.set_sys_time(date_time);
 
-        set_header_and_send(gen_msg, PayloadType::GENERIC_MSG);
+        return set_header_and_send(gen_msg, PayloadType::GENERIC_MSG);
     }
 
-    inline void send_pre_func_generic_msg(const std::string& desc)
+    inline bool send_pre_func_generic_msg(const std::string& desc)
     {
-        send_generic_msg(GenMsgType::PRE_FUNC_CALL, desc);
+        return send_generic_msg(GenMsgType::PRE_FUNC_CALL, desc);
     }
 
     inline void set_func_info_msg(FuncInfoMessage* func_msg,

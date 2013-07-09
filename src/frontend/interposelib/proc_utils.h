@@ -20,7 +20,7 @@ class ProcUtils
         static void get_formatted_time(std::string* date_time);
         static bool test_and_set_flag(const bool value);
 
-        static void serialise_and_send_data(
+        static bool serialise_and_send_data(
                     const ::fresco::opus::IPCMessage::Header& hdr_obj,
                     const ::google::protobuf::Message& pay_obj);
 
@@ -31,6 +31,7 @@ class ProcUtils
         static void send_libinfo_message
             (const std::vector<std::pair<std::string, std::string> >& lib_vec);
 
+        static char* get_env_val(const std::string& env_key);
         static void get_uds_path(std::string* uds_path_str);
         static void get_preload_path(std::string* ld_preload_path);
         static const std::string get_user_name(const uid_t user_id);
@@ -48,8 +49,8 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
-        static const std::string canonicalise_path(std::string path);
-        static const std::string abs_path(std::string path);
+        static void canonicalise_path(std::string* path);
+        static void abs_path(std::string* path);
 
     private:
         static __thread bool in_func_flag;
