@@ -33,6 +33,15 @@ class UnknownObjectTypeException(common_utils.OPUSException):
                                     )
 
 
+class ReadOnlyException(common_utils.OPUSException):
+    '''Exception indicating that an invalid operation was invoked on a read-only
+    transaction.'''
+    def __init__(self):
+        super(ReadOnlyException, self).__init__(
+                               "Error: Invalid access of read-only transaction."
+                                    )
+
+
 OBJ_TYPE_MAP = {
     prov_db.ANNOT:prov_db.AnnotationObj,
     prov_db.EVENT:prov_db.EventObj,
@@ -157,6 +166,7 @@ def commit_wrapper(func):
         if self.db_ref is None or self.batch is None:
             raise AlreadyCommittedException()
         return func(self, *args, **kwargs)
+    wrapper.internal_fn = func
     return wrapper
 
 
@@ -174,7 +184,7 @@ class DBTransaction(object):
             self.id_map[obj_type] = from_int64(self.db_ref.get(obj_type_key))
 
     @commit_wrapper
-    def get(self, db_id):
+    def get(self, db_id, cache=True):
         '''Return the object matching the given db_id.'''
         if db_id in self.obj_map:
             return self.obj_map[db_id]
@@ -183,7 +193,8 @@ class DBTransaction(object):
         try:
             obj_cls = get_db_obj_class(obj_type)
             obj_real = obj_cls.FromString(obj)
-            self.obj_map[db_id] = obj_real
+            if cache:
+                self.obj_map[db_id] = obj_real
             return obj_real
         except UnknownObjectTypeException:
             return obj
@@ -249,6 +260,34 @@ class DBTransaction(object):
         self.batch = None
 
 
+class ReadOnlyTransaction(DBTransaction):
+    '''Implemenets a read-only transaction that forbids any mutating
+    operation.'''
+    def __init__(self, db_ref):
+        self.db_ref = db_ref
+        self.obj_map = []
+        self.name_map = []
+
+    def get(self, db_id):
+        '''Forwards read actions to it's base class after ensuring the cache
+        flag to be false.'''
+        return super(ReadOnlyTransaction, self).get.internal_fn(self,
+                                                                db_id,
+                                                                False)
+
+    def put(self, db_id, obj):
+        raise ReadOnlyException()
+
+    def create(self, obj_type):
+        raise ReadOnlyException()
+
+    def name_put(self, name, obj_id):
+        raise ReadOnlyException()
+
+    def commit(self):
+        raise ReadOnlyException()
+
+
 class StorageIFace(object):
     '''A storage interface instance allows for access to a provenance database
     collection using a series of operations. It encapsulates the type of
@@ -261,9 +300,12 @@ class StorageIFace(object):
         '''Close all active database connections.'''
         pass
 
-    def start_transaction(self):
+    def start_transaction(self, read_only=False):
         '''Return a fresh transaction object for the current database.'''
-        return DBTransaction(self.db_ref)
+        if read_only:
+            return ReadOnlyTransaction(self.db_ref)
+        else:
+            return DBTransaction(self.db_ref)
 
     def get_id_list_from_name(self, ename):
         '''Return the list of db_ids that match the given entity name in the
