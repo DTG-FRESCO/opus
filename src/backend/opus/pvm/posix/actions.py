@@ -43,13 +43,17 @@ def event_action(*args):
 @ActionMap.add('read')
 def read_action(tran, p_id, msg, fd_arg):
     '''Action that reads from a names file descriptor.'''
-    return null_action(tran, p_id, msg, fd_arg)
+    l_id = null_action(tran, p_id, msg, fd_arg)
+    utils.set_rw_lnk(tran, l_id, prov_db.READ)
+    return l_id
 
 
 @ActionMap.add('write')
 def write_action(tran, p_id, msg, fd_arg):
     '''Action that writes to a named file descriptor.'''
-    return null_action(tran, p_id, msg, fd_arg)
+    l_id = null_action(tran, p_id, msg, fd_arg)
+    utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
+    return l_id
 
 
 @ActionMap.add('null')
@@ -150,6 +154,7 @@ def delete_action(tran, p_id, msg, file_arg):
         delete_multiple_names(tran, l_id, g_id, g_name)
     new_l_id = tran.get(l_id).next_version.id
     pvm.drop_l(tran, new_l_id)
+    utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
     return l_id
 
 
