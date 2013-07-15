@@ -32,12 +32,22 @@ class MissingMappingError(utils.PVMException):
                                     "Error: Failed to find a function mapping.")
 
 
-def wrap_action(name, arg):
+def wrap_action(action, arg_map):
     '''Converts an item from the ActionMap into a lambda taking tran, p_id and
     a msg.'''
     def fun(tran, p_id, msg):
         '''Wrapper internal. '''
-        return actions.ActionMap.get(name)(tran, p_id, msg, arg)
+        args = utils.parse_kvpair_list(msg.args)
+        arg_set = {}
+        for k,v in arg_map.items():
+            if v[0] == "msg_arg":
+                arg_set[k] = args[v[1]]
+            elif v[0] == "ret_val":
+                arg_set[k] = str(msg.ret_val)
+            elif v[0] == "const":
+                arg_set[k] = str(v[1])
+        return actions.ActionMap.call(action, msg.error_num,
+                                      tran, p_id, **arg_set)
     return fun
 
 
@@ -52,9 +62,7 @@ class FuncController(object):
             with open(func_file, "rt") as conf:
                 data = yaml.safe_load(conf)
                 for key in data:
-                    cls.register(key, wrap_action(data[key]['action'],
-                                                  data[key]['arg'])
-                                )
+                    cls.register(key, wrap_action(**data[key]))
         except IOError:
             logging.error("Failed to read in config file.")
             raise
@@ -109,8 +117,9 @@ def posix_freopen(tran, p_id, msg):
     try:
         utils.proc_get_local(tran, p_id, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(tran, p_id, msg, 'stream')
-    new_l_id = actions.open_action(tran, p_id, msg, 'path')
+        actions.close_action(tran, p_id, args['stream'])
+    new_l_id = actions.open_action(tran, p_id,
+                                   args['filename'], str(msg.ret_val))
     return new_l_id
 
 @FuncController.dec('freopen64')
@@ -120,8 +129,9 @@ def posix_freopen64(tran, p_id, msg):
     try:
         utils.proc_get_local(tran, p_id, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(tran, p_id, msg, 'stream')
-    new_l_id = actions.open_action(tran, p_id, msg, 'filename')
+        actions.close_action(tran, p_id, args['stream'])
+    new_l_id = actions.open_action(tran, p_id,
+                                   args['filename'], str(msg.ret_val))
     return new_l_id
 
 
@@ -176,7 +186,8 @@ def posix_dup3(tran, p_id, msg):
 @FuncController.dec('link')
 def posix_link(tran, p_id, msg):
     '''Implementation of link in PVM semantics.'''
-    return actions.link_action(tran, p_id, msg, 'path1', 'path2')
+    args = utils.parse_kvpair_list(msg.args)
+    return actions.link_action(tran, p_id, msg, args['path1'], args['path2'])
 
 
 @FuncController.dec('rename')
@@ -185,9 +196,9 @@ def posix_rename(tran, p_id, msg):
     #TODO: Fix to only use a single omega.
     args = utils.parse_kvpair_list(msg.args)
     if tran.name_get(args['newpath']) is not None:
-        actions.delete_action(tran, p_id, msg, 'newpath')
-    l_id = actions.link_action(tran, p_id, msg, 'oldpath', 'newpath')
-    actions.delete_action(tran, p_id, msg, 'oldpath')
+        actions.delete_action(tran, p_id, args['newpath'])
+    l_id = actions.link_action(tran, p_id, args['oldpath'], args['newpath'])
+    actions.delete_action(tran, p_id, args['oldpath'])
     return l_id
 
 
