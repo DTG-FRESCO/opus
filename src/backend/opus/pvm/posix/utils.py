@@ -52,10 +52,7 @@ def process_from_startup(tran, (hdr, pay)):
     (p_id, p_obj) = tran.create(prov_db.PROCESS)
     p_obj.pid = hdr.pid
     time_stamp = hdr.timestamp
-
-    if pay.HasField('exec_name'):
-        p_obj.proc_name = pay.exec_name
-
+    
     if pay.HasField('cwd'):
         cwd_id = new_meta(tran, "cwd", pay.cwd, time_stamp)
         p_obj.other_meta.add().id = cwd_id
