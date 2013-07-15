@@ -2,7 +2,7 @@ include     $(TOP)/Maketmpl/shlib.defs.mk
 
 INSDIR      := $(TOP)
 
-LIBNAME     := override
+LIBNAME     := $(OPUS_LIB_NAME)
 
 NULLSTRING :=
 INTERPOSE_ON_FLAG := $(NULLSTRING)

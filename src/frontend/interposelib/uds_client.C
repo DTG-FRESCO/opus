@@ -111,11 +111,11 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
 
         uint32_t total_bytes_sent = 0;
 
-        while (total_bytes_sent < bytes_left)
+        while (bytes_left)
         {
             ssize_t bytes_sent = ::send(conn_fd,
                 reinterpret_cast<const char*>(data)+total_bytes_sent,
-                bytes_left, 0);
+                bytes_left, MSG_NOSIGNAL);
             if (bytes_sent < (ssize_t)0)
             {
                 if (errno == EINTR)
