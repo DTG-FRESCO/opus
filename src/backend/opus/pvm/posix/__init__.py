@@ -98,5 +98,5 @@ def handle_disconnect(pid):
 
 def handle_prefunc(pid, msg):
     '''Handle a pre-function call message.'''
-    if "exec" in msg.desc:
+    if "exec" in msg.msg_desc:
         DisconController.proc_exec(pid)
