@@ -117,7 +117,14 @@ class LevelDBWrapper(DBWrapper):
     '''Interface to a levelDB database.'''
     def __init__(self, filename):
         super(LevelDBWrapper, self).__init__()
-        self.db_ref = leveldb.LevelDB(filename)
+        try:
+            # Try to lead existing DB
+            self.db_ref = leveldb.LevelDB(filename, create_if_missing=False)
+        except leveldb.LevelDBError:
+            # No existing DB, so create one.
+            self.db_ref = leveldb.LevelDB(filename)
+            for obj_type in OBJ_TYPE_MAP:
+                self.db_ref.Put(to_int64(comp_id(0xFF, obj_type)), to_int64(0))
 
     def put(self, key, value):
         self.db_ref.Put(key, value)
