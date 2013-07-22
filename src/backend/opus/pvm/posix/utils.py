@@ -26,8 +26,8 @@ class NoMatchingLocalError(PVMException):
     '''Failed to find a local object matching the supplied name.'''
     def __init__(self, p_id, name):
         super(NoMatchingLocalError, self).__init__(
-                                 "Error: Failed to find local %s in process %d"%(
-                                                   name, p_id))
+                   "Error: Failed to find local %s in process %d" % (name, p_id)
+                                                   )
 
 
 def parse_kvpair_list(args):
