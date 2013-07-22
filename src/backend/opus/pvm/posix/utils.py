@@ -26,8 +26,8 @@ class NoMatchingLocalError(PVMException):
     '''Failed to find a local object matching the supplied name.'''
     def __init__(self, p_id, name):
         super(NoMatchingLocalError, self).__init__(
-                                 "Error: Failed to find local %n in process %d",
-                                                   name, p_id)
+                   "Error: Failed to find local %s in process %d" % (name, p_id)
+                                                   )
 
 
 def parse_kvpair_list(args):
@@ -52,10 +52,7 @@ def process_from_startup(tran, (hdr, pay)):
     (p_id, p_obj) = tran.create(prov_db.PROCESS)
     p_obj.pid = hdr.pid
     time_stamp = hdr.timestamp
-
-    if pay.HasField('exec_name'):
-        p_obj.proc_name = pay.exec_name
-
+    
     if pay.HasField('cwd'):
         cwd_id = new_meta(tran, "cwd", pay.cwd, time_stamp)
         p_obj.other_meta.add().id = cwd_id

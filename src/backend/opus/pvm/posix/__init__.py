@@ -66,6 +66,10 @@ def handle_function(tran, pid, msg):
 def handle_process(tran, hdr, pay):
     '''Handle a process startup message.'''
     p_id = utils.process_from_startup(tran, (hdr, pay))
+
+    l_id = actions.touch_action(tran, p_id, pay.exec_name)
+    utils.set_rw_lnk(tran, l_id, prov_db.READ)
+
     p_obj = tran.get(p_id)
     if p_obj.pid in PIDMAP:
         old_p_id = PIDMAP[p_obj.pid]
@@ -94,5 +98,5 @@ def handle_disconnect(pid):
 
 def handle_prefunc(pid, msg):
     '''Handle a pre-function call message.'''
-    if "exec" in msg.desc:
+    if "exec" in msg.msg_desc:
         DisconController.proc_exec(pid)

@@ -1,343 +1,591 @@
 close:
   action: close
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 creat:
   action: open
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+    filedes:
+      - ret_val
 
 creat64:
   action: open
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+    filedes:
+      - ret_val
 
 fclose:
   action: close
-  arg: fp
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fp
 
 fgetc:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fgets:
   action: read
-  arg: stream 
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fopen:
   action: open
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
+    filedes:
+      - ret_val
 
 fopen64:
   action: open
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
+    filedes:
+      - ret_val
 
 fprintf:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fputc:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fputs:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fread:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fscanf:
   action: read
-  arg: stream 
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fwrite:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 getc:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 getchar:
   action: read
-  arg: 0
+  arg_map:
+    filedes:
+      - const
+      - 0
 
 getline:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 open:
   action: open
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+    filedes:
+      - ret_val
 
 open64:
   action: open
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+    filedes:
+      - ret_val
 
 putc:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 putchar:
   action: write
-  arg: 1
+  arg_map:
+    filedes:
+      - const
+      - 1
 
 puts:
   action: write
-  arg: 1
+  arg_map:
+    filedes:
+      - const
+      - 1
 
 pread:
   action: read
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 printf:
   action: write
-  arg: 1
+  arg_map:
+    filedes:
+      - const
+      - 1
 
 pwrite:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 read:
   action: read
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 scanf:
   action: read
-  arg: 0
+  arg_map:
+    filedes:
+      - const
+      - 0
 
 vfprintf:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 vprintf:
   action: write
-  arg: 1
+  arg_map:
+    filedes:
+      - const
+      - 1
 
 vscanf:
   action: read
-  arg: 0
+  arg_map:
+    filedes:
+      - const
+      - 0
 
 vfscanf:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 write:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 getc_unlocked:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 getchar_unlocked:
   action: read
-  arg: 0
+  arg_map:
+    filedes:
+      - const
+      - 0
 
 putc_unlocked:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 putchar_unlocked:
   action: write
-  arg: 1
+  arg_map:
+    filedes:
+      - const
+      - 1
 
 fgetc_unlocked:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fputc_unlocked:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fread_unlocked:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fwrite_unlocked:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fgets_unlocked:
   action: read
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fputs_unlocked:
   action: write
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fseek:
-  action: null
-  arg: stream
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fseeko:
-  action: null
-  arg: stream
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fsetpos:
-  action: null
-  arg: stream
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 fsetpos64:
-  action: null
-  arg: stream
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 lseek:
-  action: null
-  arg: fd
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 lseek64:
-  action: null
-  arg: fd
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 rewind:
-  action: null
-  arg: stream
+  action: 'null'
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
 
 chmod:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 chown:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 fchmod:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 fchown:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 lchown:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 ftruncate:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 ftruncate64:
   action: write
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 mkdir:
   action: touch
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
 
 mkfifo:
   action: touch
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
 
 remove:
   action: delete
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
 
 rmdir:
   action: delete
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
 
 symlink:
   action: touch
-  arg: newpath
+  arg_map:
+    filename:
+      - msg_arg
+      - newpath
 
 truncate:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 truncate64:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 unlink:
   action: delete
-  arg: pathname
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
 
 mkstemp:
   action: open
-  arg: templ
+  arg_map:
+    filename:
+      - msg_arg
+      - templ
+    filedes:
+      - ret_val
 
 mkostemp:
   action: open
-  arg: templ
+  arg_map:
+    filename:
+      - msg_arg
+      - templ
+    filedes:
+      - ret_val
 
 mkstemps:
   action: open
-  arg: templ
+  arg_map:
+    filename:
+      - msg_arg
+      - templ
+    filedes:
+      - ret_val
 
 mkostemps:
   action: open
-  arg: templ
+  arg_map:
+    filename:
+      - msg_arg
+      - templ
+    filedes:
+      - ret_val
 
 __fxstat:
   action: read
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 __fxstat64:
   action: read
-  arg: fd
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
 
 __lxstat:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 __lxstat64:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 __xstat:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 __xstat64:
   action: touch
-  arg: path
+  arg_map:
+    filename:
+      - msg_arg
+      - path
 
 execl:
   action: event
-  arg: 0
+  arg_map: {}
 
 execlp:
   action: event
-  arg: 0
+  arg_map: {}
 
 execle:
   action: event
-  arg: 0
+  arg_map: {}
 
 execv:
   action: event
-  arg: 0
+  arg_map: {}
 
 execvp:
   action: event
-  arg: 0
+  arg_map: {}
 
 execvpe:
   action: event
-  arg: 0
+  arg_map: {}
 
 execve:
   action: event
-  arg: 0
+  arg_map: {}
 
 fexecve:
   action: event
-  arg: 0
+  arg_map: {}
 
 fork:
   action: event
-  arg: 0
+  arg_map: {}
 
 utime:
   action: touch
-  arg: filename
+  arg_map:
+    filename: 
+      - msg_arg
+      - filename
 
 system:
   action: event
-  arg: 0
+  arg_map: {}
 
 pclose:
   action: close
-  arg: stream
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
