@@ -22,7 +22,9 @@ except ImportError:
 class InvalidConfigFileException(common_utils.OPUSException):
     '''Error in the formatting or content of the systems config file.'''
     def __init__(self):
-        super(InvalidConfigFileException, self).__init__()
+        super(InvalidConfigFileException, self).__init__(
+                                            "Error: Failed to load config file."
+                                                         )
 
 
 def safe_read_config(cfg, section, key):
