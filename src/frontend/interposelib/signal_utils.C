@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <unistd.h>
 #include "log.h"
 #include "proc_utils.h"
 #include "message_util.h"
