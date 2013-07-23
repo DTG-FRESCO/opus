@@ -13,6 +13,13 @@
 *~
 
 #
+#Ignore Build Dirs
+#
+bin
+include
+lib
+
+#
 #Ignore Config Files
 #
 src/backend/config.yaml
@@ -22,8 +29,11 @@ src/backend/config.yaml
 #
 *.o
 *.so
-lib
-include
+
+#
+#Py Ignores
+#
+*.pyc
 
 #
 #Protobuf Ignores
@@ -38,6 +48,10 @@ src/protobuf/*.py
 src/frontend/interposelib/uds_msg.pb.*
 src/frontend/interposelib/prov_db.pb.*
 src/frontend/interposelib/a.out
+src/frontend/gen-boiler/func_ptr_types.h
+src/frontend/gen-boiler/gen_functions.C
+src/frontend/interposelib/func_ptr_types.h
+src/frontend/interposelib/gen_functions.C
 
 #
 #Specific Py excludes
