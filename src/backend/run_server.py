@@ -134,10 +134,10 @@ def init_logging():
                                       " L%(lineno)d -> %(message)s")
     form_con = logging.Formatter(fmt="%(levelname)s:%(message)s")
 
-    logging.getLogger('').setLevel(logging.DEBUG)
+    logging.getLogger('').setLevel(logging.INFO)
 
     hand_con = logging.StreamHandler()
-    hand_con.setLevel(logging.DEBUG)
+    hand_con.setLevel(logging.INFO)
     hand_con.setFormatter(form_con)
     logging.getLogger('').addHandler(hand_con)
 
