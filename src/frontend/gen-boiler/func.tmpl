@@ -1,7 +1,7 @@
 {% import 'macros.tmpl' as macros %}
 #include "func_ptr_types.h"
 
-{% for func in fn_list -%}
+{% for func in fn_list if 'nogen' not in func.flags -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 {
     std::string func_name = "{{func.name}}";
@@ -13,7 +13,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     if (ProcUtils::test_and_set_flag(true))
         return (*func_ptr)({{macros.fn_arg_call(func)}});
 
-    {% for arg in func.args if arg.read -%}
+    {% for arg in func.args if 'read' in arg.flags -%}
     {%- if arg.type == "FILE *" -%}
     int {{arg.name}}_fd = -1;
     if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
@@ -34,16 +34,16 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     FuncInfoMessage func_msg;
 
     {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
-    {% for arg in func.args if arg.read %}
+    {% for arg in func.args if 'read' in arg.flags %}
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("{{arg.name}}");
     {% if arg.type == "char *" or arg.type == "const char *" -%}
     if ({{arg.name}})
     {
         std::string {{arg.name}}_value({{arg.name}});
-        {%- if arg.can -%}
+        {%- if 'can' in arg.flags -%}
         ProcUtils::canonicalise_path(&{{arg.name}}_value);
-        {%- elif arg.abs -%}
+        {%- elif 'abs' in arg.flags -%}
         ProcUtils::abs_path(&{{arg.name}}_value);
         {%- endif -%}
         tmp_arg->set_value({{arg.name}}_value);
