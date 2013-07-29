@@ -6,3 +6,5 @@ export PROTO_LIB_PATH=/home/nb466/protocolBuffers/lib
 export OPUS_UDS_PATH=$PROJ_HOME/src/backend/demo_socket
 export PYTHONPATH=$PROJ_HOME/src/backend/
 export OPUS_LIB_NAME=opusinterpose
+export LIBC_SRC_PATH=/local/scratch/nik/glibc
+export LIBC_BUILD_PATH=/local/scratch/nik/build/glibc
