@@ -145,8 +145,6 @@ class OrderingAnalyser(Analyser):
         for hdr, pay in msg_list:
             hdr_obj = uds_msg.Header()
             hdr_obj.ParseFromString(hdr)
-            pay_obj = common_utils.get_payload_type(hdr_obj)
-            pay_obj.ParseFromString(pay)
 
             if hdr_obj.payload_type == 0:
                 logging.debug("M:Received blank message.")
@@ -163,6 +161,8 @@ class OrderingAnalyser(Analyser):
                 self.queue_cleared.clear()
                 logging.debug("M:Queue cleared, continuing.")
             else:
+                pay_obj = common_utils.get_payload_type(hdr_obj)
+                pay_obj.ParseFromString(pay)
                 msg_chunk += [(hdr_obj.timestamp, (hdr_obj, pay_obj))]
         self.event_orderer.push(msg_chunk)
 
