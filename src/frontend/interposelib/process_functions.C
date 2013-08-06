@@ -662,13 +662,12 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
         void *prev_handler = SignalUtils::call_signal(real_signal, signum,
                                                 signal_handler, sh_obj, ret);
 
-        if (prev_handler)
-            ret = reinterpret_cast<sighandler_t>(prev_handler);
+        ret = reinterpret_cast<sighandler_t>(prev_handler);
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
-        if (sh_obj) delete sh_obj;
+        delete sh_obj;
     }
 
     ProcUtils::test_and_set_flag(false);
@@ -695,7 +694,7 @@ extern "C" int sigaction(int signum,
     if (ProcUtils::test_and_set_flag(true))
         return (*real_sigaction)(signum, act, oldact);
 
-    if (!act || !SignalUtils::is_signal_valid(signum))
+    if (!SignalUtils::is_signal_valid(signum))
     {
         ProcUtils::test_and_set_flag(false);
         return (*real_sigaction)(signum, act, oldact);
@@ -703,23 +702,27 @@ extern "C" int sigaction(int signum,
 
     int ret = 0;
     SignalHandler *sh_obj = NULL;
-
-    // Cast away the constness
-    struct sigaction *sa = const_cast<struct sigaction *>(act);
+    struct sigaction *sa = NULL;
 
     try
     {
-        if (sa->sa_flags & SA_SIGINFO)  // Type two handler
+        if (act)
         {
-            sh_obj = new SASigaction(signum, sa);
-            sa->sa_sigaction = SignalUtils::opus_type_two_signal_handler;
-        }
-        else  // Type one handler
-        {
-            sh_obj = new SAHandler(signum, sa);
+            // Cast away the constness
+            sa = const_cast<struct sigaction *>(act);
 
-            if (sa->sa_handler != SIG_IGN)
-                sa->sa_handler = SignalUtils::opus_type_one_signal_handler;
+            if (sa->sa_flags & SA_SIGINFO)  // Type two handler
+            {
+                sh_obj = new SASigaction(signum, sa);
+                sa->sa_sigaction = SignalUtils::opus_type_two_signal_handler;
+            }
+            else  // Type one handler
+            {
+                sh_obj = new SAHandler(signum, sa);
+
+                if (sa->sa_handler != SIG_IGN)
+                    sa->sa_handler = SignalUtils::opus_type_one_signal_handler;
+            }
         }
 
         /*
@@ -729,12 +732,12 @@ extern "C" int sigaction(int signum,
         void *prev_handler = SignalUtils::call_sigaction(real_sigaction, signum,
                                                     sa, oldact, sh_obj, ret);
 
-        if (oldact && prev_handler) set_old_act_data(prev_handler, oldact);
+        if (oldact) set_old_act_data(prev_handler, oldact);
     }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
-        if (sh_obj) delete sh_obj;
+        delete sh_obj;
     }
 
     ProcUtils::test_and_set_flag(false);
@@ -851,3 +854,71 @@ extern "C" void pthread_exit(void *retval)
     (*real_pthread_exit)(retval);
     pthread_cleanup_pop(1);
 }
+
+#ifdef CAPTURE_SIGNALS
+/**
+ * Obsolete System V signal API. This is being
+ * interposed mainly in order to track signal state
+ * when a signal is set to SIG_IGN and SIG_DFL.
+ */
+extern "C" sighandler_t sigset(int sig, sighandler_t disp)
+{
+    std::string func_name = "sigset";
+    static SIGSET_POINTER real_sigset = NULL;
+
+    /* Get the symbol address and store it */
+    if (!real_sigset)
+        real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr(func_name);
+
+    /* We are within our own library */
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_sigset)(sig, disp);
+
+    if (disp == SIG_IGN || disp == SIG_DFL)
+    {
+        ProcUtils::test_and_set_flag(false);
+        return signal(sig, disp);
+    }
+
+    /* We do not deal with SIG_HOLD */
+    sighandler_t ret = (*real_sigset)(sig, disp);
+
+    ProcUtils::test_and_set_flag(false);
+    return ret;
+}
+#endif
+
+#ifdef CAPTURE_SIGNALS
+/**
+ * Obsolete System V signal API. This is being
+ * interposed mainly in order to track signal
+ * state when signal is set to SIG_IGN.
+ */
+extern "C" int sigignore(int sig)
+{
+    std::string func_name = "sigignore";
+    static SIGIGNORE_POINTER real_sigignore = NULL;
+
+    /* Get the symbol address and store it */
+    if (!real_sigignore)
+        real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr(func_name);
+
+    /* We are within our own library */
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_sigignore)(sig);
+
+    /* Use sigaction to ignore the signal */
+    struct sigaction act;
+    act.sa_handler = SIG_IGN;
+    if (sigemptyset(&act.sa_mask) < 0)
+        return -1;
+    act.sa_flags = 0;
+
+    /*
+       Turn on interposition and call sigaction so that
+       OPUS can track the current state of this signal.
+    */
+    ProcUtils::test_and_set_flag(false);
+    return sigaction(sig, &act, NULL);
+}
+#endif

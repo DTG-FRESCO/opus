@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <algorithm>
 #include "log.h"
 #include "proc_utils.h"
 #include "message_util.h"
@@ -14,8 +15,8 @@
 /**
  * Initialization of static class members
  */
-std::vector<bool> *SignalUtils::sig_valid_ptr = false;
-std::vector<SignalHandler*> SignalUtils::sig_handler_vec(NSIG, NULL);
+std::vector<bool> *SignalUtils::sig_valid_ptr = NULL;
+std::vector<SignalHandler*> *SignalUtils::sig_handler_vec = NULL;
 OPUSLock *SignalUtils::sig_vec_lock = NULL;
 
 /**
@@ -143,8 +144,7 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
         LockGuard guard(*sig_vec_lock);
 
         ret = (*real_signal)(signum, signal_handler);
-        if (ret == SIG_ERR)
-            throw std::runtime_error("SIG_ERR");
+        if (ret == SIG_ERR) throw std::runtime_error(strerror(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -178,8 +178,7 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
         LockGuard guard(*sig_vec_lock);
 
         ret = (*real_sigaction)(signum, sa, oldact);
-        if (ret < 0)
-            throw std::runtime_error(strerror(errno));
+        if (ret < 0) throw std::runtime_error(strerror(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -190,7 +189,6 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
 
     return prev_handler;
 }
-
 
 /**
  * Retrieves the original handler to call.
@@ -232,7 +230,7 @@ void* SignalUtils::get_real_handler(const int sig)
 */
 SignalHandler* SignalUtils::get_signal_handler(const int sig)
 {
-    return sig_handler_vec[sig];
+    return (*sig_handler_vec)[sig];
 }
 
 /**
@@ -248,7 +246,12 @@ void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
     try
     {
         SignalHandler *prev_handler = get_signal_handler(sig);
-        sig_handler_vec[sig] = new_handler;
+
+        /*
+           new_handler might be null if the call to signal/sigaction
+           is to only check the previous signal disposition
+        */
+        if (new_handler) (*sig_handler_vec)[sig] = new_handler;
 
         if (prev_handler)
         {
@@ -272,12 +275,12 @@ void SignalUtils::remove_signal_handler(const int sig)
 {
     try
     {
-        SignalHandler *handler = sig_handler_vec[sig];
+        SignalHandler *handler = (*sig_handler_vec)[sig];
 
         if (!handler) return;
 
         delete handler;
-        sig_handler_vec[sig] = NULL;
+        (*sig_handler_vec)[sig] = NULL;
     }
     catch(const std::exception& e)
     {
@@ -309,8 +312,16 @@ void SignalUtils::init_signal_capture()
         std::vector<int> signals_vec(signal_list,
                 signal_list + sizeof(signal_list) / sizeof(int));
 
+        /* We remove duplicates as some of the signals have the same value */
+        sort(signals_vec.begin(), signals_vec.end());
+        signals_vec.erase(unique(signals_vec.begin(), signals_vec.end()),
+                                signals_vec.end());
+
         if (!sig_valid_ptr)
             sig_valid_ptr = new std::vector<bool>(NSIG, false);
+
+        if (!sig_handler_vec)
+            sig_handler_vec = new std::vector<SignalHandler*>(NSIG, NULL);
 
         struct sigaction sa;
         sa.sa_sigaction = SignalUtils::opus_type_two_signal_handler;
@@ -322,6 +333,27 @@ void SignalUtils::init_signal_capture()
             const int sig = signals_vec[i];
             (*sig_valid_ptr)[sig] = true;
 
+            /* Get the current signal disposition */
+            struct sigaction oldact;
+            if (sigaction(sig, NULL, &oldact) < 0)
+            {
+                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+                continue;
+            }
+
+            /* Store the current disposition */
+            SignalHandler *sh_obj = new SAHandler(sig, oldact.sa_handler);
+            add_signal_handler(sig, sh_obj);
+
+            /* If the current disposition is SIG_IGN do not install the OPUS handler */
+            if (oldact.sa_handler == SIG_IGN)
+            {
+                DEBUG_LOG("[%s:%d]: %d signal disposition is SIG_IGN\n",
+                            __FILE__, __LINE__, sig);
+                continue;
+            }
+
+            /* Install the opus signal handler */
             if (sigaction(sig, &sa, NULL) < 0)
             {
                 DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
