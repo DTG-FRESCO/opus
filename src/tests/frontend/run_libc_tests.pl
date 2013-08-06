@@ -156,7 +156,7 @@ sub gen_test_log
 
     my $check_cmd = "make -k check > $logfile 2>&1";
     system($check_cmd);
-    print "($clean_cmd): $!\n" if ($? == -1);
+    print "($check_cmd): $!\n" if ($? == -1);
 
     die "Could not compile glibc test programs" if (not -e $logfile);
 }
