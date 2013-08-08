@@ -44,13 +44,8 @@ def safe_read_config(cfg, section, key):
 class MockDaemonManager(object):
     '''The daemon manager is created to launch the back-end. It creates and
     starts the two working threads then listens for commands via DBUS.'''
-    def __init__(self, config_file):
-        try:
-            with open(config_file, "rt") as conf:
-                self.config = yaml.safe_load(conf)
-        except IOError:
-            logging.error("Failed to read in config file.")
-            raise InvalidConfigFileException()
+    def __init__(self, config):
+        self.config = config
 
         analyser_type = safe_read_config(self.config, "MODULES", "Analyser")
         analyser_args = safe_read_config(self.config, 'ANALYSERS', 
@@ -128,18 +123,24 @@ class MockDaemonManager(object):
         self.analyser.do_shutdown()
 
 
-def init_logging():
+def pre_init_logging():
     '''Setup the logging framework.'''
-    form_file = logging.Formatter(fmt="%(asctime)s %(levelname)s"
-                                      " L%(lineno)d -> %(message)s")
-    form_con = logging.Formatter(fmt="%(levelname)s:%(message)s")
+    logging.basicConfig()
 
-    logging.getLogger('').setLevel(logging.DEBUG)
 
-    hand_con = logging.StreamHandler()
-    hand_con.setLevel(logging.DEBUG)
-    hand_con.setFormatter(form_con)
-    logging.getLogger('').addHandler(hand_con)
+def init_logging(logging_cfg):
+    '''Setup the logging framework.'''
+    logging.config.dictConfig(logging_cfg)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+                       description='OPUS backend storage and processing system.'
+                                     )
+    parser.add_argument('config', default="config.yaml",
+                                  help='Location to load system config from.')
+    args = parser.parse_args()
+    return args.config
 
 
 def command_help():
@@ -149,16 +150,27 @@ def command_help():
                   "Quit            -> quit\n"
                   "Help            -> ?\n")
 
+
 def main():
     '''Main loop method, creates the mock daemon manager then loops for user
     input calling methods of the daemon manager as appropriate. Finally calls
     the daemon managers shutdown method.'''
 
-    init_logging()
+    pre_init_logging()
+
+    conf_file_loc = parse_args()
 
     try:
-        daemon_manager = MockDaemonManager("config.yaml")
+        with open(conf_file_loc, "rt") as conf:
+            config = yaml.safe_load(conf)
+
+        init_logging(config['LOGGING'])
+
+        daemon_manager = MockDaemonManager(config)
     except InvalidConfigFileException:
+        return
+    except IOError:
+        logging.error("Failed to read in config file.")
         return
 
     command_help()

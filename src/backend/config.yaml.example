@@ -1,6 +1,27 @@
+LOGGING:
+  formatters:
+    brief:
+      format: "%(levelname)s:%(message)s"
+    full:
+      format: "%(asctime)s %(levelname)s L%(lineno)d -> %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: ERROR
+      formatter: brief
+    file:
+      class: logging.FileHandler
+      level: DEBUG
+      formatter: full
+      filename: opus.log
+  root:
+    level: ERROR
+    handlers: [console, file]
+
 MODULES:
   Producer: SocketProducer
   Analyser: LoggingAnalyser
+
 PRODUCERS:
   SocketProducer:
     comm_mgr_type: UDSCommunicationManager
@@ -8,6 +29,7 @@ PRODUCERS:
         uds_path: ./demo_socket
         max_conn: 10
         select_timeout: 5.0
+
 ANALYSERS:
   LoggingAnalyser:
     log_path: ./prov.log

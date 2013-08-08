@@ -225,9 +225,10 @@ class UDSCommunicationManager(CommunicationManager):
             return status_code, None, None
 
         # Deserialization only needed for debuggin during development
-        payload = common_utils.get_payload_type(header)
-        payload.ParseFromString(payload_buf)
-        logging.debug("Payload: %s", payload.__str__())
+        if logging.getLogger('').isEnabledFor(logging.DEBUG):
+            payload = common_utils.get_payload_type(header)
+            payload.ParseFromString(payload_buf)
+            logging.debug("Payload: %s", payload.__str__())
         return status_code, hdr_buf, payload_buf
 
     def close(self):
