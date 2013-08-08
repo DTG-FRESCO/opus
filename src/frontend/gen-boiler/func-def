@@ -156,3 +156,5 @@ nogen void _exit(int status);
 nogen void _Exit(int status);
 nogen int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 nogen void pthread_exit(void *retval);
+nogen sighandler_t sigset(int sig, sighandler_t disp);
+nogen int sigignore(int sig);

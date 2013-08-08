@@ -31,6 +31,7 @@ class SignalUtils
         static void restore_signal_mask(sigset_t *old_set);
         static void* get_real_handler(const int sig);
 
+        /* Wrappers for various signal APIs */
         static void* call_signal(const SIGNAL_POINTER& real_signal,
                                 const int signum,
                                 const sighandler_t& signal_handler,
@@ -44,7 +45,6 @@ class SignalUtils
                                 SignalHandler *sh_obj,
                                 int& ret);
 
-
         /* Signal map related functions */
         static SignalHandler* get_signal_handler(const int sig);
         static void* add_signal_handler(const int sig,
@@ -54,7 +54,7 @@ class SignalUtils
     private:
         static std::vector<bool> *sig_valid_ptr;
         static OPUSLock *sig_vec_lock;
-        static std::vector<SignalHandler*> sig_handler_vec;
+        static std::vector<SignalHandler*> *sig_handler_vec;
 };
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_SIGNAL_UTILS_H_
