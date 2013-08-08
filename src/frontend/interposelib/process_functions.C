@@ -123,6 +123,14 @@ static void opus_thread_cleanup_handler(void *cleanup_args)
  */
 static void* opus_thread_start_routine(void *args)
 {
+    /* Disable thread cancellation */
+    int oldstate = 0;
+    int err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+    if (err != 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(err));
+    }
+
     ProcUtils::test_and_set_flag(true);
 
     DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -151,6 +159,13 @@ static void* opus_thread_start_routine(void *args)
     {
         // Interposition remains turned off
         DEBUG_LOG("[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    /* Restore thread cancellation state */
+    err = pthread_setcancelstate(oldstate, NULL);
+    if (err != 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(err));
     }
 
     void *ret = real_handler(real_args);
