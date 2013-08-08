@@ -15,3 +15,11 @@
        {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
    {%- endfor -%}
 {%- endmacro %}
+
+{% macro fn_ptr_type(fn) -%}
+	{%- if fn.args is string -%}
+		typedef {{fn.ret}} (*{{fn.name|upper}}_POINTER)({{fn.args}});
+	{%- else -%}
+		typedef {{fn.ret}} (*{{fn.name|upper}}_POINTER)({{ fn_arg_def(fn) }});
+	{%- endif -%}
+{%- endmacro %}

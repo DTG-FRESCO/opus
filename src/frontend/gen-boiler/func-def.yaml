@@ -1,0 +1,1462 @@
+- name: close
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+
+- name: creat
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: creat64
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: fclose
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fp
+    type: "FILE *"
+
+
+- name: fcloseall
+  ret: "int"
+  flags: []
+  args: []
+
+- name: fdopen
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: mode
+    type: "const char *"
+
+
+- name: fgetc
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fgets
+  ret: "char *"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "char *"
+
+  - flags: [read]
+    name: size
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fopen
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "const char *"
+
+
+- name: fopen64
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "const char *"
+
+
+- name: fputc
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fputs
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "const char *"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fread
+  ret: "size_t"
+  flags: []
+  args:
+  - flags: []
+    name: ptr
+    type: "void *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: nmemb
+    type: "size_t"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: freopen
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "const char *"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: freopen64
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: filename
+    type: "const char *"
+
+  - flags: [read]
+    name: type
+    type: "const char *"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fwrite
+  ret: "size_t"
+  flags: []
+  args:
+  - flags: []
+    name: ptr
+    type: "const void *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: nmemb
+    type: "size_t"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: getc
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: getchar
+  ret: "int"
+  flags: []
+  args: []
+
+- name: getline
+  ret: "__ssize_t"
+  flags: []
+  args:
+  - flags: []
+    name: lineptr
+    type: "char **"
+
+  - flags: []
+    name: n
+    type: "size_t *"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: putc
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: putchar
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+
+- name: puts
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "const char *"
+
+
+- name: pread
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "void *"
+
+  - flags: [read]
+    name: count
+    type: "size_t"
+
+  - flags: [read]
+    name: offset
+    type: "off_t"
+
+
+- name: pwrite
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "const void *"
+
+  - flags: [read]
+    name: count
+    type: "size_t"
+
+  - flags: [read]
+    name: offset
+    type: "off_t"
+
+
+- name: read
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "void *"
+
+  - flags: [read]
+    name: count
+    type: "size_t"
+
+
+- name: vfprintf
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: vprintf
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: vscanf
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: vfscanf
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: write
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "const void *"
+
+  - flags: [read]
+    name: count
+    type: "size_t"
+
+
+- name: __isoc99_vscanf
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: __isoc99_vfscanf
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: getc_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: getchar_unlocked
+  ret: "int"
+  flags: []
+  args: []
+
+- name: putc_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: putchar_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+
+- name: fgetc_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fputc_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fread_unlocked
+  ret: "size_t"
+  flags: []
+  args:
+  - flags: []
+    name: ptr
+    type: "void *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: n
+    type: "size_t"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fwrite_unlocked
+  ret: "size_t"
+  flags: []
+  args:
+  - flags: []
+    name: ptr
+    type: "const void *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: n
+    type: "size_t"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fgets_unlocked
+  ret: "char *"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "char *"
+
+  - flags: []
+    name: n
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fputs_unlocked
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "const char *"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: fseek
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: [read]
+    name: offset
+    type: "long"
+
+  - flags: [read]
+    name: whence
+    type: "int"
+
+
+- name: fseeko
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: [read]
+    name: offset
+    type: "off_t"
+
+  - flags: [read]
+    name: whence
+    type: "int"
+
+
+- name: fsetpos
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: pos
+    type: "const fpos_t *"
+
+
+- name: fsetpos64
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: pos
+    type: "const fpos64_t *"
+
+
+- name: lseek
+  ret: "off_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: offset
+    type: "off_t"
+
+  - flags: [read]
+    name: whence
+    type: "int"
+
+
+- name: lseek64
+  ret: "off64_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: offset
+    type: "off64_t"
+
+  - flags: [read]
+    name: whence
+    type: "int"
+
+
+- name: rewind
+  ret: "void"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: chmod
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: chown
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: owner
+    type: "uid_t"
+
+  - flags: [read]
+    name: group
+    type: "gid_t"
+
+
+- name: fchmod
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: fchmodat
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: dirfd
+    type: "int"
+
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+
+- name: fchown
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: owner
+    type: "uid_t"
+
+  - flags: [read]
+    name: group
+    type: "gid_t"
+
+
+- name: fchownat
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: dirfd
+    type: "int"
+
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: owner
+    type: "uid_t"
+
+  - flags: [read]
+    name: group
+    type: "gid_t"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+
+- name: lchown
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,abs]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: owner
+    type: "uid_t"
+
+  - flags: [read]
+    name: group
+    type: "gid_t"
+
+
+- name: dup
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: oldfd
+    type: "int"
+
+
+- name: dup2
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: oldfd
+    type: "int"
+
+  - flags: [read]
+    name: newfd
+    type: "int"
+
+
+- name: dup3
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: oldfd
+    type: "int"
+
+  - flags: [read]
+    name: newfd
+    type: "int"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+
+- name: ftruncate
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: length
+    type: "off_t"
+
+
+- name: ftruncate64
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: [read]
+    name: length
+    type: "off64_t"
+
+
+- name: link
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,abs]
+    name: path1
+    type: "const char *"
+
+  - flags: [read,can]
+    name: path2
+    type: "const char *"
+
+
+- name: mkdir
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: mkfifo
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+
+- name: remove
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,abs]
+    name: pathname
+    type: "const char *"
+
+
+- name: rename
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,abs]
+    name: oldpath
+    type: "const char *"
+
+  - flags: [read,can]
+    name: newpath
+    type: "const char *"
+
+
+- name: rmdir
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+
+- name: symlink
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: oldpath
+    type: "const char *"
+
+  - flags: [read,abs]
+    name: newpath
+    type: "const char *"
+
+
+- name: system
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: command
+    type: "const char *"
+
+
+- name: truncate
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: length
+    type: "off_t"
+
+
+- name: truncate64
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: [read]
+    name: length
+    type: "off64_t"
+
+
+- name: unlink
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,abs]
+    name: pathname
+    type: "const char *"
+
+
+- name: umask
+  ret: "mode_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: mask
+    type: "mode_t"
+
+
+- name: utime
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: filename
+    type: "const char *"
+
+  - flags: []
+    name: times
+    type: "const struct utimbuf *"
+
+
+- name: popen
+  ret: "FILE *"
+  flags: []
+  args:
+  - flags: [read]
+    name: command
+    type: "const char *"
+
+  - flags: [read]
+    name: type
+    type: "const char *"
+
+
+- name: pclose
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: mkstemp
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: templ
+    type: "char *"
+
+
+- name: mkostemp
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: templ
+    type: "char *"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+
+- name: mkstemps
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: templ
+    type: "char *"
+
+  - flags: []
+    name: suffixlen
+    type: "int"
+
+
+- name: mkostemps
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: templ
+    type: "char *"
+
+  - flags: []
+    name: suffixlen
+    type: "int"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+
+- name: tmpfile
+  ret: "FILE *"
+  flags: []
+  args: []
+
+- name: tmpfile64
+  ret: "FILE *"
+  flags: []
+  args: []
+
+- name: __fxstat
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "struct stat *"
+
+
+- name: __fxstat64
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "struct stat64 *"
+
+
+- name: __lxstat
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read,abs]
+    name: path
+    type: "const char *"
+
+  - flags: []
+    name: buf
+    type: "struct stat *"
+
+
+- name: __lxstat64
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read,abs]
+    name: path
+    type: "const char *"
+
+  - flags: []
+    name: buf
+    type: "struct stat64 *"
+
+
+- name: __xstat
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: []
+    name: buf
+    type: "struct stat *"
+
+
+- name: __xstat64
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+  - flags: []
+    name: buf
+    type: "struct stat64 *"
+
+
+- name: chdir
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read,can]
+    name: path
+    type: "const char *"
+
+
+- name: fchdir
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+
+- name: killpg
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: pgrp
+    type: "int"
+
+  - flags: [read]
+    name: sig
+    type: "int"
+
+
+- name: seteuid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: euid
+    type: "uid_t"
+
+
+- name: setegid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: egid
+    type: "gid_t"
+
+
+- name: setgid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: gid
+    type: "gid_t"
+
+
+- name: setreuid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: ruid
+    type: "uid_t"
+
+  - flags: [read]
+    name: euid
+    type: "uid_t"
+
+
+- name: setregid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: rgid
+    type: "gid_t"
+
+  - flags: [read]
+    name: egid
+    type: "gid_t"
+
+
+- name: setuid
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: uid
+    type: "uid_t"
+
+
+- name: clearenv
+  ret: "int"
+  flags: []
+  args: []
+
+- name: putenv
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: string
+    type: "char *"
+
+
+- name: setenv
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: name
+    type: "const char *"
+
+  - flags: [read]
+    name: value
+    type: "const char *"
+
+  - flags: [read]
+    name: overwrite
+    type: "int"
+
+
+- name: unsetenv
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: name
+    type: "const char *"
+
+
+- name: open
+  ret: "int"
+  flags: [nogen]
+  args: "const char *pathname, int flags, ..."
+
+- name: open64
+  ret: "int"
+  flags: [nogen]
+  args: "const char *pathname, int flags, ..."
+
+- name: printf
+  ret: "int"
+  flags: [nogen]
+  args: "const char *format, ..."
+
+- name: scanf
+  ret: "int"
+  flags: [nogen]
+  args: "const char *format, ..."
+
+- name: fprintf
+  ret: "int"
+  flags: [nogen]
+  args: "FILE *stream, const char *format, ..."
+
+- name: fscanf
+  ret: "int"
+  flags: [nogen]
+  args: "FILE *stream, const char *format, ..."
+
+- name: __isoc99_scanf
+  ret: "int"
+  flags: [nogen]
+  args: "const char *format, ..."
+
+- name: __isoc99_fscanf
+  ret: "int"
+  flags: [nogen]
+  args: "FILE *stream, const char *format, ..."
+
+- name: execl
+  ret: "int"
+  flags: [nogen]
+  args: "const char *path, const char *arg, ..."
+
+- name: execlp
+  ret: "int"
+  flags: [nogen]
+  args: "const char *file, const char *arg, ..."
+
+- name: execle
+  ret: "int"
+  flags: [nogen]
+  args: "const char *path, const char *arg"
+
+- name: execv
+  ret: "int"
+  flags: [nogen]
+  args: "const char *path, char *const argv[]"
+
+- name: execvp
+  ret: "int"
+  flags: [nogen]
+  args: "const char *file, char *const argv[]"
+
+- name: execvpe
+  ret: "int"
+  flags: [nogen]
+  args: "const char *file, char *const argv[], char *const envp[]"
+
+- name: execve
+  ret: "int"
+  flags: [nogen]
+  args: "const char *filename, char *const argv[], char *const envp[]"
+
+- name: fexecve
+  ret: "int"
+  flags: [nogen]
+  args: "int fd, char *const argv[], char *const envp[]"
+
+- name: fork
+  ret: "pid_t"
+  flags: [nogen]
+  args: []
+
+- name: dlopen
+  ret: "void*"
+  flags: [nogen]
+  args: "const char * filename, int flag"
+
+- name: signal
+  ret: "sighandler_t"
+  flags: [nogen]
+  args: "int signum, sighandler_t real_handler"
+
+- name: sigaction
+  ret: "int"
+  flags: [nogen]
+  args: "int signum, const struct sigaction *act, struct sigaction *oldact"
+
+- name: _exit
+  ret: "void"
+  flags: [nogen]
+  args: "int status"
+
+- name: _Exit
+  ret: "void"
+  flags: [nogen]
+  args: "int status"
+
+- name: pthread_create
+  ret: "int"
+  flags: [nogen]
+  args: "pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg"
+
+- name: pthread_exit
+  ret: "void"
+  flags: [nogen]
+  args: "void *retval"
+
+- name: sigset
+  ret: "sighandler_t"
+  flags: [nogen]
+  args: "int sig, sighandler_t disp"
+
+- name: sigignore
+  ret: "int"
+  flags: [nogen]
+  args: "int sig"
