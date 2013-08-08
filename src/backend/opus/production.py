@@ -128,7 +128,7 @@ class UDSCommunicationManager(CommunicationManager):
 
         try:
             event_list = self.epoll.poll(self.select_timeout)
-        except (select.error, socket.error) as err:
+        except IOError as err:
             logging.error("Error: %s", str(err))
             return ret_list
 
