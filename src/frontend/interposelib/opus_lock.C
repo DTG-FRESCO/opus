@@ -1,9 +1,9 @@
 #include "opus_lock.h"
 
-#include <errno.h>
 #include <string.h>
 #include <stdexcept>
 #include "log.h"
+#include "proc_utils.h"
 
 /**
  * Dummy destructor to
@@ -18,17 +18,21 @@ OPUSLock::~OPUSLock() {}
  */
 SimpleLock::SimpleLock()
 {
-    if (pthread_mutexattr_init(&mutex_attr) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
 
-    if (pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK) != 0)
-        throw std::runtime_error(strerror(errno));
+    if ((err = pthread_mutexattr_init(&mutex_attr)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 
-    if (pthread_mutexattr_setrobust(&mutex_attr, PTHREAD_MUTEX_ROBUST) != 0)
-        throw std::runtime_error(strerror(errno));
+    if ((err = pthread_mutexattr_settype(&mutex_attr,
+                        PTHREAD_MUTEX_ERRORCHECK)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 
-    if (pthread_mutex_init(&simple_lock, &mutex_attr) != 0)
-        throw std::runtime_error(strerror(errno));
+    if ((err = pthread_mutexattr_setrobust(&mutex_attr,
+                        PTHREAD_MUTEX_ROBUST)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
+
+    if ((err = pthread_mutex_init(&simple_lock, &mutex_attr)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -44,8 +48,11 @@ SimpleLock::~SimpleLock()
  */
 void SimpleLock::destroy_lock()
 {
-    if (pthread_mutex_destroy(&simple_lock) != 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_mutex_destroy(&simple_lock)) != 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
 }
 
 /**
@@ -55,18 +62,21 @@ void SimpleLock::destroy_lock()
  */
 void SimpleLock::acquire()
 {
-    while (pthread_mutex_lock(&simple_lock) != 0)
-    {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    int err = 0;
 
-        if (errno == EOWNERDEAD)
+    while ((err = pthread_mutex_lock(&simple_lock)) != 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
+
+        if (err == EOWNERDEAD)
         {
-            if (pthread_mutex_consistent(&simple_lock) != 0)
-                throw std::runtime_error(strerror(errno));
+            if ((err = pthread_mutex_consistent(&simple_lock)) != 0)
+                throw std::runtime_error(ProcUtils::get_error(err));
 
             continue;
         }
-        throw std::runtime_error(strerror(errno));
+        throw std::runtime_error(ProcUtils::get_error(err));
     }
 }
 
@@ -75,8 +85,10 @@ void SimpleLock::acquire()
  */
 void SimpleLock::release()
 {
-    if (pthread_mutex_unlock(&simple_lock) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_mutex_unlock(&simple_lock)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -86,8 +98,10 @@ void SimpleLock::release()
  */
 ConditionLock::ConditionLock() : SimpleLock()
 {
-    if (pthread_cond_init(&cond, NULL) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_cond_init(&cond, NULL)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -103,8 +117,11 @@ ConditionLock::~ConditionLock()
  */
 void ConditionLock::destroy_lock()
 {
-    if (pthread_cond_destroy(&cond) != 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_cond_destroy(&cond)) != 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
 }
 
 /**
@@ -113,8 +130,10 @@ void ConditionLock::destroy_lock()
  */
 void ConditionLock::wait()
 {
-    if (pthread_cond_wait(&cond, &simple_lock) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_cond_wait(&cond, &simple_lock)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -123,8 +142,10 @@ void ConditionLock::wait()
  */
 void ConditionLock::notify()
 {
-    if (pthread_cond_signal(&cond) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_cond_signal(&cond)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -132,8 +153,10 @@ void ConditionLock::notify()
  */
 ReadWriteLock::ReadWriteLock()
 {
-    if (pthread_rwlock_init(&rwlock, NULL) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_rwlock_init(&rwlock, NULL)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -149,8 +172,10 @@ ReadWriteLock::~ReadWriteLock()
  */
 void ReadWriteLock::acquire_rdlock()
 {
-    if (pthread_rwlock_rdlock(&rwlock) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_rwlock_rdlock(&rwlock)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -158,8 +183,10 @@ void ReadWriteLock::acquire_rdlock()
  */
 void ReadWriteLock::acquire_wrlock()
 {
-    if (pthread_rwlock_wrlock(&rwlock) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_rwlock_wrlock(&rwlock)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -167,8 +194,10 @@ void ReadWriteLock::acquire_wrlock()
  */
 void ReadWriteLock::release()
 {
-    if (pthread_rwlock_unlock(&rwlock) != 0)
-        throw std::runtime_error(strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_rwlock_unlock(&rwlock)) != 0)
+        throw std::runtime_error(ProcUtils::get_error(err));
 }
 
 /**
@@ -176,6 +205,9 @@ void ReadWriteLock::release()
  */
 void ReadWriteLock::destroy_lock()
 {
-    if (pthread_rwlock_destroy(&rwlock) != 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+    int err = 0;
+
+    if ((err = pthread_rwlock_destroy(&rwlock)) != 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
 }

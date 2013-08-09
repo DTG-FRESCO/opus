@@ -51,6 +51,7 @@ class ProcUtils
 
         static void canonicalise_path(std::string* path);
         static void abs_path(std::string* path);
+        static const std::string get_error(const int err_num);
 
     private:
         static __thread bool in_func_flag;

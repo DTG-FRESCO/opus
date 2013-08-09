@@ -61,7 +61,8 @@ static int get_loaded_libs(struct dl_phdr_info *info,
         char *real_path = realpath(info->dlpi_name, NULL);
         if (!real_path)
         {
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
             return -1;
         }
 
@@ -131,7 +132,8 @@ static inline void set_rlimit_info(StartupMessage* start_msg)
         struct rlimit rlim;
         if (getrlimit((*citer).second, &rlim) < 0)
         {
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
             continue;
         }
 
@@ -151,7 +153,8 @@ static inline void set_system_info(StartupMessage* start_msg)
 
     if (uname(&buf) < 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
         return;
     }
 
@@ -263,7 +266,8 @@ uint64_t ProcUtils::get_time()
     struct timespec tp;
 
     if (clock_gettime(CLOCK_MONOTONIC_RAW, &tp) < 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
 
     uint64_t nsecs = (uint64_t)tp.tv_sec * 1000000000UL + (uint64_t)tp.tv_nsec;
 
@@ -405,7 +409,7 @@ const string ProcUtils::get_user_name(const uid_t user_id)
         if (result == NULL)
         {
             if (ret == 0) throw std::runtime_error("User not found");
-            else throw std::runtime_error(strerror(errno));
+            else throw std::runtime_error(ProcUtils::get_error(errno));
         }
 
         user_name_str = pwd.pw_name;
@@ -441,7 +445,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
         if (result == NULL)
         {
             if (ret == 0) throw std::runtime_error("Group not found");
-            else throw std::runtime_error(strerror(errno));
+            else throw std::runtime_error(ProcUtils::get_error(errno));
         }
 
         group_name_str = grp.gr_name;
@@ -551,15 +555,15 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
         struct stat buf;
 
         fd = open(real_path.c_str(), O_RDONLY);
-        if (fd < 0) throw std::runtime_error(strerror(errno));
+        if (fd < 0) throw std::runtime_error(ProcUtils::get_error(errno));
 
         if (fstat(fd, &buf) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
 
         size_t file_size = buf.st_size;
         void *data = mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0);
         if (data == MAP_FAILED)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
 
         unsigned char result[MD5_DIGEST_LENGTH] = "";
         if (MD5(reinterpret_cast<unsigned char*>(data),
@@ -575,7 +579,7 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
         }
 
         if (munmap(data, file_size) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
     }
     catch(const std::exception& e)
     {
@@ -594,7 +598,8 @@ pid_t ProcUtils::gettid()
     pid_t tid = -1;
 
     if ((tid = syscall(__NR_gettid)) < 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
 
     return tid;
 }
@@ -613,7 +618,7 @@ pid_t ProcUtils::getpid()
     {
         proc_pid_path = realpath("/proc/self", NULL);
         if (!proc_pid_path)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
 
         string pid_path(proc_pid_path);
 
@@ -738,7 +743,8 @@ void ProcUtils::canonicalise_path(string* path)
     char* real_path = realpath(path->c_str(), NULL);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
         return;
     }
 
@@ -760,12 +766,35 @@ void ProcUtils::abs_path(string* path)
     char* real_path = realpath(path_head.c_str(), NULL);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
         return;
     }
 
     *path = real_path;
     path->append("/");
     path->append(path_tail);
+}
+
+/**
+ * Given an errno value, this method uses a
+ * thread safe implementation of strerror to
+ * retrieve the error description.
+ */
+const string ProcUtils::get_error(const int err_num)
+{
+    string err_msg;
+    char err_buf[256] = "";
+
+    char *err_str = strerror_r(err_num, err_buf, sizeof(err_buf));
+    if (!err_str)
+    {
+        DEBUG_LOG("[%s:%d]: strerror_r error: %d\n",
+                    __FILE__, __LINE__, errno);
+        return err_msg;
+    }
+
+    err_msg = err_str;
+    return err_msg;
 }
 

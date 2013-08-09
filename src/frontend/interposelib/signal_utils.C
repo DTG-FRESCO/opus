@@ -49,7 +49,8 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
                                         \
         if (raise(sig) != 0)\
         {\
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));\
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, \
+                        ProcUtils::get_error(errno).c_str());\
             _exit(EXIT_FAILURE);\
         }\
     }\
@@ -62,7 +63,8 @@ static inline void set_signal(const int sig, sighandler_t handler)
 {
     sighandler_t ret = ::signal(sig, handler);
     if (ret == SIG_ERR)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
 }
 
 /**
@@ -95,10 +97,10 @@ void SignalUtils::block_all_signals(sigset_t *old_set)
     try
     {
         if (sigfillset(&new_set) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
 
         if (pthread_sigmask(SIG_BLOCK, &new_set, old_set) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
     }
     catch(const std::exception& e)
     {
@@ -115,7 +117,7 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
     try
     {
         if (pthread_sigmask(SIG_SETMASK, old_set, NULL) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(ProcUtils::get_error(errno));
     }
     catch(const std::exception& e)
     {
@@ -144,7 +146,8 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
         LockGuard guard(*sig_vec_lock);
 
         ret = (*real_signal)(signum, signal_handler);
-        if (ret == SIG_ERR) throw std::runtime_error(strerror(errno));
+        if (ret == SIG_ERR)
+            throw std::runtime_error(ProcUtils::get_error(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -178,7 +181,7 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
         LockGuard guard(*sig_vec_lock);
 
         ret = (*real_sigaction)(signum, sa, oldact);
-        if (ret < 0) throw std::runtime_error(strerror(errno));
+        if (ret < 0) throw std::runtime_error(ProcUtils::get_error(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -337,7 +340,8 @@ void SignalUtils::init_signal_capture()
             struct sigaction oldact;
             if (sigaction(sig, NULL, &oldact) < 0)
             {
-                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
                 continue;
             }
 
@@ -356,7 +360,8 @@ void SignalUtils::init_signal_capture()
             /* Install the opus signal handler */
             if (sigaction(sig, &sa, NULL) < 0)
             {
-                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
                 continue;
             }
         }

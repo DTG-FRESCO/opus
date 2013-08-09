@@ -128,7 +128,8 @@ static void* opus_thread_start_routine(void *args)
     int err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
     if (err != 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(err));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
     }
 
     ProcUtils::test_and_set_flag(true);
@@ -165,7 +166,8 @@ static void* opus_thread_start_routine(void *args)
     err = pthread_setcancelstate(oldstate, NULL);
     if (err != 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(err));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(err).c_str());
     }
 
     void *ret = real_handler(real_args);
@@ -192,7 +194,8 @@ static void get_lib_real_path(void *handle, std::string* real_path)
     char *path = realpath(link->l_name, NULL);
     if (!path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(errno).c_str());
         return;
     }
 
@@ -811,7 +814,8 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                ProcUtils::get_error(errno).c_str());
     }
 
     errno = 0;
