@@ -8,7 +8,9 @@ from __future__ import (absolute_import, division,
 
 from opus import (analysis, common_utils, custom_time, production)
 
+import argparse
 import logging
+import logging.config
 import sys
 
 try:
@@ -139,7 +141,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
                        description='OPUS backend storage and processing system.'
                                      )
-    parser.add_argument('config', default="config.yaml",
+    parser.add_argument('config', default="config.yaml", nargs='?',
                                   help='Location to load system config from.')
     args = parser.parse_args()
     return args.config

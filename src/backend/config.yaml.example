@@ -1,4 +1,5 @@
 LOGGING:
+  version: 1
   formatters:
     brief:
       format: "%(levelname)s:%(message)s"
