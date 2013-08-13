@@ -3,9 +3,10 @@
 PYTHON=python2.7
 GIT=git
 
-RED="\x1b[1;31m"
-GREEN="\x1b[1;32m"
-NORM="\x1b[0m"
+WARN="\x1b[1;31m"
+SUCC="\x1b[1;32m"
+ENDCOL="\x1b[0m"
+
 
 
 GIT_REPO="git@gitlab.dtg.cl.cam.ac.uk:fresco-projects/opus.git"
@@ -22,12 +23,12 @@ check_lib(){
 
 	if [ $? -ne 0 ]
 	then
-		echo -e "${RED}MISSING\n"\
+		echo -e "${WARN}MISSING\n"\
 				"Error: Library $1 not found.\n"\
-				"Please install $1 and then try again.${NORM}"
+				"Please install $1 and then try again.${ENDCOL}"
 		exit 1
 	else
-		echo -e "${GREEN}FOUND${NORM}"
+		echo -e "${SUCC}FOUND${ENDCOL}"
 	fi
 }
 
@@ -37,12 +38,12 @@ check_mod(){
 
 	if [ $? -ne 0 ]
 	then
-		echo -e "${RED}MISSING\n"\
+		echo -e "${WARN}MISSING\n"\
 				"Error: Python module $1 not found.\n"\
-				"Please install $1 and then try again.${NORM}"
+				"Please install $1 and then try again.${ENDCOL}"
 		exit 1
 	else
-		echo -e "${GREEN}FOUND${NORM}"
+		echo -e "${SUCC}FOUND${ENDCOL}"
 	fi
 }
 
@@ -57,8 +58,8 @@ which $PYTHON >/dev/null
 
 if [ $? -ne 0 ]
 then
-	echo -e "${RED}Error: Python 2.7 not found.\n"\
-			"Please install Python 2.7 and try again.${NORM}"
+	echo -e "${WARN}Error: Python 2.7 not found.\n"\
+			"Please install Python 2.7 and try again.${ENDCOL}"
 	exit 1
 fi
 
