@@ -57,3 +57,9 @@ src/frontend/interposelib/gen_functions.C
 #Specific Py excludes
 #
 src/backend/opus/*_pb2.py
+
+#
+#Specific Util excludes
+#
+src/utils/opus-on
+src/utils/opus-off
