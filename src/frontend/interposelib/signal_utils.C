@@ -248,16 +248,17 @@ void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
     {
         SignalHandler *prev_handler = get_signal_handler(sig);
 
+        if (prev_handler) real_handler = prev_handler->get_handler();
+
         /*
            new_handler might be null if the call to signal/sigaction
            is to only check the previous signal disposition
         */
-        if (new_handler) (*sig_handler_vec)[sig] = new_handler;
-
-        if (prev_handler)
+        if (new_handler)
         {
-            real_handler = prev_handler->get_handler();
+            (*sig_handler_vec)[sig] = new_handler;
             delete prev_handler;
+            prev_handler = NULL;
         }
     }
     catch(const std::exception& e)
