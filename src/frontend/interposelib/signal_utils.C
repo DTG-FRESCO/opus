@@ -7,6 +7,7 @@
 #include <string>
 #include <stdexcept>
 #include <algorithm>
+#include <unistd.h>
 #include "log.h"
 #include "proc_utils.h"
 #include "message_util.h"
