@@ -20,7 +20,7 @@ run(){
 }
 
 echo "##Polling repository for updates."
-git_status="$($GIT pull)"
+git_status="$($GIT pull --stat)"
 
 version="$($GIT rev-parse --verify --short HEAD)"
 echo "##Currently running version $version."
