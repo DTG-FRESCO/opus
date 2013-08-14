@@ -48,6 +48,7 @@ HDRS    :=  log.h \
             signal_handler.h \
             signal_utils.h \
             main.h \
-            opus_vfork.h
+            opus_vfork.h \
+            track_errno.h
 
 include     $(TOP)/Maketmpl/shlib-NEW.mk

@@ -16,6 +16,7 @@
 #include "func_ptr_types.h"
 #include "proc_utils.h"
 #include "message_util.h"
+#include "track_errno.h"
 
 #define STRINGIFY(value) #value
 
@@ -25,6 +26,7 @@
  */
 #define PRE_EXEC_CALL(fptr_type, fname, desc, arg1, ...) \
     static fptr_type real_fptr = NULL; \
+    TrackErrno err_obj(errno); \
                                         \
     /* Get the symbol address and store it */\
     if (!real_fptr)\
@@ -32,17 +34,22 @@
                                                 \
     /* Call function if global flag is true */ \
     if (ProcUtils::test_and_set_flag(true)) \
-        return (*real_fptr)(arg1, __VA_ARGS__); \
+    {                                       \
+        errno = 0;                          \
+        int ret = (*real_fptr)(arg1, __VA_ARGS__); \
+        if (errno != 0) err_obj = errno; \
+        return ret; \
+    } \
                                             \
     /* Send pre function call generic message */ \
-    bool conn_ret = send_pre_func_generic_msg(desc); \
+    bool comm_ret = send_pre_func_generic_msg(desc); \
                                                     \
     /* Call the original exec */ \
     uint64_t start_time = ProcUtils::get_time();
 
 #define POST_EXEC_CALL(desc, arg1_val) \
                                     \
-    if (!conn_ret) return ret; \
+    if (!comm_ret) return ret; \
                                     \
     /* This part will execute only if exec fails */ \
     uint64_t end_time = ProcUtils::get_time(); \
@@ -56,10 +63,8 @@
     arg_kv->set_key(STRINGIFY(arg1)); \
     arg_kv->set_value(arg1_val); \
                             \
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG)) \
-        return ret; \
-                    \
-    ProcUtils::test_and_set_flag(false); \
+    comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG); \
+    ProcUtils::test_and_set_flag(!comm_ret); \
     return ret;
 
 /**
@@ -70,6 +75,7 @@
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
     errno = 0; \
     int ret = (*real_fptr)(arg1, __VA_ARGS__); \
+    if (errno != 0) err_obj = errno; \
     POST_EXEC_CALL(desc, arg1);
 
 /**
@@ -81,7 +87,7 @@
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
     errno = 0; \
     int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-                                                \
+    if (errno != 0) err_obj = errno; \
     /* If exec returns, it indicates an error. Free allocated memory */ \
     cleanup_allocated_memory(&env_vec); \
     POST_EXEC_CALL(desc, arg1);
@@ -555,6 +561,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     PRE_EXEC_CALL(FEXECVE_POINTER, "fexecve", "fexecve", fd, argv, &env_vec[0]);
     errno = 0;
     int ret = (*real_fptr)(fd, argv, &env_vec[0]);
+    if (errno != 0) err_obj = errno;
     POST_EXEC_CALL("fexecve", std::to_string(fd));
 }
 
@@ -565,13 +572,19 @@ extern "C" pid_t fork(void)
 {
     std::string func_name = "fork";
     static FORK_POINTER real_fork = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_fork)
         real_fork = (FORK_POINTER)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_fork)();
+    {
+        errno = 0;
+        pid_t pid = (*real_fork)();
+        if (errno != 0) err_obj = errno;
+        return pid;
+    }
 
     uint64_t start_time = ProcUtils::get_time();
 
@@ -585,18 +598,18 @@ extern "C" pid_t fork(void)
     }
 
     /* Parent process */
-    uint64_t end_time = ProcUtils::get_time();
     int errno_value = errno;
+    if (errno != 0) err_obj = errno;
+
+    uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
 
     set_func_info_msg(&func_msg, func_name, pid,
                 start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return pid;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return pid;
 }
 
@@ -607,14 +620,23 @@ extern "C" void* dlopen(const char * filename, int flag)
 {
     std::string func_name = "dlopen";
     static DLOPEN_POINTER real_dlopen = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_dlopen)
         real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_dlopen)(filename, flag);
+    {
+        errno = 0;
+        void *handle = (*real_dlopen)(filename, flag);
+        if (errno != 0) err_obj = errno;
+        return handle;
+    }
 
+    bool comm_ret = true;
     void *handle = (*real_dlopen)(filename, flag);
+    if (errno != 0) err_obj = errno;
+
     if (handle)
     {
         std::string real_path;
@@ -628,11 +650,10 @@ extern "C" void* dlopen(const char * filename, int flag)
         kv_args->set_key(real_path);
         kv_args->set_value(md5_sum);
 
-        if (!set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG))
-            return handle;
+        comm_ret = set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
     }
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return handle;
 }
 
@@ -644,6 +665,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
     std::string func_name = "signal";
     static SIGNAL_POINTER real_signal = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_signal)
@@ -651,12 +673,24 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_signal)(signum, real_handler);
+    {
+        errno = 0;
+        sighandler_t ret = (*real_signal)(signum, real_handler);
+        if (errno != 0) err_obj = errno;
+        return ret;
+    }
 
+    /*
+       We don't care about this signal. Call the
+       real libc function and turn on interposition
+    */
     if (!SignalUtils::is_signal_valid(signum))
     {
+        errno = 0;
+        sighandler_t ret = (*real_signal)(signum, real_handler);
+        if (errno != 0) err_obj = errno;
         ProcUtils::test_and_set_flag(false);
-        return (*real_signal)(signum, real_handler);
+        return ret;
     }
 
     sighandler_t ret = NULL;
@@ -681,6 +715,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     }
     catch(const std::exception& e)
     {
+        if (errno != 0) err_obj = errno;
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
@@ -700,6 +735,7 @@ extern "C" int sigaction(int signum,
 {
     std::string func_name = "sigaction";
     static SIGACTION_POINTER real_sigaction = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigaction)
@@ -707,12 +743,24 @@ extern "C" int sigaction(int signum,
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_sigaction)(signum, act, oldact);
+    {
+        errno = 0;
+        int ret = (*real_sigaction)(signum, act, oldact);
+        if (errno != 0) err_obj = errno;
+        return ret;
+    }
 
+    /*
+       We don't care about this signal. Call the
+       real libc function and turn on interposition
+    */
     if (!SignalUtils::is_signal_valid(signum))
     {
+        errno = 0;
+        int ret = (*real_sigaction)(signum, act, oldact);
+        if (errno != 0) err_obj = errno;
         ProcUtils::test_and_set_flag(false);
-        return (*real_sigaction)(signum, act, oldact);
+        return ret;
     }
 
     int ret = 0;
@@ -751,6 +799,7 @@ extern "C" int sigaction(int signum,
     }
     catch(const std::exception& e)
     {
+        if (errno != 0) err_obj = errno;
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
@@ -784,6 +833,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 {
     std::string func_name = "pthread_create";
     static PTHREAD_CREATE_POINTER real_pthread_create = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_pthread_create)
@@ -838,6 +888,7 @@ extern "C" void pthread_exit(void *retval)
 {
     std::string func_name = "pthread_exit";
     static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_pthread_exit)
@@ -880,6 +931,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
 {
     std::string func_name = "sigset";
     static SIGSET_POINTER real_sigset = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigset)
@@ -887,16 +939,32 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_sigset)(sig, disp);
+    {
+        errno = 0;
+        sighandler_t ret = (*real_sigset)(sig, disp);
+        if (errno != 0) err_obj = errno;
+        return ret;
+    }
 
+    /*
+       Turn on interposition and call signal so that
+       OPUS can track the current state of this signal.
+    */
     if (disp == SIG_IGN || disp == SIG_DFL)
     {
         ProcUtils::test_and_set_flag(false);
-        return signal(sig, disp);
+
+        errno = 0;
+        sighandler_t ret = signal(sig, disp);
+        if (errno != 0) err_obj = errno;
+
+        return ret;
     }
 
     /* We do not deal with SIG_HOLD */
+    errno = 0;
     sighandler_t ret = (*real_sigset)(sig, disp);
+    if (errno != 0) err_obj = errno;
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -913,6 +981,7 @@ extern "C" int sigignore(int sig)
 {
     std::string func_name = "sigignore";
     static SIGIGNORE_POINTER real_sigignore = NULL;
+    TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigignore)
@@ -920,7 +989,12 @@ extern "C" int sigignore(int sig)
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
-        return (*real_sigignore)(sig);
+    {
+        errno = 0;
+        int ret = (*real_sigignore)(sig);
+        if (errno != 0) err_obj = errno;
+        return ret;
+    }
 
     /* Use sigaction to ignore the signal */
     struct sigaction act;
@@ -934,6 +1008,10 @@ extern "C" int sigignore(int sig)
        OPUS can track the current state of this signal.
     */
     ProcUtils::test_and_set_flag(false);
-    return sigaction(sig, &act, NULL);
+    errno = 0;
+    int ret = sigaction(sig, &act, NULL);
+    if (errno != 0) err_obj = errno;
+
+    return ret;
 }
 #endif
