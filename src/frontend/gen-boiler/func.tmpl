@@ -5,30 +5,37 @@
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 {
     std::string func_name = "{{func.name}}";
+    {% if "vararg" in func.flags -%}
+    static {{func.real_func|upper}}_POINTER func_ptr = NULL;
+    {%- else -%}
     static {{func.name|upper}}_POINTER func_ptr = NULL;
+    {%- endif %}
 
     TrackErrno err_obj(errno);
 
     if (!func_ptr)
+        {% if "vararg" in func.flags -%}
+        func_ptr = ({{func.real_func|upper}}_POINTER)(ProcUtils::get_sym_addr("{{func.real_func}}"));
+        {%- else -%}
         func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr(func_name));
+        {%- endif %}
 
-    if (ProcUtils::test_and_set_flag(true))
-    {
+    {% if "vararg" in func.flags -%}
+    va_list va_args;
+    va_start(va_args, {{(func.args|last).name}});
+    {%- endif %}
+
+    if (ProcUtils::test_and_set_flag(true)) {
         errno = 0;
 
-        {% if func.ret != "void" -%}
-        {{func.ret}} ret = (*func_ptr)({{macros.fn_arg_call(func)}});
-        {%- else -%}
-        (*func_ptr)({{macros.fn_arg_call(func)}});
-        {%- endif %}
+        {{macros.fn_call(func)}}
 
         err_obj = errno;
 
-        {% if func.ret != "void" -%}
-        return ret;
-        {%- else -%}
-        return;
+        {% if "vararg" in func.flags -%}
+        va_end(va_args);
         {%- endif %}
+        {{macros.return_func(func)}}
     }
 
     {% for arg in func.args if 'read' in arg.flags -%}
@@ -40,16 +47,16 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     uint64_t start_time = ProcUtils::get_time();
     
     errno = 0;
-    {% if func.ret != "void" -%}
-    {{func.ret}} ret = (*func_ptr)({{macros.fn_arg_call(func)}});
-    {%- else -%}
-    (*func_ptr)({{macros.fn_arg_call(func)}});
-    {%- endif %}
+    {{macros.fn_call(func)}}
     int errno_value = errno;
 
     err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
+
+    {% if "vararg" in func.flags -%}
+    va_end(va_args);
+    {%- endif %}
 
     FuncInfoMessage func_msg;
 
@@ -96,11 +103,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         we keep interposition turned on.
     */
     ProcUtils::test_and_set_flag(!comm_ret);
-    {% if func.ret != "void" -%}
-    return ret;
-    {%- else -%}
-    return;
-    {%- endif %}
+    {{macros.return_func(func)}}
 }
 
 {% endfor %}
