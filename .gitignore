@@ -63,3 +63,9 @@ src/backend/opus/*_pb2.py
 #
 src/utils/opus-on
 src/utils/opus-off
+
+#
+# Ignore cpp protobuf source
+# used for python extensions
+#
+src/backend/proto_cpp_src

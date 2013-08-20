@@ -13,6 +13,7 @@ import os
 import logging
 import threading
 import time
+import opuspb
 
 
 from opus import common_utils, storage, order

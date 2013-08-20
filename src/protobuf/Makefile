@@ -21,6 +21,7 @@ $(OBJ): $(MF)
 all:
 		cp -f *.pb.h $(PROJ_INCLUDE)
 		cp -f *.pb.cc $(PROJ_HOME)/src/frontend/interposelib
+		cp -f *.pb.cc $(PROJ_HOME)/src/backend/proto_cpp_src
 		cp -f *.py $(PROJ_HOME)/src/backend/opus
 
 clean:

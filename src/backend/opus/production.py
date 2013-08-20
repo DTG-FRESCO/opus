@@ -19,6 +19,7 @@ import socket
 import struct
 import threading
 import time
+import opuspb
 
 from opus import (common_utils, uds_msg_pb2)
 
