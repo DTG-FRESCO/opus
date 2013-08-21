@@ -10,58 +10,49 @@
 #include "func_ptr_types.h"
 #include "proc_utils.h"
 #include "message_util.h"
+#include "track_errno.h"
+
+
+#define GET_MODE \
+    mode_t mode = 0; \
+    if ((flags & O_CREAT) != 0) \
+    {                           \
+        va_list arg; \
+        va_start(arg, flags); \
+        mode = va_arg(arg, mode_t); \
+        va_end(arg); \
+    }               \
 
 /**
- * Interposition function for open
+ * Function template to merge open and open64
  */
-extern "C" int open(const char *pathname, int flags, ...)
+template <typename T>
+static int __open_internal(const char* pathname, int flags,
+                        std::string func_name, T real_open, mode_t mode)
 {
-    std::string func_name = "open";
-    static OPEN_POINTER real_open = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_open)
-        real_open = (OPEN_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    mode_t mode;
-
-    if ((flags & O_CREAT) != 0)
-    {
-        va_list arg;
-        va_start(arg, flags);
-        mode = va_arg(arg, mode_t);
-        va_end(arg);
-    }
+        real_open = (T)ProcUtils::get_sym_addr(func_name);
 
     if (ProcUtils::test_and_set_flag(true))
     {
-        if ((flags & O_CREAT) != 0)
-        {
-            return (*real_open)(pathname, flags, mode);
-        }
-        else
-        {
-            return (*real_open)(pathname, flags);
-        }
+        errno = 0;
+        int ret = (*real_open)(pathname, flags, mode);
+        err_obj = errno;
+        return ret;
     }
 
     uint64_t start_time = ProcUtils::get_time();
 
     errno = 0;
-    int ret;
-    if ((flags & O_CREAT) != 0)
-    {
-        ret = (*real_open)(pathname, flags, mode);
-    }
-    else
-    {
-        ret = (*real_open)(pathname, flags);
-    }
-    int errno_value = errno;
+    int ret = (*real_open)(pathname, flags, mode);
 
+    int errno_value = errno;
+    err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("pathname");
@@ -76,21 +67,27 @@ extern "C" int open(const char *pathname, int flags, ...)
     tmp_arg->set_key("flags");
     tmp_arg->set_value(std::to_string(flags));
 
-    if ((flags & O_CREAT) != 0)
-    {
-        tmp_arg = func_msg.add_args();
-        tmp_arg->set_key("mode");
-        tmp_arg->set_value(std::to_string(mode));
-    }
+    tmp_arg = func_msg.add_args();
+    tmp_arg->set_key("mode");
+    tmp_arg->set_value(std::to_string(mode));
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
+}
+
+/**
+ * Interposition function for open
+ */
+extern "C" int open(const char *pathname, int flags, ...)
+{
+    static OPEN_POINTER real_open = NULL;
+
+    GET_MODE;
+    return __open_internal(pathname, flags, "open", real_open, mode);
 }
 
 /**
@@ -98,81 +95,10 @@ extern "C" int open(const char *pathname, int flags, ...)
  */
 extern "C" int open64(const char *pathname, int flags, ...)
 {
-    std::string func_name = "open64";
-    static OPEN64_POINTER real_open64 = NULL;
+    static OPEN64_POINTER real64_open = NULL;
 
-    if (!real_open64)
-        real_open64 = (OPEN64_POINTER)ProcUtils::get_sym_addr(func_name);
-
-    mode_t mode;
-
-    if ((flags & O_CREAT) != 0)
-    {
-        va_list arg;
-        va_start(arg, flags);
-        mode = va_arg(arg, mode_t);
-        va_end(arg);
-    }
-
-    if (ProcUtils::test_and_set_flag(true))
-    {
-        if ((flags & O_CREAT) != 0)
-        {
-            return (*real_open64)(pathname, flags, mode);
-        }
-        else
-        {
-            return (*real_open64)(pathname, flags);
-        }
-    }
-
-    uint64_t start_time = ProcUtils::get_time();
-
-    errno = 0;
-    int ret;
-    if ((flags & O_CREAT) != 0)
-    {
-        ret = (*real_open64)(pathname, flags, mode);
-    }
-    else
-    {
-        ret = (*real_open64)(pathname, flags);
-    }
-    int errno_value = errno;
-
-    uint64_t end_time = ProcUtils::get_time();
-
-    FuncInfoMessage func_msg;
-
-    KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
-    tmp_arg->set_key("pathname");
-    if (pathname)
-    {
-        std::string pathname_value(pathname);
-        ProcUtils::canonicalise_path(&pathname_value);
-        tmp_arg->set_value(pathname_value);
-    }
-
-    tmp_arg = func_msg.add_args();
-    tmp_arg->set_key("flags");
-    tmp_arg->set_value(std::to_string(flags));
-
-    if ((flags & O_CREAT) != 0)
-    {
-        tmp_arg = func_msg.add_args();
-        tmp_arg->set_key("mode");
-        tmp_arg->set_value(std::to_string(mode));
-    }
-
-    set_func_info_msg(&func_msg, func_name, ret,
-                        start_time, end_time, errno_value);
-
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
-    return ret;
+    GET_MODE;
+    return __open_internal(pathname, flags, "open64", real64_open, mode);
 }
 
 /**
@@ -181,6 +107,7 @@ extern "C" int open64(const char *pathname, int flags, ...)
 extern "C" int printf(const char *format, ...)
 {
     static VPRINTF_POINTER real_vprintf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_vprintf)
         real_vprintf = (VPRINTF_POINTER)ProcUtils::get_sym_addr("vprintf");
@@ -190,8 +117,13 @@ extern "C" int printf(const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real_vprintf)(format, args);
+
+        err_obj = errno;
         va_end(args);
+
+
         return ret;
     }
 
@@ -200,6 +132,8 @@ extern "C" int printf(const char *format, ...)
     errno = 0;
     int ret = (*real_vprintf)(format, args);
     int errno_value = errno;
+
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -211,10 +145,9 @@ extern "C" int printf(const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }
 
@@ -224,6 +157,7 @@ extern "C" int printf(const char *format, ...)
 extern "C" int scanf(const char *format, ...)
 {
     static VSCANF_POINTER real_vscanf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_vscanf)
         real_vscanf = (VSCANF_POINTER)ProcUtils::get_sym_addr("vscanf");
@@ -233,8 +167,12 @@ extern "C" int scanf(const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real_vscanf)(format, args);
+
+        err_obj = errno;
         va_end(args);
+
         return ret;
     }
 
@@ -243,6 +181,7 @@ extern "C" int scanf(const char *format, ...)
     errno = 0;
     int ret = (*real_vscanf)(format, args);
     int errno_value = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -254,10 +193,8 @@ extern "C" int scanf(const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }
 
@@ -267,6 +204,7 @@ extern "C" int scanf(const char *format, ...)
 extern "C" int fprintf(FILE *stream, const char *format, ...)
 {
     static VFPRINTF_POINTER real_vfprintf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_vfprintf)
         real_vfprintf = (VFPRINTF_POINTER)ProcUtils::get_sym_addr("vfprintf");
@@ -276,8 +214,12 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real_vfprintf)(stream, format, args);
+
+        err_obj = errno;
         va_end(args);
+
         return ret;
     }
 
@@ -289,6 +231,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
     errno = 0;
     int ret = (*real_vfprintf)(stream, format, args);
     int errno_value = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -306,10 +249,8 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }
 
@@ -319,6 +260,7 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 extern "C" int fscanf(FILE *stream, const char *format, ...)
 {
     static VFSCANF_POINTER real_vfscanf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real_vfscanf)
         real_vfscanf = (VFSCANF_POINTER)ProcUtils::get_sym_addr("vfscanf");
@@ -328,8 +270,12 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real_vfscanf)(stream, format, args);
+
+        err_obj = errno;
         va_end(args);
+
         return ret;
     }
 
@@ -341,6 +287,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     errno = 0;
     int ret = (*real_vfscanf)(stream, format, args);
     int errno_value = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -357,10 +304,8 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }
 
@@ -370,6 +315,7 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 extern "C" int __isoc99_scanf(const char *format, ...)
 {
     static __ISOC99_VSCANF_POINTER real___isoc99_vscanf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real___isoc99_vscanf)
     {
@@ -382,8 +328,12 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real___isoc99_vscanf)(format, args);
+
+        err_obj = errno;
         va_end(args);
+
         return ret;
     }
 
@@ -392,6 +342,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
     errno = 0;
     int ret = (*real___isoc99_vscanf)(format, args);
     int errno_value = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -403,10 +354,8 @@ extern "C" int __isoc99_scanf(const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }
 
@@ -416,6 +365,7 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 {
     static __ISOC99_VFSCANF_POINTER real___isoc99_vfscanf = NULL;
+    TrackErrno err_obj(errno);
 
     if (!real___isoc99_vfscanf)
     {
@@ -429,8 +379,12 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     if (ProcUtils::test_and_set_flag(true))
     {
+        errno = 0;
         int ret = (*real___isoc99_vfscanf)(stream, format, args);
+
+        err_obj = errno;
         va_end(args);
+
         return ret;
     }
 
@@ -442,6 +396,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
     errno = 0;
     int ret = (*real___isoc99_vfscanf)(stream, format, args);
     int errno_value = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -458,9 +413,7 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
-
-    ProcUtils::test_and_set_flag(false);
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
     return ret;
 }

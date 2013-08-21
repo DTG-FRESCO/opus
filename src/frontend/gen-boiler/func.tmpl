@@ -7,11 +7,29 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     std::string func_name = "{{func.name}}";
     static {{func.name|upper}}_POINTER func_ptr = NULL;
 
+    TrackErrno err_obj(errno);
+
     if (!func_ptr)
         func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr(func_name));
 
     if (ProcUtils::test_and_set_flag(true))
-        return (*func_ptr)({{macros.fn_arg_call(func)}});
+    {
+        errno = 0;
+
+        {% if func.ret != "void" -%}
+        {{func.ret}} ret = (*func_ptr)({{macros.fn_arg_call(func)}});
+        {%- else -%}
+        (*func_ptr)({{macros.fn_arg_call(func)}});
+        {%- endif %}
+
+        err_obj = errno;
+
+        {% if func.ret != "void" -%}
+        return ret;
+        {%- else -%}
+        return;
+        {%- endif %}
+    }
 
     {% for arg in func.args if 'read' in arg.flags -%}
     {%- if arg.type == "FILE *" -%}
@@ -28,6 +46,8 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     (*func_ptr)({{macros.fn_arg_call(func)}});
     {%- endif %}
     int errno_value = errno;
+
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -69,16 +89,13 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
     {%- endif %}
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-    {
-        {% if func.ret != "void" -%}
-        return ret;
-        {%- else -%}
-        return;
-        {%- endif %}
-    }
+    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
-    ProcUtils::test_and_set_flag(false);
+    /*
+        If the message is successfully sent
+        we keep interposition turned on.
+    */
+    ProcUtils::test_and_set_flag(!comm_ret);
     {% if func.ret != "void" -%}
     return ret;
     {%- else -%}

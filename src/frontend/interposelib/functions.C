@@ -13,6 +13,7 @@
 #include "log.h"
 #include "proc_utils.h"
 #include "message_util.h"
+#include "track_errno.h"
 
 /** Include the generated interposition functions */
 #include "gen_functions.C"

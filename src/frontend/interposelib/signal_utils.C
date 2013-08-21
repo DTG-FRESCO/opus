@@ -144,6 +144,7 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
         /* Obtain a lock */
         LockGuard guard(*sig_vec_lock);
 
+        errno = 0;
         ret = (*real_signal)(signum, signal_handler);
         if (ret == SIG_ERR) throw std::runtime_error(strerror(errno));
 
@@ -178,6 +179,7 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
         /* Obtain a lock */
         LockGuard guard(*sig_vec_lock);
 
+        errno = 0;
         ret = (*real_sigaction)(signum, sa, oldact);
         if (ret < 0) throw std::runtime_error(strerror(errno));
 
