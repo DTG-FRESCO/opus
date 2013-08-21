@@ -37,7 +37,8 @@ class Analyser(threading.Thread):
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
-        logging.debug("Shutting down thread....")
+        if __debug__:
+            logging.debug("Shutting down thread....")
         self.stop_event.set()
         try:
             self.join(common_utils.THREAD_JOIN_SLACK)
@@ -50,7 +51,8 @@ class Analyser(threading.Thread):
 
 def create_blank_marker():
     '''Create a blank message to be inserted as a break into the log.'''
-    logging.debug("Creating blank message.")
+    if __debug__:
+        logging.debug("Creating blank message.")
     if hasattr(create_blank_marker, "blank_msg"):
         return create_blank_marker.blank_msg
 
@@ -79,7 +81,8 @@ class LoggingAnalyser(Analyser):
         except IOError as (err, msg):
             logging.error("Error: %d, Message: %s", err, msg)
             raise common_utils.OPUSException("log file open error")
-        logging.debug("Opened file %s", self.logfile_path)
+        if __debug__:
+            logging.debug("Opened file %s", self.logfile_path)
 
         #Write a blank sentinal to the file.
         self.file_object.write(create_blank_marker())
@@ -116,25 +119,32 @@ class OrderingAnalyser(Analyser):
                 _, msg = self.event_orderer.pop()
                 self.process(msg)
             except Queue.Empty:
-                logging.debug("T:Queue cleared, clearing state tables.")
+                if __debug__:
+                    logging.debug("T:Queue cleared, clearing state tables.")
                 self.queue_cleared.set()
                 self.cleanup()
-                logging.debug("T:Preparing to wait for clear completion.")
+                if __debug__:
+                    logging.debug("T:Preparing to wait for clear completion.")
                 while self.queue_cleared.is_set():
                     time.sleep(0)
-                logging.debug("T:Clear completed.")
+                if __debug__:
+                    logging.debug("T:Clear completed.")
                 continue
 
     def do_shutdown(self):
         '''Clear the event orderer and then shutdown the processing thread.'''
-        logging.debug("M:Shutting down analyser.")
-        logging.debug("M:Starting queue flush.")
+        if __debug__:
+            logging.debug("M:Shutting down analyser.")
+            logging.debug("M:Starting queue flush.")
         self.event_orderer.start_clear()
-        logging.debug("M:Waiting for queue flush completion.")
+        if __debug__:
+            logging.debug("M:Waiting for queue flush completion.")
         self.queue_cleared.wait()
-        logging.debug("M:Stopping thread.")
+        if __debug__:
+            logging.debug("M:Stopping thread.")
         self.stop_event.set()
-        logging.debug("M:Completing flush.")
+        if __debug__:
+            logging.debug("M:Completing flush.")
         self.queue_cleared.clear()
         super(OrderingAnalyser, self).do_shutdown()
 
@@ -147,19 +157,25 @@ class OrderingAnalyser(Analyser):
             hdr_obj.ParseFromString(hdr)
 
             if hdr_obj.payload_type == 0:
-                logging.debug("M:Received blank message.")
-                logging.debug("M:Pushing remaining message chunk.")
-                logging.debug("M:Message chunk length:%d", len(msg_chunk))
+                if __debug__:
+                    logging.debug("M:Received blank message.")
+                    logging.debug("M:Pushing remaining message chunk.")
+                    logging.debug("M:Message chunk length:%d", len(msg_chunk))
                 self.event_orderer.push(msg_chunk)
-                logging.debug("M:Signalling queue clear.")
+                if __debug__:
+                    logging.debug("M:Signalling queue clear.")
                 self.event_orderer.start_clear()
-                logging.debug("M:Waiting for completion.")
+                if __debug__:
+                    logging.debug("M:Waiting for completion.")
                 self.queue_cleared.wait()
-                logging.debug("M:Stopping clear.")
+                if __debug__:
+                    logging.debug("M:Stopping clear.")
                 self.event_orderer.stop_clear()
-                logging.debug("M:Signalling clear completed.")
+                if __debug__:
+                    logging.debug("M:Signalling clear completed.")
                 self.queue_cleared.clear()
-                logging.debug("M:Queue cleared, continuing.")
+                if __debug__:
+                    logging.debug("M:Queue cleared, continuing.")
             else:
                 pay_obj = common_utils.get_payload_type(hdr_obj)
                 pay_obj.ParseFromString(pay)
