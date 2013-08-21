@@ -27,12 +27,12 @@ class TrackErrno
         }
 
         /**
-         * Option to update the class object
-         * with a new errno value.
+         * Updates the class object with a
+         * new errno value if it is not zero.
          */
         void operator=(const int err_val)
         {
-            saved_errno = err_val;
+            if (err_val != 0) saved_errno = err_val;
         }
 
         /**

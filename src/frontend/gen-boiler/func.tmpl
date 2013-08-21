@@ -22,7 +22,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         (*func_ptr)({{macros.fn_arg_call(func)}});
         {%- endif %}
 
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
 
         {% if func.ret != "void" -%}
         return ret;
@@ -47,7 +47,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {%- endif %}
     int errno_value = errno;
 
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 

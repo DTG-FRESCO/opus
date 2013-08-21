@@ -37,7 +37,7 @@
     {                                       \
         errno = 0;                          \
         int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-        if (errno != 0) err_obj = errno; \
+        err_obj = errno; \
         return ret; \
     } \
                                             \
@@ -75,7 +75,7 @@
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
     errno = 0; \
     int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-    if (errno != 0) err_obj = errno; \
+    err_obj = errno; \
     POST_EXEC_CALL(desc, arg1);
 
 /**
@@ -87,7 +87,7 @@
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
     errno = 0; \
     int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-    if (errno != 0) err_obj = errno; \
+    err_obj = errno; \
     /* If exec returns, it indicates an error. Free allocated memory */ \
     cleanup_allocated_memory(&env_vec); \
     POST_EXEC_CALL(desc, arg1);
@@ -561,7 +561,7 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     PRE_EXEC_CALL(FEXECVE_POINTER, "fexecve", "fexecve", fd, argv, &env_vec[0]);
     errno = 0;
     int ret = (*real_fptr)(fd, argv, &env_vec[0]);
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
     POST_EXEC_CALL("fexecve", std::to_string(fd));
 }
 
@@ -582,7 +582,7 @@ extern "C" pid_t fork(void)
     {
         errno = 0;
         pid_t pid = (*real_fork)();
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return pid;
     }
 
@@ -599,7 +599,7 @@ extern "C" pid_t fork(void)
 
     /* Parent process */
     int errno_value = errno;
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -629,13 +629,13 @@ extern "C" void* dlopen(const char * filename, int flag)
     {
         errno = 0;
         void *handle = (*real_dlopen)(filename, flag);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return handle;
     }
 
     bool comm_ret = true;
     void *handle = (*real_dlopen)(filename, flag);
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
 
     if (handle)
     {
@@ -676,7 +676,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     {
         errno = 0;
         sighandler_t ret = (*real_signal)(signum, real_handler);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return ret;
     }
 
@@ -688,7 +688,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     {
         errno = 0;
         sighandler_t ret = (*real_signal)(signum, real_handler);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         ProcUtils::test_and_set_flag(false);
         return ret;
     }
@@ -715,7 +715,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     }
     catch(const std::exception& e)
     {
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
@@ -746,7 +746,7 @@ extern "C" int sigaction(int signum,
     {
         errno = 0;
         int ret = (*real_sigaction)(signum, act, oldact);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return ret;
     }
 
@@ -758,7 +758,7 @@ extern "C" int sigaction(int signum,
     {
         errno = 0;
         int ret = (*real_sigaction)(signum, act, oldact);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         ProcUtils::test_and_set_flag(false);
         return ret;
     }
@@ -799,7 +799,7 @@ extern "C" int sigaction(int signum,
     }
     catch(const std::exception& e)
     {
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
@@ -942,7 +942,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
     {
         errno = 0;
         sighandler_t ret = (*real_sigset)(sig, disp);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return ret;
     }
 
@@ -956,7 +956,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
 
         errno = 0;
         sighandler_t ret = signal(sig, disp);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
 
         return ret;
     }
@@ -964,7 +964,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
     /* We do not deal with SIG_HOLD */
     errno = 0;
     sighandler_t ret = (*real_sigset)(sig, disp);
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -992,7 +992,7 @@ extern "C" int sigignore(int sig)
     {
         errno = 0;
         int ret = (*real_sigignore)(sig);
-        if (errno != 0) err_obj = errno;
+        err_obj = errno;
         return ret;
     }
 
@@ -1010,7 +1010,7 @@ extern "C" int sigignore(int sig)
     ProcUtils::test_and_set_flag(false);
     errno = 0;
     int ret = sigaction(sig, &act, NULL);
-    if (errno != 0) err_obj = errno;
+    err_obj = errno;
 
     return ret;
 }
