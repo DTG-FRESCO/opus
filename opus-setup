@@ -4,10 +4,9 @@ export PROJ_INCLUDE=$PROJ_HOME/include
 export PROTO_INC_PATH=/home/nb466/protocolBuffers/include
 export PROTO_LIB_PATH=/home/nb466/protocolBuffers/lib
 export OPUS_UDS_PATH=$PROJ_HOME/src/backend/demo_socket
-export PYTHONPATH=$PROJ_HOME/src/backend/
 export OPUS_LIB_NAME=opusinterpose
 export PYTHON=python2.7
 
 # Add the protobuf extension library to the python path
-export PYTHONPATH=$PROJ_HOME/lib/:$PYTHONPATH
+export PYTHONPATH=$PROJ_HOME/lib/:$PROJ_HOME/src/backend/:$PYTHONPATH
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
