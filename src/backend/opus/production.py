@@ -53,7 +53,8 @@ def mono_time_in_nanosecs():
 
 def create_close_conn_obj(sock_fd):
     '''Returns objects to mark a client connection close'''
-    logging.debug("Creating close message for %d", sock_fd.fileno())
+    if __debug__:
+        logging.debug("Creating close message for %d", sock_fd.fileno())
     pid, _, _ = get_credentials(sock_fd)
 
     gen_msg = uds_msg_pb2.GenericMessage()
@@ -133,7 +134,8 @@ class UDSCommunicationManager(CommunicationManager):
             return ret_list
 
         if not event_list:
-            logging.debug("epoll timed out")
+            if __debug__:
+                logging.debug("epoll timed out")
             return ret_list
 
         for fileno, event in event_list:
@@ -142,7 +144,8 @@ class UDSCommunicationManager(CommunicationManager):
             elif event & select.EPOLLIN:
                 self.__handle_client(self.input_client_map[fileno], ret_list)
             elif event & select.EPOLLHUP:
-                logging.debug("Got an EPOLLHUP event")
+                if __debug__:
+                    logging.debug("Got an EPOLLHUP event")
                 self.__handle_close_connection(self.input_client_map[fileno],
                                                 ret_list)
         return ret_list
@@ -152,12 +155,14 @@ class UDSCommunicationManager(CommunicationManager):
         status_code, header_buf, payload_buf = self.__read_data(sock_fd)
 
         if status_code == UDSCommunicationManager.StatusCode.success:
-            logging.debug("Got valid data")
+            if __debug__:
+                logging.debug("Got valid data")
             ret_list += [(header_buf, payload_buf)]
         elif status_code == UDSCommunicationManager.StatusCode.close_connection:
             self.__handle_close_connection(sock_fd, ret_list)
         elif status_code == UDSCommunicationManager.StatusCode.try_again_later:
-            logging.debug("Will try again later")
+            if __debug__:
+                logging.debug("Will try again later")
 
     def __handle_close_connection(self, sock_fd, ret_list):
         '''Handles close event or hang up event on the client socket'''
@@ -165,14 +170,16 @@ class UDSCommunicationManager(CommunicationManager):
         ret_list.append(tuple(create_close_conn_obj(sock_fd)))
         if sock_fd in self.input_client_map:
             del self.input_client_map[sock_fd.fileno()]
-        logging.debug('closing socket: %d', sock_fd.fileno())
+        if __debug__:
+            logging.debug('closing socket: %d', sock_fd.fileno())
         sock_fd.close()
 
     def __handle_new_connection(self):
         '''Accepts and adds the new connection to the fd list'''
         client_fd, _ = self.server_socket.accept()
         pid, uid, gid = get_credentials(client_fd)
-        logging.debug("Got a new connection from pid: %d, uid: %d, gid: %d",
+        if __debug__:
+            logging.debug("Got a new connection from pid: %d, uid: %d, gid: %d",
                         pid, uid, gid)
         client_fd.setblocking(0) # Make the socket non-blocking
         self.epoll.register(client_fd.fileno(),
@@ -217,7 +224,8 @@ class UDSCommunicationManager(CommunicationManager):
             return status_code, None, None
         header = uds_msg_pb2.Header()
         header.ParseFromString(hdr_buf)
-        logging.debug("Header: %s", header.__str__())
+        if __debug__:
+            logging.debug("Header: %s", header.__str__())
 
         # Find out the payload length and type
         payload_buf, status_code = self.__receive(sock_fd, header.payload_len)
@@ -225,7 +233,7 @@ class UDSCommunicationManager(CommunicationManager):
             return status_code, None, None
 
         # Deserialization only needed for debuggin during development
-        if logging.getLogger('').isEnabledFor(logging.DEBUG):
+        if __debug__:
             payload = common_utils.get_payload_type(header)
             payload.ParseFromString(payload_buf)
             logging.debug("Payload: %s", payload.__str__())
@@ -267,7 +275,8 @@ class Producer(threading.Thread):
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
-        logging.debug("Shutting down thread....")
+        if __debug__:
+            logging.debug("Shutting down thread....")
         self.stop_event.set()
         try:
             self.join(common_utils.THREAD_JOIN_SLACK)
@@ -296,9 +305,11 @@ class SocketProducer(Producer):
         while not self.stop_event.isSet():
             msg_list = self.comm_manager.do_poll()
             if not msg_list:
-                logging.debug("No message to be logged")
+                if __debug__:
+                    logging.debug("No message to be logged")
             else:
-                logging.debug("Calling put_msg on analyser")
+                if __debug__:
+                    logging.debug("Calling put_msg on analyser")
                 self._send_data_to_analyser(msg_list)
             check_mailbox()
         self.comm_manager.close()
