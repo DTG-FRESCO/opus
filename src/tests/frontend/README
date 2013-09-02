@@ -1,0 +1,12 @@
+To execute script, run the following command:
+    perl run_libc_tests.pl
+
+Test results will be logged in libc_reg_test.log.
+
+Points to note:
+--------------
+- Ensure the OPUS backend is running.
+- Ensure opus-setup is sourced for the current shell session.
+- The script will clean and rebuild the test program suite within the glibc build dir.
+- It will then execute each glibc test twice (with and without the OPUS library preloaded).
+- A test will be indicated as failed, if the exit code and signal differs between the two runs.

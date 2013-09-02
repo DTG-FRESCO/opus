@@ -7,3 +7,5 @@ export OPUS_UDS_PATH=$PROJ_HOME/src/backend/demo_socket
 export PYTHONPATH=$PROJ_HOME/src/backend/
 export OPUS_LIB_NAME=opusinterpose
 export PYTHON=python2.7
+export LIBC_SRC_PATH=/local/scratch/nik/glibc
+export LIBC_BUILD_PATH=/local/scratch/nik/build/glibc

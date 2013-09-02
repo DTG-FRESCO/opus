@@ -21,7 +21,7 @@ CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE) -I$(PROTO_INC_PATH)
 
 LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
-LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lssl -lcrypto -lpthread
+LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lcrypto -lpthread
 
 SRCS    :=  log.C \
             opus_lock.C \
