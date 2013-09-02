@@ -28,7 +28,7 @@
  */
 template <typename T>
 static int __open_internal(const char* pathname, int flags,
-                        std::string func_name, T real_open, mode_t mode)
+                        const std::string& func_name, T real_open, mode_t mode)
 {
     TrackErrno err_obj(errno);
 
@@ -58,18 +58,21 @@ static int __open_internal(const char* pathname, int flags,
     tmp_arg->set_key("pathname");
     if (pathname)
     {
-        std::string pathname_value(pathname);
-        ProcUtils::canonicalise_path(&pathname_value);
-        tmp_arg->set_value(pathname_value);
+        char pathname_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
     }
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("flags");
-    tmp_arg->set_value(std::to_string(flags));
+
+    char flags_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(flags, flags_buf));
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("mode");
-    tmp_arg->set_value(std::to_string(mode));
+
+    char mode_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(mode, mode_buf));
 
     set_func_info_msg(&func_msg, func_name, ret,
                         start_time, end_time, errno_value);
@@ -139,10 +142,8 @@ extern "C" int printf(const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "printf";
     FuncInfoMessage func_msg;
-
-    set_func_info_msg(&func_msg, func_name, ret,
+    set_func_info_msg(&func_msg, "printf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -187,10 +188,8 @@ extern "C" int scanf(const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "scanf";
     FuncInfoMessage func_msg;
-
-    set_func_info_msg(&func_msg, func_name, ret,
+    set_func_info_msg(&func_msg, "scanf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -237,16 +236,16 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "fprintf";
     FuncInfoMessage func_msg;
-
     KVPair* tmp_arg;
 
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    tmp_arg->set_value(std::to_string(stream_fd));
 
-    set_func_info_msg(&func_msg, func_name, ret,
+    char stream_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
+
+    set_func_info_msg(&func_msg, "fprintf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -293,15 +292,15 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "fscanf";
     FuncInfoMessage func_msg;
-
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    tmp_arg->set_value(std::to_string(stream_fd));
 
-    set_func_info_msg(&func_msg, func_name, ret,
+    char stream_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
+
+    set_func_info_msg(&func_msg, "fscanf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -348,10 +347,8 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "scanf";
     FuncInfoMessage func_msg;
-
-    set_func_info_msg(&func_msg, func_name, ret,
+    set_func_info_msg(&func_msg, "scanf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -402,15 +399,15 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    std::string func_name = "fscanf";
     FuncInfoMessage func_msg;
-
     KVPair* tmp_arg;
     tmp_arg = func_msg.add_args();
     tmp_arg->set_key("stream");
-    tmp_arg->set_value(std::to_string(stream_fd));
 
-    set_func_info_msg(&func_msg, func_name, ret,
+    char stream_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
+
+    set_func_info_msg(&func_msg, "fscanf", ret,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);

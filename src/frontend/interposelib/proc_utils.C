@@ -39,6 +39,9 @@ using std::vector;
 __thread bool ProcUtils::in_func_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
 
+/** process ID */
+pid_t ProcUtils::opus_pid = -1;
+
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
@@ -323,7 +326,7 @@ bool ProcUtils::serialise_and_send_data(const Header& header_obj,
             throw std::runtime_error("Failed to serialise header");
 
         /* Serialize the payload data and store it */
-        if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
+        if (!payload_obj.SerializeToArray(buf + hdr_size, pay_size))
             throw std::runtime_error("Failed to serialise payload");
 
         if (!comm_obj->send_data(buf, total_size))
@@ -600,11 +603,19 @@ pid_t ProcUtils::gettid()
 }
 
 /**
+ * Caches the pid supplied
+ */
+void ProcUtils::setpid(const pid_t pid)
+{
+    opus_pid = pid;
+}
+
+/**
  * Reads the process ID from /proc as in case
  * of vfork, the glibc getpid function returns
  * the incorrect pid.
  */
-pid_t ProcUtils::getpid()
+pid_t ProcUtils::__getpid()
 {
     pid_t pid = -1;
     char *proc_pid_path = NULL;
@@ -633,6 +644,14 @@ pid_t ProcUtils::getpid()
     if (proc_pid_path) free(proc_pid_path);
 
     return pid;
+}
+
+/**
+ * Returns the cached pid
+ */
+pid_t ProcUtils::getpid()
+{
+    return opus_pid;
 }
 
 /**
@@ -731,41 +750,47 @@ void ProcUtils::disconnect()
 /**
  * Canonicalises a given pathname
  */
-void ProcUtils::canonicalise_path(string* path)
+const char* ProcUtils::canonicalise_path(const char *path, char *actual_path)
 {
-    string pathname;
-
-    char* real_path = realpath(path->c_str(), NULL);
+    char *real_path = realpath(path, actual_path);
     if (!real_path)
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-        return;
+        return path;
     }
 
-    *path = real_path;
-    free(real_path);
+    return real_path;
 }
 
 /**
  * Finds the absolute path of a given path
  */
-void ProcUtils::abs_path(string* path)
+const char* ProcUtils::abs_path(const char *path, char *abs_path)
 {
-    string path_tail;
-    string path_head;
+    // strdupa uses alloca
+    char *dir = strdupa(path);
+    char *base = strdupa(path);
 
-    path_head = dirname(const_cast<char*>(path->c_str()));
-    path_tail = basename(const_cast<char*>(path->c_str()));
+    char *path_head = dirname(dir);
+    char *path_tail = basename(base);
 
-    char* real_path = realpath(path_head.c_str(), NULL);
+    char *real_path = realpath(path_head, abs_path);
     if (!real_path)
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-        return;
+        return path;
     }
 
-    *path = real_path;
-    path->append("/");
-    path->append(path_tail);
+    strcat(real_path, "/");
+    strcat(real_path, path_tail);
+
+    return real_path;
 }
 
+char* ProcUtils::opus_itoa(const int32_t val, char *str)
+{
+    if (snprintf(str, MAX_INT32_LEN, "%d", val) < 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+
+    return str;
+}

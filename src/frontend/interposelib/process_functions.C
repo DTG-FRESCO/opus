@@ -210,13 +210,12 @@ static void get_lib_real_path(void *handle, std::string* real_path)
  * Disconnects from the OPUS backend and
  * calls the real _exit or _Exit functions.
  */
-static inline void exit_program(const char *exit_str, const int status)
+static inline void exit_program(const std::string& exit_str, const int status)
 {
-    std::string func_name = exit_str;
     static _EXIT_POINTER exit_ptr = NULL;
 
     if (!exit_ptr)
-        exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(func_name);
+        exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(exit_str);
 
     if (ProcUtils::test_and_set_flag(true))
         (*exit_ptr)(status);
@@ -231,7 +230,7 @@ static inline void exit_program(const char *exit_str, const int status)
     uint64_t end_time = 0;  // function does not return
     int errno_value = 0;
 
-    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, exit_str, start_time, end_time, errno_value);
     set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::disconnect();
@@ -271,6 +270,9 @@ static void setup_new_uds_connection()
 
     try
     {
+        // Set the correct pid
+        ProcUtils::setpid(getpid());
+
         // Open a new connection
         if (!ProcUtils::connect())
             throw std::runtime_error("ProcUtils::connect failed!!");
@@ -570,13 +572,12 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
  */
 extern "C" pid_t fork(void)
 {
-    std::string func_name = "fork";
     static FORK_POINTER real_fork = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_fork)
-        real_fork = (FORK_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_fork = (FORK_POINTER)ProcUtils::get_sym_addr("fork");
 
     if (ProcUtils::test_and_set_flag(true))
     {
@@ -605,7 +606,7 @@ extern "C" pid_t fork(void)
 
     FuncInfoMessage func_msg;
 
-    set_func_info_msg(&func_msg, func_name, pid,
+    set_func_info_msg(&func_msg, "fork", pid,
                 start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
@@ -618,12 +619,11 @@ extern "C" pid_t fork(void)
  */
 extern "C" void* dlopen(const char * filename, int flag)
 {
-    std::string func_name = "dlopen";
     static DLOPEN_POINTER real_dlopen = NULL;
     TrackErrno err_obj(errno);
 
     if (!real_dlopen)
-        real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr("dlopen");
 
     if (ProcUtils::test_and_set_flag(true))
     {
@@ -663,13 +663,12 @@ extern "C" void* dlopen(const char * filename, int flag)
  */
 extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
-    std::string func_name = "signal";
     static SIGNAL_POINTER real_signal = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_signal)
-        real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr("signal");
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
@@ -733,13 +732,12 @@ extern "C" int sigaction(int signum,
                         const struct sigaction *act,
                         struct sigaction *oldact)
 {
-    std::string func_name = "sigaction";
     static SIGACTION_POINTER real_sigaction = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigaction)
-        real_sigaction = (SIGACTION_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_sigaction = (SIGACTION_POINTER)ProcUtils::get_sym_addr("sigaction");
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
@@ -831,7 +829,6 @@ extern "C" void _Exit(int status)
 extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                             PTHREAD_HANDLER real_handler, void *real_args)
 {
-    std::string func_name = "pthread_create";
     static PTHREAD_CREATE_POINTER real_pthread_create = NULL;
     TrackErrno err_obj(errno);
 
@@ -839,7 +836,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     if (!real_pthread_create)
     {
         real_pthread_create =
-                (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr(func_name);
+                (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr("pthread_create");
     }
 
     if (ProcUtils::test_and_set_flag(true))
@@ -871,7 +868,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, func_name, ret, start_time,
+    set_func_info_msg(&func_msg, "pthread_create", ret, start_time,
                         end_time, errno_value);
 
     if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
@@ -886,7 +883,6 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
  */
 extern "C" void pthread_exit(void *retval)
 {
-    std::string func_name = "pthread_exit";
     static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
     TrackErrno err_obj(errno);
 
@@ -894,7 +890,7 @@ extern "C" void pthread_exit(void *retval)
     if (!real_pthread_exit)
     {
         real_pthread_exit =
-            (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr(func_name);
+            (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr("pthread_exit");
     }
 
     if (ProcUtils::test_and_set_flag(true))
@@ -906,7 +902,7 @@ extern "C" void pthread_exit(void *retval)
     uint64_t end_time = 0;
     int errno_value = 0;
 
-    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, "pthread_exit", start_time, end_time, errno_value);
     set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
 
     if (ProcUtils::getpid() != ProcUtils::gettid())
@@ -929,13 +925,12 @@ extern "C" void pthread_exit(void *retval)
  */
 extern "C" sighandler_t sigset(int sig, sighandler_t disp)
 {
-    std::string func_name = "sigset";
     static SIGSET_POINTER real_sigset = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigset)
-        real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr("sigset");
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))
@@ -979,13 +974,12 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
  */
 extern "C" int sigignore(int sig)
 {
-    std::string func_name = "sigignore";
     static SIGIGNORE_POINTER real_sigignore = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
     if (!real_sigignore)
-        real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr(func_name);
+        real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr("sigignore");
 
     /* We are within our own library */
     if (ProcUtils::test_and_set_flag(true))

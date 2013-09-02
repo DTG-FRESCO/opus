@@ -4,13 +4,12 @@
 {% for func in fn_list if 'nogen' not in func.flags -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 {
-    std::string func_name = "{{func.name}}";
     static {{func.name|upper}}_POINTER func_ptr = NULL;
 
     TrackErrno err_obj(errno);
 
     if (!func_ptr)
-        func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr(func_name));
+        func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr("{{func.name}}"));
 
     if (ProcUtils::test_and_set_flag(true))
     {
@@ -60,33 +59,37 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% if arg.type == "char *" or arg.type == "const char *" -%}
     if ({{arg.name}})
     {
-        std::string {{arg.name}}_value({{arg.name}});
-        {%- if 'can' in arg.flags -%}
-        ProcUtils::canonicalise_path(&{{arg.name}}_value);
-        {%- elif 'abs' in arg.flags -%}
-        ProcUtils::abs_path(&{{arg.name}}_value);
-        {%- endif -%}
-        tmp_arg->set_value({{arg.name}}_value);
+        {% if 'can' in arg.flags %}
+        char {{arg.name}}_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::canonicalise_path({{arg.name}}, {{arg.name}}_buf));
+        {% elif 'abs' in arg.flags %}
+        char {{arg.name}}_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::abs_path({{arg.name}}, {{arg.name}}_buf));
+        {% else %}
+        tmp_arg->set_value({{arg.name}});
+        {% endif %}
     }
     {%- elif arg.type == "FILE *" -%}
-    tmp_arg->set_value(std::to_string({{arg.name}}_fd));
+    char {{arg.name}}_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}_fd, {{arg.name}}_fd_buf));
     {%- elif arg.type == "uid_t" -%}
     tmp_arg->set_value(ProcUtils::get_user_name({{arg.name}}));
     {%- elif arg.type == "gid_t" -%}
     tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
     {%- else -%}
-    tmp_arg->set_value(std::to_string({{arg.name}}));
+    char {{arg.name}}_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}, {{arg.name}}_buf));
     {%- endif -%}
     {%- endfor %}
 
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
-    set_func_info_msg(&func_msg, func_name, ret_val, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, "{{func.name}}", ret_val, start_time, end_time, errno_value);
     {%- elif func.ret != "char *" and func.ret != "void" -%}
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, "{{func.name}}", ret, start_time, end_time, errno_value);
     {%- else -%}
-    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_func_info_msg(&func_msg, "{{func.name}}", start_time, end_time, errno_value);
     {%- endif %}
 
     bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);

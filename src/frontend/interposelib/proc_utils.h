@@ -9,6 +9,8 @@
 #include "opus_lock.h"
 #include "uds_client.h"
 
+#define MAX_INT32_LEN   16
+
 /**
  * A utility class that encapsulates common
  * process functions used by the library
@@ -40,6 +42,8 @@ class ProcUtils
                                 std::string* md5_sum);
         static pid_t gettid();
         static pid_t getpid();
+        static pid_t __getpid(); // Used internally
+        static void setpid(const pid_t pid);
 
         /* libc function map related functions */
         static void* get_sym_addr(const std::string& symbol);
@@ -49,12 +53,17 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
-        static void canonicalise_path(std::string* path);
-        static void abs_path(std::string* path);
+        static const char* canonicalise_path(const char *path,
+                                            char *actual_path);
+        static const char* abs_path(const char *path, char *abs_path);
+
+        /* Converts an integer to a string */
+        static char* opus_itoa(const int32_t val, char *str);
 
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;
+        static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
 };
 
