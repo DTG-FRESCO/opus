@@ -1,7 +1,8 @@
 MF=Makefile
 
 SUBDIRS :=	protobuf \
-			frontend \
-			utils
+		frontend \
+                backend \
+		utils
 
 include $(PROJ_HOME)/Maketmpl/dir.mk
