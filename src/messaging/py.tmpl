@@ -1,0 +1,37 @@
+# -*- coding: utf-8 -*-
+'''
+'''
+from __future__ import (unicode_literals, print_function,
+                        absolute_import, division)
+
+
+import struct
+
+class Message:
+    def loads(self, st):
+        data = struct.unpack(self.struct_string, st)
+        self.tuple_to_self(data)
+
+    def dumps(self):
+        data = self.self_to_tuple()
+        return struct.pack(self.struct_string, *data)
+
+    def __str__(self):
+    	print(self.self_to_tuple())
+
+{% for msg in msgs %}
+class {{msg.name}}(Message):
+    struct_string = str("{{msg|struct_string}}")
+    length = struct.calcsize(struct_string)
+
+    def __init__(self):{% for field in msg.fields %}
+        {{"self."~field.name~" = None"}}{% endfor %} 
+
+    def tuple_to_self(self, tu):
+        ({% for field in msg.fields %}{{"self."~field.name}}{% if not loop.last %},
+         {% endif %}{% endfor %}) = tu
+
+    def self_to_tuple(self):
+        return ({% for field in msg.fields %}{{"self."~field.name}}{% if not loop.last %},
+                {% endif %}{% endfor %})
+{% endfor %}

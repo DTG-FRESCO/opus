@@ -1,0 +1,16 @@
+- name: Header
+  fields:
+    - name: timestamp
+      type: uint64_t
+
+    - name: pid
+      type: uint64_t
+
+    - name: payload_type
+      type: uint64_t
+
+    - name: payload_len
+      type: uint64_t
+
+    - name: tid
+      type: uint64_t

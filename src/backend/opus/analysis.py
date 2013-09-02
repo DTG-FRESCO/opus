@@ -16,7 +16,7 @@ import time
 import opuspb
 
 
-from opus import common_utils, storage, order
+from opus import common_utils, storage, order, messaging
 from opus import uds_msg_pb2 as uds_msg
 from opus.pvm import posix
 
@@ -57,14 +57,14 @@ def create_blank_marker():
     if hasattr(create_blank_marker, "blank_msg"):
         return create_blank_marker.blank_msg
 
-    header = uds_msg.Header()
+    header = messaging.Header()
     header.timestamp = 0
     header.pid = 0
     header.tid = 0
     header.payload_type = uds_msg.BLANK_MSG
     header.payload_len = 0
 
-    create_blank_marker.blank_msg = header.SerializeToString()
+    create_blank_marker.blank_msg = header.dumps()
 
     return create_blank_marker.blank_msg
 
@@ -154,8 +154,8 @@ class OrderingAnalyser(Analyser):
         blank markers are found.'''
         msg_chunk = []
         for hdr, pay in msg_list:
-            hdr_obj = uds_msg.Header()
-            hdr_obj.ParseFromString(hdr)
+            hdr_obj = messaging.Header()
+            hdr_obj.loads(hdr)
 
             if hdr_obj.payload_type == 0:
                 if __debug__:
