@@ -50,11 +50,25 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 
     uint64_t end_time = ProcUtils::get_time();
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    /*
+      Keep interposition turned off
+      if object is not allocated
+    */
+    if (!func_msg)
+    {
+        {% if func.ret != "void" -%}
+        return ret;
+        {%- else -%}
+        return;
+        {%- endif %}
+    }
 
     {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
     {% for arg in func.args if 'read' in arg.flags %}
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("{{arg.name}}");
     {% if arg.type == "char *" or arg.type == "const char *" -%}
     if ({{arg.name}})
@@ -85,20 +99,21 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
-    set_func_info_msg(&func_msg, "{{func.name}}", ret_val, start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", ret_val, start_time, end_time, errno_value);
     {%- elif func.ret != "char *" and func.ret != "void" -%}
-    set_func_info_msg(&func_msg, "{{func.name}}", ret, start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", ret, start_time, end_time, errno_value);
     {%- else -%}
-    set_func_info_msg(&func_msg, "{{func.name}}", start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", start_time, end_time, errno_value);
     {%- endif %}
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
     /*
         If the message is successfully sent
         we keep interposition turned on.
     */
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
     {% if func.ret != "void" -%}
     return ret;
     {%- else -%}

@@ -60,11 +60,20 @@ class ProcUtils
         /* Converts an integer to a string */
         static char* opus_itoa(const int32_t val, char *str);
 
+        /* Access function for TLS protobuf message objects */
+        static ::google::protobuf::Message* get_proto_msg(
+                        const ::fresco::opus::IPCMessage::PayloadType msg_type);
+        static void clear_proto_objects();
+
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
+
+        /* Thread local cached message objects */
+        static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;
+        static __thread ::fresco::opus::IPCMessage::GenericMessage *gen_msg_obj;
 };
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_

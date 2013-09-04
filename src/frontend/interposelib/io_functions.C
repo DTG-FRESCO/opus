@@ -28,7 +28,7 @@
  */
 template <typename T>
 static int __open_internal(const char* pathname, int flags,
-                        const std::string& func_name, T real_open, mode_t mode)
+                        const char *func_name, T real_open, mode_t mode)
 {
     TrackErrno err_obj(errno);
 
@@ -52,9 +52,14 @@ static int __open_internal(const char* pathname, int flags,
     err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
     KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("pathname");
     if (pathname)
     {
@@ -62,23 +67,25 @@ static int __open_internal(const char* pathname, int flags,
         tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
     }
 
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("flags");
 
     char flags_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(flags, flags_buf));
 
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("mode");
 
     char mode_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(mode, mode_buf));
 
-    set_func_info_msg(&func_msg, func_name, ret,
+    set_func_info_msg(func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -142,13 +149,20 @@ extern "C" int printf(const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, "printf", ret,
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    set_func_info_msg(func_msg, "printf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -188,12 +202,19 @@ extern "C" int scanf(const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, "scanf", ret,
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    set_func_info_msg(func_msg, "scanf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -236,20 +257,26 @@ extern "C" int fprintf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
-    KVPair* tmp_arg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
 
-    tmp_arg = func_msg.add_args();
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    KVPair* tmp_arg;
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("stream");
 
     char stream_fd_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
 
-    set_func_info_msg(&func_msg, "fprintf", ret,
+    set_func_info_msg(func_msg, "fprintf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -292,19 +319,26 @@ extern "C" int fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
     KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("stream");
 
     char stream_fd_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
 
-    set_func_info_msg(&func_msg, "fscanf", ret,
+    set_func_info_msg(func_msg, "fscanf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -347,12 +381,19 @@ extern "C" int __isoc99_scanf(const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, "scanf", ret,
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    set_func_info_msg(func_msg, "scanf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 
@@ -399,18 +440,25 @@ extern "C" int __isoc99_fscanf(FILE *stream, const char *format, ...)
 
     va_end(args);
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
     KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("stream");
 
     char stream_fd_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(stream_fd, stream_fd_buf));
 
-    set_func_info_msg(&func_msg, "fscanf", ret,
+    set_func_info_msg(func_msg, "fscanf", ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }

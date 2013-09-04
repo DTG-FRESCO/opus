@@ -38,6 +38,8 @@ using std::vector;
 /** Thread local storage */
 __thread bool ProcUtils::in_func_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
+__thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
+__thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
 
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
@@ -311,7 +313,7 @@ bool ProcUtils::serialise_and_send_data(const Header& header_obj,
         return ret;
     }
 
-    char* buf = NULL;
+    char *buf = NULL;
 
     int hdr_size = header_obj.ByteSize();
     int pay_size = payload_obj.ByteSize();
@@ -339,8 +341,7 @@ bool ProcUtils::serialise_and_send_data(const Header& header_obj,
         ret = false;
     }
 
-    if (buf) delete buf;
-
+    delete[] buf;
     return ret;
 }
 
@@ -418,7 +419,7 @@ const string ProcUtils::get_user_name(const uid_t user_id)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
-    if (buf) delete buf;
+    delete[] buf;
     return user_name_str;
 }
 
@@ -454,7 +455,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
-    if (buf) delete buf;
+    delete[] buf;
     return group_name_str;
 }
 
@@ -787,10 +788,52 @@ const char* ProcUtils::abs_path(const char *path, char *abs_path)
     return real_path;
 }
 
+/**
+ * Converts a 32-bit signed integer to string
+ */
 char* ProcUtils::opus_itoa(const int32_t val, char *str)
 {
     if (snprintf(str, MAX_INT32_LEN, "%d", val) < 0)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
 
     return str;
+}
+
+
+/**
+ * Returns a protobuf object when passed an obj type
+ */
+Message* ProcUtils::get_proto_msg(const PayloadType msg_type)
+{
+    try
+    {
+        switch (msg_type)
+        {
+            case PayloadType::FUNCINFO_MSG:
+                if (!func_msg_obj) func_msg_obj = new FuncInfoMessage();
+                return func_msg_obj;
+
+            case PayloadType::GENERIC_MSG:
+                if (!gen_msg_obj) gen_msg_obj = new GenericMessage();
+                return gen_msg_obj;
+
+            default:
+                throw std::runtime_error("ERROR!! Invalid message type");
+        }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return NULL;
+}
+
+/**
+ * Clears TLS protobuf objects
+ */
+void ProcUtils::clear_proto_objects()
+{
+    if (func_msg_obj) func_msg_obj->Clear();
+    if (gen_msg_obj) gen_msg_obj->Clear();
 }

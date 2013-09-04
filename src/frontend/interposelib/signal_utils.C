@@ -32,8 +32,13 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     sigset_t old_set; \
     SignalUtils::block_all_signals(&old_set); \
                                               \
-    send_generic_msg(GenMsgType::SIGNAL, std::to_string(sig));\
-                                                            \
+    char sig_buf[MAX_INT32_LEN] = "";         \
+                                              \
+    /* Allocate obj on stack as signals can occur asynchronously */ \
+    GenericMessage gen_msg;                     \
+    send_generic_msg(GenMsgType::SIGNAL,\
+           ProcUtils::opus_itoa(sig, sig_buf), &gen_msg);\
+                                                         \
     void *real_handler = NULL; \
     if ((real_handler = get_real_handler(sig)) != NULL)\
     {\

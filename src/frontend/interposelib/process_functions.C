@@ -55,16 +55,20 @@
     uint64_t end_time = ProcUtils::get_time(); \
     int errno_value = errno; \
                                 \
-    FuncInfoMessage func_msg; \
-    set_func_info_msg(&func_msg, desc, ret, start_time, end_time, errno_value); \
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>( \
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG)); \
+    if (!func_msg) return ret; \
+                    \
+    set_func_info_msg(func_msg, desc, ret, start_time, end_time, errno_value); \
                         \
     KVPair* arg_kv; \
-    arg_kv = func_msg.add_args(); \
+    arg_kv = func_msg->add_args(); \
     arg_kv->set_key(STRINGIFY(arg1)); \
     arg_kv->set_value(arg1_val); \
                             \
-    comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG); \
+    comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG); \
     ProcUtils::test_and_set_flag(!comm_ret); \
+    func_msg->Clear(); \
     return ret;
 
 /**
@@ -115,8 +119,9 @@ static void opus_thread_cleanup_handler(void *cleanup_args)
 {
     ProcUtils::test_and_set_flag(true);
 
+    char tid_buf[MAX_INT32_LEN] = "";
     send_generic_msg(GenMsgType::THREAD_EXIT,
-                std::to_string(ProcUtils::gettid()));
+                    ProcUtils::opus_itoa(ProcUtils::gettid(), tid_buf));
 
     ProcUtils::disconnect();
 }
@@ -155,8 +160,9 @@ static void* opus_thread_start_routine(void *args)
         if (!ProcUtils::connect())
             throw std::runtime_error("ProcUtils::connect failed!!");
 
+        char tid_buf[MAX_INT32_LEN] = "";
         if (send_generic_msg(GenMsgType::THREAD_START,
-                    std::to_string(ProcUtils::gettid())))
+            ProcUtils::opus_itoa(ProcUtils::gettid(), tid_buf)))
         {
             ProcUtils::test_and_set_flag(false); // Turn on interposition
         }
@@ -210,7 +216,7 @@ static void get_lib_real_path(void *handle, std::string* real_path)
  * Disconnects from the OPUS backend and
  * calls the real _exit or _Exit functions.
  */
-static inline void exit_program(const std::string& exit_str, const int status)
+static inline void exit_program(const char *exit_str, const int status)
 {
     static _EXIT_POINTER exit_ptr = NULL;
 
@@ -220,18 +226,25 @@ static inline void exit_program(const std::string& exit_str, const int status)
     if (ProcUtils::test_and_set_flag(true))
         (*exit_ptr)(status);
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return;
+
     KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("status");
-    tmp_arg->set_value(std::to_string(status));
+
+    char status_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(status, status_buf));
 
     uint64_t start_time = ProcUtils::get_time();
     uint64_t end_time = 0;  // function does not return
     int errno_value = 0;
 
-    set_func_info_msg(&func_msg, exit_str, start_time, end_time, errno_value);
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    set_func_info_msg(func_msg, exit_str, start_time, end_time, errno_value);
+    set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
     ProcUtils::disconnect();
 
@@ -239,6 +252,7 @@ static inline void exit_program(const std::string& exit_str, const int status)
 
     // Will never reach here
     ProcUtils::test_and_set_flag(false);
+    func_msg->Clear();
 }
 
 /**
@@ -267,6 +281,7 @@ static void setup_new_uds_connection()
     SignalUtils::reset();
 #endif
     ProcUtils::disconnect(); // Close inherited connection
+    ProcUtils::clear_proto_objects(); // Clear inherited protobug objects
 
     try
     {
@@ -564,7 +579,8 @@ extern "C" int fexecve(int fd, char *const argv[], char *const envp[])
     errno = 0;
     int ret = (*real_fptr)(fd, argv, &env_vec[0]);
     err_obj = errno;
-    POST_EXEC_CALL("fexecve", std::to_string(fd));
+    char fd_buf[MAX_INT32_LEN] = "";
+    POST_EXEC_CALL("fexecve", ProcUtils::opus_itoa(fd, fd_buf));
 }
 
 /**
@@ -604,13 +620,19 @@ extern "C" pid_t fork(void)
 
     uint64_t end_time = ProcUtils::get_time();
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
 
-    set_func_info_msg(&func_msg, "fork", pid,
+    // Keep interposition turned off
+    if (!func_msg) return pid;
+
+    set_func_info_msg(func_msg, "fork", pid,
                 start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return pid;
 }
 
@@ -867,14 +889,19 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     uint64_t end_time = ProcUtils::get_time();
 
-    FuncInfoMessage func_msg;
-    set_func_info_msg(&func_msg, "pthread_create", ret, start_time,
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    set_func_info_msg(func_msg, "pthread_create", ret, start_time,
                         end_time, errno_value);
 
-    if (!set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG))
-        return ret;
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
 
-    ProcUtils::test_and_set_flag(false);
     return ret;
 }
 
@@ -896,14 +923,19 @@ extern "C" void pthread_exit(void *retval)
     if (ProcUtils::test_and_set_flag(true))
         (*real_pthread_exit)(retval);
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return;
 
     uint64_t start_time = ProcUtils::get_time();
     uint64_t end_time = 0;
     int errno_value = 0;
 
-    set_func_info_msg(&func_msg, "pthread_exit", start_time, end_time, errno_value);
-    set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    set_func_info_msg(func_msg, "pthread_exit", start_time, end_time, errno_value);
+    set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+    func_msg->Clear();
 
     if (ProcUtils::getpid() != ProcUtils::gettid())
     {
