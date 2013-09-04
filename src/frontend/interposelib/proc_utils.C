@@ -790,7 +790,7 @@ const string ProcUtils::get_error(const int err_num)
     {
         DEBUG_LOG("[%s:%d]: strerror_r error: %d\n",
                     __FILE__, __LINE__, errno);
-        return string("");
+        return "";
     }
 
     return err_str;
