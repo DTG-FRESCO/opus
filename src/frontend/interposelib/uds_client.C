@@ -9,6 +9,7 @@
 #include <string>
 #include <stdexcept>
 #include "log.h"
+#include "proc_utils.h"
 #include "uds_client.h"
 #include "uds_comm_exception.h"
 
@@ -53,7 +54,8 @@ bool UDSCommClient::connect(const std::string& path)
                 DEBUG_LOG("[%s:%d]: socket interrupted\n", __FILE__, __LINE__);
                 continue;
             }
-            else throw UDSCommException(__FILE__, __LINE__, strerror(errno));
+            else throw UDSCommException(__FILE__, __LINE__,
+                        ProcUtils::get_error(errno));
         }
 
         memset(&address, 0, sizeof(struct sockaddr_un));
@@ -70,7 +72,8 @@ bool UDSCommClient::connect(const std::string& path)
                 continue;
             }
             else if (errno == EINPROGRESS) break;
-            else throw UDSCommException(__FILE__, __LINE__, strerror(errno));
+            else throw UDSCommException(__FILE__, __LINE__,
+                            ProcUtils::get_error(errno));
         }
     }
     catch(const UDSCommException& e)
@@ -126,7 +129,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
                     continue;
                 }
                 else throw UDSCommException(__FILE__, __LINE__,
-                                strerror(errno));
+                                    ProcUtils::get_error(errno));
             }
 
             DEBUG_LOG("[%s:%d]: Wrote %ld bytes to socket\n",
@@ -178,7 +181,8 @@ void UDSCommClient::close_connection()
                 DEBUG_LOG("[%s:%d]: close interrupted\n", __FILE__, __LINE__);
                 continue;
             }
-            else throw UDSCommException(__FILE__, __LINE__, strerror(errno));
+            else throw UDSCommException(__FILE__, __LINE__,
+                            ProcUtils::get_error(errno));
         }
     }
     catch(const UDSCommException& e)
