@@ -783,7 +783,6 @@ void ProcUtils::abs_path(string* path)
  */
 const string ProcUtils::get_error(const int err_num)
 {
-    string err_msg;
     char err_buf[256] = "";
 
     char *err_str = strerror_r(err_num, err_buf, sizeof(err_buf));
@@ -791,10 +790,9 @@ const string ProcUtils::get_error(const int err_num)
     {
         DEBUG_LOG("[%s:%d]: strerror_r error: %d\n",
                     __FILE__, __LINE__, errno);
-        return err_msg;
+        return string("");
     }
 
-    err_msg = err_str;
-    return err_msg;
+    return err_str;
 }
 

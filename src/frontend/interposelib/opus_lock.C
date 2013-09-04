@@ -51,8 +51,15 @@ void SimpleLock::destroy_lock()
     int err = 0;
 
     if ((err = pthread_mutex_destroy(&simple_lock)) != 0)
+    {
+        /*
+          Only inherited locks are destroyed and if
+          this fails, we cannot do much apart from
+          reallocating a new lock object.
+        */
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
+    }
 }
 
 /**
@@ -120,8 +127,15 @@ void ConditionLock::destroy_lock()
     int err = 0;
 
     if ((err = pthread_cond_destroy(&cond)) != 0)
+    {
+        /*
+          Only inherited locks are destroyed and if
+          this fails, we cannot do much apart from
+          reallocating a new lock object.
+        */
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
+    }
 }
 
 /**
@@ -208,6 +222,13 @@ void ReadWriteLock::destroy_lock()
     int err = 0;
 
     if ((err = pthread_rwlock_destroy(&rwlock)) != 0)
+    {
+        /*
+          Only inherited locks are destroyed and if
+          this fails, we cannot do much apart from
+          reallocating a new lock object.
+        */
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
+    }
 }
