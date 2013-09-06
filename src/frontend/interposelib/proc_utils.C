@@ -40,6 +40,8 @@ __thread bool ProcUtils::in_func_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
 __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
+__thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
+__thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
 
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
@@ -810,10 +812,16 @@ Message* ProcUtils::get_proto_msg(const PayloadType msg_type)
         switch (msg_type)
         {
             case PayloadType::FUNCINFO_MSG:
+
+                if (__alt_func_msg_ptr) return __alt_func_msg_ptr;
+
                 if (!func_msg_obj) func_msg_obj = new FuncInfoMessage();
                 return func_msg_obj;
 
             case PayloadType::GENERIC_MSG:
+
+                if (__alt_gen_msg_ptr) return __alt_gen_msg_ptr;
+
                 if (!gen_msg_obj) gen_msg_obj = new GenericMessage();
                 return gen_msg_obj;
 
@@ -836,4 +844,23 @@ void ProcUtils::clear_proto_objects()
 {
     if (func_msg_obj) func_msg_obj->Clear();
     if (gen_msg_obj) gen_msg_obj->Clear();
+}
+
+/**
+ * Store alternate protobuf message location
+ */
+void ProcUtils::use_alt_proto_msg(FuncInfoMessage *__func_obj,
+                                    GenericMessage *__gen_obj)
+{
+    __alt_func_msg_ptr = __func_obj;
+    __alt_gen_msg_ptr = __gen_obj;
+}
+
+/**
+ * NULLs TLS pointers to alternate protobuf objects
+ */
+void ProcUtils::restore_proto_tls()
+{
+    __alt_func_msg_ptr = NULL;
+    __alt_gen_msg_ptr = NULL;
 }

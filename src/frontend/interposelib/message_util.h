@@ -31,21 +31,6 @@ namespace
         return ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }
 
-    /* Uses the passed protobuf object instead of TLS */
-    inline bool send_generic_msg(const GenMsgType gen_msg_type,
-                                const std::string& desc,
-                                GenericMessage *gen_msg)
-    {
-        gen_msg->set_msg_type(gen_msg_type);
-        gen_msg->set_msg_desc(desc);
-
-        std::string date_time;
-        ProcUtils::get_formatted_time(&date_time);
-        gen_msg->set_sys_time(date_time);
-
-        return set_header_and_send(*gen_msg, PayloadType::GENERIC_MSG);
-    }
-
     inline bool send_generic_msg(const GenMsgType gen_msg_type,
                                 const char *desc)
     {

@@ -64,6 +64,10 @@ class ProcUtils
         static ::google::protobuf::Message* get_proto_msg(
                         const ::fresco::opus::IPCMessage::PayloadType msg_type);
         static void clear_proto_objects();
+        static void use_alt_proto_msg(::fresco::opus::IPCMessage::FuncInfoMessage *__func_obj,
+                                        ::fresco::opus::IPCMessage::GenericMessage *__gen_obj);
+        static void restore_proto_tls();
+
 
     private:
         static __thread bool in_func_flag;
@@ -74,6 +78,10 @@ class ProcUtils
         /* Thread local cached message objects */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;
         static __thread ::fresco::opus::IPCMessage::GenericMessage *gen_msg_obj;
+
+        /* TLS pointing to objects on the stack */
+        static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *__alt_func_msg_ptr;
+        static __thread ::fresco::opus::IPCMessage::GenericMessage *__alt_gen_msg_ptr;
 };
 
 #endif  // SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
