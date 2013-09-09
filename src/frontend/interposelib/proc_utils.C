@@ -39,6 +39,13 @@ using std::vector;
 /** Thread local storage */
 __thread bool ProcUtils::in_func_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
+__thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
+__thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
+__thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
+__thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
+
+/** process ID */
+pid_t ProcUtils::opus_pid = -1;
 
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
@@ -313,7 +320,7 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
         return ret;
     }
 
-    char* buf = NULL;
+    char *buf = NULL;
 
     int hdr_size = sizeof(header_obj);
     int pay_size = payload_obj.ByteSize();
@@ -328,7 +335,7 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
             throw std::runtime_error("Failed to serialise header");
 
         /* Serialize the payload data and store it */
-        if (!payload_obj.SerializeToArray(buf+hdr_size, pay_size))
+        if (!payload_obj.SerializeToArray(buf + hdr_size, pay_size))
             throw std::runtime_error("Failed to serialise payload");
 
         if (!comm_obj->send_data(buf, total_size))
@@ -341,8 +348,7 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
         ret = false;
     }
 
-    if (buf) delete buf;
-
+    delete[] buf;
     return ret;
 }
 
@@ -420,7 +426,7 @@ const string ProcUtils::get_user_name(const uid_t user_id)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
-    if (buf) delete buf;
+    delete[] buf;
     return user_name_str;
 }
 
@@ -456,7 +462,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
-    if (buf) delete buf;
+    delete[] buf;
     return group_name_str;
 }
 
@@ -606,11 +612,19 @@ pid_t ProcUtils::gettid()
 }
 
 /**
+ * Caches the pid supplied
+ */
+void ProcUtils::setpid(const pid_t pid)
+{
+    opus_pid = pid;
+}
+
+/**
  * Reads the process ID from /proc as in case
  * of vfork, the glibc getpid function returns
  * the incorrect pid.
  */
-pid_t ProcUtils::getpid()
+pid_t ProcUtils::__getpid()
 {
     pid_t pid = -1;
     char *proc_pid_path = NULL;
@@ -639,6 +653,14 @@ pid_t ProcUtils::getpid()
     if (proc_pid_path) free(proc_pid_path);
 
     return pid;
+}
+
+/**
+ * Returns the cached pid
+ */
+pid_t ProcUtils::getpid()
+{
+    return opus_pid;
 }
 
 /**
@@ -737,44 +759,97 @@ void ProcUtils::disconnect()
 /**
  * Canonicalises a given pathname
  */
-void ProcUtils::canonicalise_path(string* path)
+const char* ProcUtils::canonicalise_path(const char *path, char *actual_path)
 {
-    string pathname;
-
-    char* real_path = realpath(path->c_str(), NULL);
+    char *real_path = realpath(path, actual_path);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
-        return;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return path;
     }
 
-    *path = real_path;
-    free(real_path);
+    return real_path;
 }
 
 /**
  * Finds the absolute path of a given path
  */
-void ProcUtils::abs_path(string* path)
+const char* ProcUtils::abs_path(const char *path, char *abs_path)
 {
-    string path_tail;
-    string path_head;
+    // strdupa uses alloca
+    char *dir = strdupa(path);
+    char *base = strdupa(path);
 
-    path_head = dirname(const_cast<char*>(path->c_str()));
-    path_tail = basename(const_cast<char*>(path->c_str()));
+    char *path_head = dirname(dir);
+    char *path_tail = basename(base);
 
-    char* real_path = realpath(path_head.c_str(), NULL);
+    char *real_path = realpath(path_head, abs_path);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
-        return;
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        return path;
     }
 
-    *path = real_path;
-    path->append("/");
-    path->append(path_tail);
+    strcat(real_path, "/");
+    strcat(real_path, path_tail);
+
+    return real_path;
+}
+
+/**
+ * Converts a 32-bit signed integer to string
+ */
+char* ProcUtils::opus_itoa(const int32_t val, char *str)
+{
+    if (snprintf(str, MAX_INT32_LEN, "%d", val) < 0)
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+
+    return str;
+}
+
+
+/**
+ * Returns a protobuf object when passed an obj type
+ */
+Message* ProcUtils::get_proto_msg(const PayloadType msg_type)
+{
+    try
+    {
+        switch (msg_type)
+        {
+            case PayloadType::FUNCINFO_MSG:
+
+                if (__alt_func_msg_ptr) return __alt_func_msg_ptr;
+
+                if (!func_msg_obj) func_msg_obj = new FuncInfoMessage();
+                return func_msg_obj;
+
+            case PayloadType::GENERIC_MSG:
+
+                if (__alt_gen_msg_ptr) return __alt_gen_msg_ptr;
+
+                if (!gen_msg_obj) gen_msg_obj = new GenericMessage();
+                return gen_msg_obj;
+
+            default:
+                throw std::runtime_error("ERROR!! Invalid message type");
+        }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return NULL;
+}
+
+/**
+ * Clears TLS protobuf objects
+ */
+void ProcUtils::clear_proto_objects()
+{
+    if (func_msg_obj) func_msg_obj->Clear();
+    if (gen_msg_obj) gen_msg_obj->Clear();
 }
 
 /**
@@ -797,3 +872,21 @@ const string ProcUtils::get_error(const int err_num)
     return err_str;
 }
 
+/**
+ * Store alternate protobuf message location
+ */
+void ProcUtils::use_alt_proto_msg(FuncInfoMessage *__func_obj,
+                                    GenericMessage *__gen_obj)
+{
+    __alt_func_msg_ptr = __func_obj;
+    __alt_gen_msg_ptr = __gen_obj;
+}
+
+/**
+ * NULLs TLS pointers to alternate protobuf objects
+ */
+void ProcUtils::restore_proto_tls()
+{
+    __alt_func_msg_ptr = NULL;
+    __alt_gen_msg_ptr = NULL;
+}

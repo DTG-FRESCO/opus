@@ -4,7 +4,6 @@
 {% for func in fn_list if 'nogen' not in func.flags -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
 {
-    std::string func_name = "{{func.name}}";
     {% if "vararg" in func.flags -%}
     static {{func.real_func|upper}}_POINTER func_ptr = NULL;
     {%- else -%}
@@ -17,7 +16,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         {% if "vararg" in func.flags -%}
         func_ptr = ({{func.real_func|upper}}_POINTER)(ProcUtils::get_sym_addr("{{func.real_func}}"));
         {%- else -%}
-        func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr(func_name));
+        func_ptr = ({{func.name|upper}}_POINTER)(ProcUtils::get_sym_addr("{{func.name}}"));
         {%- endif %}
 
     {% if "vararg" in func.flags -%}
@@ -58,51 +57,70 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     va_end(va_args);
     {%- endif %}
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    /*
+      Keep interposition turned off
+      if object is not allocated
+    */
+    if (!func_msg)
+    {
+        {% if func.ret != "void" -%}
+        return ret;
+        {%- else -%}
+        return;
+        {%- endif %}
+    }
 
     {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
     {% for arg in func.args if 'read' in arg.flags %}
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("{{arg.name}}");
     {% if arg.type == "char *" or arg.type == "const char *" -%}
     if ({{arg.name}})
     {
-        std::string {{arg.name}}_value({{arg.name}});
-        {%- if 'can' in arg.flags -%}
-        ProcUtils::canonicalise_path(&{{arg.name}}_value);
-        {%- elif 'abs' in arg.flags -%}
-        ProcUtils::abs_path(&{{arg.name}}_value);
-        {%- endif -%}
-        tmp_arg->set_value({{arg.name}}_value);
+        {% if 'can' in arg.flags %}
+        char {{arg.name}}_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::canonicalise_path({{arg.name}}, {{arg.name}}_buf));
+        {% elif 'abs' in arg.flags %}
+        char {{arg.name}}_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::abs_path({{arg.name}}, {{arg.name}}_buf));
+        {% else %}
+        tmp_arg->set_value({{arg.name}});
+        {% endif %}
     }
     {%- elif arg.type == "FILE *" -%}
-    tmp_arg->set_value(std::to_string({{arg.name}}_fd));
+    char {{arg.name}}_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}_fd, {{arg.name}}_fd_buf));
     {%- elif arg.type == "uid_t" -%}
     tmp_arg->set_value(ProcUtils::get_user_name({{arg.name}}));
     {%- elif arg.type == "gid_t" -%}
     tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
     {%- else -%}
-    tmp_arg->set_value(std::to_string({{arg.name}}));
+    char {{arg.name}}_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}, {{arg.name}}_buf));
     {%- endif -%}
     {%- endfor %}
 
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
-    set_func_info_msg(&func_msg, func_name, ret_val, start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", ret_val, start_time, end_time, errno_value);
     {%- elif func.ret != "char *" and func.ret != "void" -%}
-    set_func_info_msg(&func_msg, func_name, ret, start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", ret, start_time, end_time, errno_value);
     {%- else -%}
-    set_func_info_msg(&func_msg, func_name, start_time, end_time, errno_value);
+    set_func_info_msg(func_msg, "{{func.name}}", start_time, end_time, errno_value);
     {%- endif %}
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
     /*
         If the message is successfully sent
         we keep interposition turned on.
     */
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
     {{macros.return_func(func)}}
 }
 

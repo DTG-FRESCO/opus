@@ -29,17 +29,36 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
 #define HANDLER_BODY(ptr_type, ...) \
     ProcUtils::test_and_set_flag(true); \
                         \
+    bool interpose_off_flag = false; \
+    FuncInfoMessage *func_msg = NULL; \
+    GenericMessage *gen_msg = NULL; \
+                                    \
     sigset_t old_set; \
     SignalUtils::block_all_signals(&old_set); \
+                                            \
+    try                                     \
+    {                                       \
+        func_msg = new FuncInfoMessage(); \
+        gen_msg = new GenericMessage(); \
+                                                    \
+        ProcUtils::use_alt_proto_msg(func_msg, gen_msg); \
                                               \
-    send_generic_msg(GenMsgType::SIGNAL, std::to_string(sig));\
-                                                            \
+        char sig_buf[MAX_INT32_LEN] = "";         \
+                                              \
+        send_generic_msg(GenMsgType::SIGNAL, ProcUtils::opus_itoa(sig, sig_buf));\
+    }                                       \
+    catch(const std::exception& e)          \
+    {                                       \
+        DEBUG_LOG("[%s:%d]: %s\n", e.what()); \
+        interpose_off_flag = true;               \
+    }                                       \
+                                             \
     void *real_handler = NULL; \
     if ((real_handler = get_real_handler(sig)) != NULL)\
     {\
         SignalUtils::restore_signal_mask(&old_set);\
                                                     \
-        ProcUtils::test_and_set_flag(false); \
+        ProcUtils::test_and_set_flag(interpose_off_flag); \
         reinterpret_cast<ptr_type>(real_handler)(__VA_ARGS__);\
         ProcUtils::test_and_set_flag(true); \
     }\
@@ -55,6 +74,11 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
             _exit(EXIT_FAILURE);\
         }\
     }\
+                                    \
+    ProcUtils::restore_proto_tls(); \
+    delete func_msg;                \
+    delete gen_msg;                 \
+                                    \
     ProcUtils::test_and_set_flag(false);
 
 /**

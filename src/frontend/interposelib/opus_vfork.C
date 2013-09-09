@@ -21,6 +21,9 @@ void vfork_send_startup_message(void)
     if (ProcUtils::test_and_set_flag(true))
         return; // Interposition is turned off
 
+    // Set the correct pid
+    ProcUtils::setpid(ProcUtils::__getpid());
+
     ProcUtils::send_startup_message();
     ProcUtils::test_and_set_flag(false);
 }

@@ -28,7 +28,7 @@
  */
 template <typename T>
 static int __open_internal(const char* pathname, int flags,
-                        std::string func_name, T real_open, mode_t mode)
+                        const char *func_name, T real_open, mode_t mode)
 {
     TrackErrno err_obj(errno);
 
@@ -52,30 +52,40 @@ static int __open_internal(const char* pathname, int flags,
     err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
-    FuncInfoMessage func_msg;
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
     KVPair* tmp_arg;
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("pathname");
     if (pathname)
     {
-        std::string pathname_value(pathname);
-        ProcUtils::canonicalise_path(&pathname_value);
-        tmp_arg->set_value(pathname_value);
+        char pathname_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
     }
 
-    tmp_arg = func_msg.add_args();
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("flags");
-    tmp_arg->set_value(std::to_string(flags));
 
-    tmp_arg = func_msg.add_args();
+    char flags_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(flags, flags_buf));
+
+    tmp_arg = func_msg->add_args();
     tmp_arg->set_key("mode");
-    tmp_arg->set_value(std::to_string(mode));
 
-    set_func_info_msg(&func_msg, func_name, ret,
+    char mode_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(mode, mode_buf));
+
+    set_func_info_msg(func_msg, func_name, ret,
                         start_time, end_time, errno_value);
 
-    bool comm_ret = set_header_and_send(func_msg, PayloadType::FUNCINFO_MSG);
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
     ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
     return ret;
 }
 

@@ -28,6 +28,9 @@ void opus_init(int argc, char** argv, char** envp)
 
     opus_init_libc_funcs();
 
+    // Set the correct pid
+    ProcUtils::setpid(getpid());
+
     try
     {
 #ifdef CAPTURE_SIGNALS
