@@ -21,7 +21,7 @@ import threading
 import time
 import opuspb
 
-from opus import (common_utils, uds_msg_pb2)
+from opus import (common_utils, messaging, uds_msg_pb2)
 
 
 def unlink_uds_path(path):
@@ -63,14 +63,14 @@ def create_close_conn_obj(sock_fd):
     gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
     gen_msg.sys_time = str(datetime.datetime.now())
 
-    header = uds_msg_pb2.Header()
+    header = messaging.Header()
     header.timestamp = mono_time_in_nanosecs()
     header.pid = pid
     header.tid = pid  # We dont have the tid
     header.payload_type = uds_msg_pb2.GENERIC_MSG
     header.payload_len = gen_msg.ByteSize()
 
-    return header.SerializeToString(), gen_msg.SerializeToString()
+    return header.dumps(), gen_msg.SerializeToString()
 
 def check_mailbox():
     '''Check for local messages'''
@@ -220,11 +220,11 @@ class UDSCommunicationManager(CommunicationManager):
 
         # Read header data and obtain the payload len
         hdr_buf, status_code = self.__receive(sock_fd,
-                                common_utils.header_size())
+                                messaging.Header.length)
         if status_code != UDSCommunicationManager.StatusCode.success:
             return status_code, None, None
-        header = uds_msg_pb2.Header()
-        header.ParseFromString(hdr_buf)
+        header = messaging.Header()
+        header.loads(hdr_buf)
         if __debug__:
             logging.debug("Header: %s", header.__str__())
 

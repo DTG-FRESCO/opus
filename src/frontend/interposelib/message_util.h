@@ -6,7 +6,6 @@ namespace
 {
     using ::google::protobuf::Message;
     using ::fresco::opus::IPCMessage::KVPair;
-    using ::fresco::opus::IPCMessage::Header;
     using ::fresco::opus::IPCMessage::GenMsgType;
     using ::fresco::opus::IPCMessage::PayloadType;
     using ::fresco::opus::IPCMessage::GenericMessage;
@@ -21,12 +20,12 @@ namespace
         const uint64_t msg_size = pay_msg.ByteSize();
         const uint64_t current_time = ProcUtils::get_time();
 
-        Header hdr_msg;
-        hdr_msg.set_timestamp(current_time);
-        hdr_msg.set_pid(static_cast<uint64_t>(ProcUtils::getpid()));
-        hdr_msg.set_payload_type(pay_type);
-        hdr_msg.set_payload_len(msg_size);
-        hdr_msg.set_tid(ProcUtils::gettid());
+        struct Header hdr_msg;
+        hdr_msg.timestamp = current_time;
+        hdr_msg.pid = static_cast<uint64_t>(ProcUtils::getpid());
+        hdr_msg.payload_type = pay_type;
+        hdr_msg.payload_len = msg_size;
+        hdr_msg.tid = ProcUtils::gettid();
 
         return ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }

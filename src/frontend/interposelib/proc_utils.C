@@ -28,6 +28,7 @@
 #include "log.h"
 #include "uds_client.h"
 #include "message_util.h"
+#include "messaging.h"
 
 #define STRINGIFY(value) #value
 
@@ -301,7 +302,7 @@ void ProcUtils::get_formatted_time(string* date_time)
  * Serializes the header and payload data
  * and sends this data to the OPUS backend.
  */
-bool ProcUtils::serialise_and_send_data(const Header& header_obj,
+bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
                                         const Message& payload_obj)
 {
     bool ret = true;
@@ -314,7 +315,7 @@ bool ProcUtils::serialise_and_send_data(const Header& header_obj,
 
     char* buf = NULL;
 
-    int hdr_size = header_obj.ByteSize();
+    int hdr_size = sizeof(header_obj);
     int pay_size = payload_obj.ByteSize();
     int total_size = hdr_size + pay_size;
 
@@ -323,7 +324,7 @@ bool ProcUtils::serialise_and_send_data(const Header& header_obj,
         buf = new char[total_size];
 
         /* Serialize the header data and store it */
-        if (!header_obj.SerializeToArray(buf, hdr_size))
+        if (!memcpy(buf, &header_obj, hdr_size))
             throw std::runtime_error("Failed to serialise header");
 
         /* Serialize the payload data and store it */

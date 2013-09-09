@@ -8,6 +8,7 @@
 #include "uds_msg.pb.h"
 #include "opus_lock.h"
 #include "uds_client.h"
+#include "messaging.h"
 
 /**
  * A utility class that encapsulates common
@@ -21,7 +22,7 @@ class ProcUtils
         static bool test_and_set_flag(const bool value);
 
         static bool serialise_and_send_data(
-                    const ::fresco::opus::IPCMessage::Header& hdr_obj,
+                    const struct Header& hdr_obj,
                     const ::google::protobuf::Message& pay_obj);
 
         static void send_startup_message();

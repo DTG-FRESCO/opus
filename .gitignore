@@ -43,6 +43,11 @@ src/protobuf/*.cc
 src/protobuf/*.py
 
 #
+#Messaging Ignores
+#
+src/messaging/messaging.*
+
+#
 #Specific C excludes
 #
 src/frontend/interposelib/uds_msg.pb.*
@@ -57,6 +62,7 @@ src/frontend/interposelib/gen_functions.C
 #Specific Py excludes
 #
 src/backend/opus/*_pb2.py
+src/backend/opus/messaging.py
 
 #
 #Specific Util excludes

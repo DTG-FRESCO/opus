@@ -1,0 +1,10 @@
+#ifndef MESSAGING_H_
+#define MESSAGING_H_
+
+{% for msg in msgs -%}
+struct {{msg.name}}{
+{%- for field in msg.fields %}
+    {{field.type~" "~field.name}};{% endfor %} 
+};
+{% endfor %}
+#endif  // MESSAGING_H_
