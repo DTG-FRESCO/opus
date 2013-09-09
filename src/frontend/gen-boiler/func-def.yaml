@@ -1343,33 +1343,69 @@
 
 - name: printf
   ret: "int"
-  flags: [nogen]
-  args: "const char *format, ..."
+  real_func: "vprintf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: scanf
   ret: "int"
-  flags: [nogen]
-  args: "const char *format, ..."
+  real_func: "vscanf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: fprintf
   ret: "int"
-  flags: [nogen]
-  args: "FILE *stream, const char *format, ..."
+  real_func: "vfprintf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: fscanf
   ret: "int"
-  flags: [nogen]
-  args: "FILE *stream, const char *format, ..."
+  real_func: "vfscanf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: __isoc99_scanf
   ret: "int"
-  flags: [nogen]
-  args: "const char *format, ..."
+  real_func: "__isoc99_vscanf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: __isoc99_fscanf
   ret: "int"
-  flags: [nogen]
-  args: "FILE *stream, const char *format, ..."
+  real_func: "__isoc99_vfscanf"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: "format"
+    type: "const char *"
 
 - name: execl
   ret: "int"

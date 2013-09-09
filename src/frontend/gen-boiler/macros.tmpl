@@ -1,19 +1,26 @@
-{% macro fn_arg_types(fn) -%}
-   {%- for arg in fn.args -%}
-       {{arg.type}}{%- if not loop.last -%}{{", "}}{%- endif -%}
-   {%- endfor -%}
-{%- endmacro %}
 
 {% macro fn_arg_def(fn) -%}
-   {%- for arg in fn.args -%}
-       {{arg.type~" "~arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
-   {%- endfor -%}
+  {%- if "vararg" in fn.flags -%}
+    {%- for arg in fn.args -%}
+      {{arg.type~" "~arg.name}}{{", "}}
+    {%- endfor -%}{{"..."}}
+  {%- else -%}
+    {%- for arg in fn.args -%}
+      {{arg.type~" "~arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro fn_arg_call(fn) -%}
-   {%- for arg in fn.args -%}
-       {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
-   {%- endfor -%}
+  {%- if "vararg" in fn.flags -%}
+    {%- for arg in fn.args -%}
+      {{arg.name}}{{", "}}
+    {%- endfor -%}{{"va_args"}}
+  {%- else -%}
+    {%- for arg in fn.args -%}
+      {{arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro fn_ptr_type(fn) -%}
@@ -23,3 +30,20 @@
 		typedef {{fn.ret}} (*{{fn.name|upper}}_POINTER)({{ fn_arg_def(fn) }});
 	{%- endif -%}
 {%- endmacro %}
+
+{% macro fn_call(fn) -%}
+  {%- if fn.ret != "void" -%}
+    {{fn.ret}} ret = (*func_ptr)({{fn_arg_call(fn)}});
+  {%- else -%}
+    (*func_ptr)({{fn_arg_call(fn)}});
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro return_func(fn) -%}
+  {% if fn.ret != "void" -%}
+    return ret;
+  {%- else -%}
+    return;
+  {%- endif %}
+{%- endmacro %}
+  
