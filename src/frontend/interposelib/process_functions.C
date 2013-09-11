@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <cstdint>
 #include <string>
 #include <vector>
