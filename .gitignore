@@ -34,6 +34,7 @@ src/backend/config.yaml
 #Py Ignores
 #
 *.pyc
+*.pyo
 
 #
 #Protobuf Ignores
