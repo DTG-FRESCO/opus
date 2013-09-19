@@ -17,7 +17,7 @@ class Message:
         return struct.pack(self.struct_string, *data)
 
     def __str__(self):
-    	print(self.self_to_tuple())
+    	return self.self_to_tuple()
 
 {% for msg in msgs %}
 class {{msg.name}}(Message):
