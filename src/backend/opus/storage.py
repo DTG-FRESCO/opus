@@ -48,7 +48,8 @@ OBJ_TYPE_MAP = {
     prov_db.GLOBAL:prov_db.GlobalObj,
     prov_db.LOCAL:prov_db.LocalObj,
     prov_db.META:prov_db.MetaObj,
-    prov_db.PROCESS:prov_db.ProcObj
+    prov_db.PROCESS:prov_db.ProcObj,
+    prov_db.TERM:prov_db.TermMarkerObj
 }
 
 
@@ -250,6 +251,10 @@ class DBTransaction(object):
         packed_id = to_int64(obj_id)
         self.batch.put(db_id, packed_id)
         self.name_map[name] = obj_id
+
+    @commit_wrapper
+    def id_state(self):
+        return self.id_map
 
     @commit_wrapper
     def commit(self):

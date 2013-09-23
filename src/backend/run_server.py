@@ -64,7 +64,7 @@ def main():
 
         init_logging(config['LOGGING'])
 
-        daemon_manager = management.MockDaemonManager(config)
+        daemon_manager = management.DaemonManager(config)
     except management.InvalidConfigFileException:
         return
     except IOError:

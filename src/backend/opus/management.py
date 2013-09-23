@@ -4,10 +4,12 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (analysis, common_utils, production)
+from opus import (analysis, common_utils, production, messaging)
+from opus import uds_msg_pb2 as uds_msg
 
 import logging
-import logging.config
+import os
+import os.path
 
 
 class InvalidConfigFileException(common_utils.OPUSException):
@@ -34,9 +36,8 @@ def safe_read_config(cfg, section, key):
         raise InvalidConfigFileException()
 
 
-class MockDaemonManager(object):
-    '''The daemon manager is created to launch the back-end. It creates and
-    starts the two working threads then listens for commands via DBUS.'''
+class DaemonManager(object):
+    '''The daemon manager is created to launch the back-end.'''
     def __init__(self, config):
         self.config = config
 
@@ -76,7 +77,35 @@ class MockDaemonManager(object):
             raise InvalidConfigFileException()
 
         self.analyser.start()
+        startup_msg_pair = self._startup_touch_file()
+        self.analyser.put_msg([startup_msg_pair])
+
         self.producer.start()
+
+    def _startup_touch_file(self):
+        term_msg = uds_msg.TermMessage()
+        term_msg.downtime_start = 0
+        term_msg.downtime_end = 0
+
+        header = messaging.Header()
+        header.pid = 0
+        header.timestamp = (2**64)-1
+        header.tid = 0
+        header.payload_type = uds_msg.TERM_MSG
+
+        if os.path.exists(".opus-live"):
+            term_msg.reason = uds_msg.TermMessage.CRASH
+        else:
+            term_msg.reason = uds_msg.TermMessage.SHUTDOWN
+            with open(".opus-live", "w") as fh:
+                pass
+
+        header.payload_len = term_msg.ByteSize()
+
+        return header.dumps(),term_msg.SerializeToString()
+
+    def _shutdown_touch_file(self):
+        os.remove(".opus-live")
 
     def dbus_set_analyser(self, new_analyser_type):
         '''Handle a dbus message signalling for an analyser change.'''
@@ -114,3 +143,5 @@ class MockDaemonManager(object):
         '''Cause the daemon to shutdown gracefully.'''
         self.producer.do_shutdown()
         self.analyser.do_shutdown()
+
+        self._shutdown_touch_file()
