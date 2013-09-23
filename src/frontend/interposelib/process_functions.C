@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -19,6 +20,8 @@
 #include "track_errno.h"
 
 #define STRINGIFY(value) #value
+
+static inline void exit_program(const char *exit_str, const int status) __attribute__ ((noreturn));
 
 /**
  * Macros to minimize repetitive
@@ -221,7 +224,7 @@ static void get_lib_real_path(void *handle, std::string* real_path)
  */
 static inline void exit_program(const char *exit_str, const int status)
 {
-    static _EXIT_POINTER exit_ptr = NULL;
+    static _EXIT_POINTER exit_ptr __attribute__ ((noreturn)) = NULL;
 
     if (!exit_ptr)
         exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(exit_str);
@@ -233,29 +236,34 @@ static inline void exit_program(const char *exit_str, const int status)
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
 
     // Keep interposition turned off
-    if (!func_msg) return;
+    if (func_msg)
+    {
+        KVPair* tmp_arg;
+        tmp_arg = func_msg->add_args();
+        tmp_arg->set_key("status");
 
-    KVPair* tmp_arg;
-    tmp_arg = func_msg->add_args();
-    tmp_arg->set_key("status");
+        char status_buf[MAX_INT32_LEN] = "";
+        tmp_arg->set_value(ProcUtils::opus_itoa(status, status_buf));
 
-    char status_buf[MAX_INT32_LEN] = "";
-    tmp_arg->set_value(ProcUtils::opus_itoa(status, status_buf));
+        uint64_t start_time = ProcUtils::get_time();
+        uint64_t end_time = 0;  // function does not return
+        int errno_value = 0;
 
-    uint64_t start_time = ProcUtils::get_time();
-    uint64_t end_time = 0;  // function does not return
-    int errno_value = 0;
+        set_func_info_msg(func_msg, exit_str, start_time, end_time, errno_value);
+        set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
-    set_func_info_msg(func_msg, exit_str, start_time, end_time, errno_value);
-    set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+        ProcUtils::disconnect();
 
-    ProcUtils::disconnect();
+        (*exit_ptr)(status);
 
-    (*exit_ptr)(status);
-
-    // Will never reach here
-    ProcUtils::test_and_set_flag(false);
-    func_msg->Clear();
+        // Will never reach here
+        ProcUtils::test_and_set_flag(false);
+        func_msg->Clear();
+    }
+    else
+    {
+        (*exit_ptr)(status);
+    }
 }
 
 /**
@@ -914,7 +922,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
  */
 extern "C" void pthread_exit(void *retval)
 {
-    static PTHREAD_EXIT_POINTER real_pthread_exit = NULL;
+    static PTHREAD_EXIT_POINTER real_pthread_exit __attribute__ ((noreturn)) = NULL;
     TrackErrno err_obj(errno);
 
     /* Get the symbol address and store it */
@@ -931,26 +939,31 @@ extern "C" void pthread_exit(void *retval)
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
 
     // Keep interposition turned off
-    if (!func_msg) return;
-
-    uint64_t start_time = ProcUtils::get_time();
-    uint64_t end_time = 0;
-    int errno_value = 0;
-
-    set_func_info_msg(func_msg, "pthread_exit", start_time, end_time, errno_value);
-    set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    func_msg->Clear();
-
-    if (ProcUtils::getpid() != ProcUtils::gettid())
+    if (!func_msg)
     {
-        // This will call the cleanup handlers
+        uint64_t start_time = ProcUtils::get_time();
+        uint64_t end_time = 0;
+        int errno_value = 0;
+
+        set_func_info_msg(func_msg, "pthread_exit", start_time, end_time, errno_value);
+        set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+        func_msg->Clear();
+
+        if (ProcUtils::getpid() != ProcUtils::gettid())
+        {
+            // This will call the cleanup handlers
+            (*real_pthread_exit)(retval);
+        }
+
+        // This is the main thread, setup a cleanup handler
+        pthread_cleanup_push(opus_thread_cleanup_handler, NULL);
+        (*real_pthread_exit)(retval);
+        pthread_cleanup_pop(1);
+    }
+    else
+    {
         (*real_pthread_exit)(retval);
     }
-
-    // This is the main thread, setup a cleanup handler
-    pthread_cleanup_push(opus_thread_cleanup_handler, NULL);
-    (*real_pthread_exit)(retval);
-    pthread_cleanup_pop(1);
 }
 
 #ifdef CAPTURE_SIGNALS

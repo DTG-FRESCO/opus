@@ -86,8 +86,8 @@ make
 
 echo -e "\n\nBuild completed.\n"\
 		"What to do now:\n"\
-		"1. Copy $PROJ_HOME/src/backed/config.yaml.example\n"\
-		"   to $PROJ_HOME/src/backed/config.yaml\n"\
+		"1. Copy $PROJ_HOME/src/backend/config.yaml.example\n"\
+		"   to $PROJ_HOME/src/backend/config.yaml\n"\
 		"2. Edit the config file to your own preferences.\n"\
 		"3. Start the backed by using $PROJ_HOME/bin/startup.sh\n"\
 		"4. Enable capture for a terminal with the command:\n"\

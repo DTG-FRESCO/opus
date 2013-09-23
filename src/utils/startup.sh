@@ -16,7 +16,7 @@ config_warning(){
 
 run(){
 	echo "##Launching OPUS backend."
-	cd "$PROJ_HOME/src/backend" && $PYTHON run_server.py
+	cd "$PROJ_HOME/src/backend" && $PYTHON -O run_server.py
 }
 
 echo "##Polling repository for updates."

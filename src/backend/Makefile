@@ -2,7 +2,7 @@
 .PHONY: opuspb
 
 all: opuspb
-	python setup.py install --install-lib=$(PROJ_HOME)/lib
+	$(PYTHON) setup.py install --install-lib=$(PROJ_HOME)/lib
 	rm -rf build
 
 clean: opuspb

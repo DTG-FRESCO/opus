@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <grp.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <signal.h>
