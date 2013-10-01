@@ -39,6 +39,7 @@ using std::vector;
 /** Thread local storage */
 __thread bool ProcUtils::in_func_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
+__thread uint32_t ProcUtils::conn_ref_count = 0;
 __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
 __thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
@@ -479,6 +480,7 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     DEBUG_LOG("[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
+    incr_conn_ref_count();
     StartupMessage start_msg;
 
     char exe[1024] = "";
@@ -889,4 +891,14 @@ void ProcUtils::restore_proto_tls()
 {
     __alt_func_msg_ptr = NULL;
     __alt_gen_msg_ptr = NULL;
+}
+
+void ProcUtils::incr_conn_ref_count()
+{
+    ++conn_ref_count;
+}
+
+uint32_t ProcUtils::decr_conn_ref_count()
+{
+    return --conn_ref_count;
 }
