@@ -22,8 +22,9 @@ LOGGING:
 MODULES:
   Producer: SocketProducer
   Analyser: LoggingAnalyser
+  CommandInterface: CMDInterface
 
-PRODUCERS:
+PRODUCER:
   SocketProducer:
     comm_mgr_type: UDSCommunicationManager
     comm_mgr_args:
@@ -31,9 +32,12 @@ PRODUCERS:
         max_conn: 10
         select_timeout: 5.0
 
-ANALYSERS:
+ANALYSER:
   LoggingAnalyser:
     log_path: ./prov.log
+
+COMMANDINTERFACE:
+  CMDInterface: {}
 
 GENERAL:
   touch_file: .opus_live

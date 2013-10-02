@@ -6,7 +6,7 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (analysis, common_utils, production, messaging)
+from opus import (analysis, command, common_utils, production, messaging)
 from opus import uds_msg_pb2 as uds_msg
 
 import logging
@@ -69,45 +69,50 @@ def _shutdown_touch_file(touch_file):
     os.remove(touch_file)
 
 
+def _load_module(config, mod_name, mod_base,
+                 mod_extra_args=None, mod_type=None):
+    if mod_type is None:
+        mod_type = _safe_read_config(config, "MODULES", mod_name)
+
+    mod_args = _safe_read_config(config, mod_name.upper(), mod_type)
+
+    if mod_extra_args is not None:
+        mod_args.update(mod_extra_args)
+
+    try:
+        mod = common_utils.meta_factory(mod_base,
+                                        mod_type,
+                                        **mod_args)
+    except common_utils.InvalidTagException:
+        logging.error("Invalid %s type %s in config file.",
+                      mod_name, mod_type)
+        raise InvalidConfigFileException()
+    except TypeError:
+        logging.error("Config section %s is incorrectly setup.",
+                      mod_type)
+        raise InvalidConfigFileException()
+    return mod
+
+
 class DaemonManager(object):
     '''The daemon manager is created to launch the back-end.'''
     def __init__(self, config):
         self.config = config
 
-        analyser_type = _safe_read_config(self.config, "MODULES", "Analyser")
-        analyser_args = _safe_read_config(self.config, 'ANALYSERS', 
-                                          analyser_type)
+        self.analyser = _load_module(config, "Analyser", analysis.Analyser)
 
-        try:
-            self.analyser = common_utils.meta_factory(analysis.Analyser,
-                                                      analyser_type,
-                                                      **analyser_args)
-        except common_utils.InvalidTagException:
-            logging.error("Invalid analyser type %s in config file.",
-                          analyser_type)
-            raise InvalidConfigFileException()
-        except TypeError:
-            logging.error("Config section %s is incorrectly setup.",
-                          analyser_type)
-            raise InvalidConfigFileException()
+        (prod_comm, ctrl_prod) = common_utils.RWPipePair.create_pair()
 
-        producer_type = _safe_read_config(self.config, "MODULES", "Producer")
-        producer_args = _safe_read_config(self.config, 'PRODUCERS',
-                                          producer_type)
-        producer_args['analyser_obj'] = self.analyser
+        self.producer = _load_module(config, "Producer", production.Producer,
+                                     {"analyser_obj": self.analyser,
+                                      "comm_pipe": prod_comm})
 
-        try:
-            self.producer = common_utils.meta_factory(production.Producer,
-                                                      producer_type,
-                                                      **producer_args)
-        except common_utils.InvalidTagException:
-            logging.error("Invalid producer type %s in config file.",
-                          producer_type)
-            raise InvalidConfigFileException()
-        except TypeError:
-            logging.error("Config section %s is incorrectly setup.",
-                          producer_type)
-            raise InvalidConfigFileException()
+        self.command = command.CommandControl(self, ctrl_prod)
+
+        self.command.set_interface(
+            _load_module(config, "CommandInterface", command.CommandInterface,
+                         {"command_control": self.command})
+        )
 
         self.analyser.start()
         startup_msg_pair = _startup_touch_file(_safe_read_config(self.config,
@@ -117,43 +122,37 @@ class DaemonManager(object):
 
         self.producer.start()
 
-    def dbus_set_analyser(self, new_analyser_type):
-        '''Handle a dbus message signalling for an analyser change.'''
-        try:
-            new_analyser_args = _safe_read_config(self.config, 'ANALYSERS', 
-                                                  new_analyser_type)
-        except InvalidConfigFileException:
-            logging.error("Please choose an analyser type that has a config"
-                          " specified in the systems configuration file.")
-            return None
+    def loop(self):
+        '''Execute the internal command and controls main loop.'''
+        self.command.run()
 
+    def set_analyser(self, new_analyser_type):
+        '''Change the current analyser for a new analyser.'''
         try:
-            new_analyser = common_utils.meta_factory(analysis.Analyser,
-                                                     new_analyser_type,
-                                                     **new_analyser_args)
-        except common_utils.InvalidTagException:
-            logging.error("That is an invalid analyser name.")
-            return None
-        except TypeError:
-            logging.error("Config section %s is incorrectly setup.",
-                          new_analyser_type)
-            return None
+            new_analyser = _load_module(self.config, "Analyser",
+                                        analysis.Analyser,
+                                        mod_type=new_analyser_type)
+        except InvalidConfigFileException:
+            return ("Please choose an analyser type that has a config"
+                          " specified in the systems configuration file.")
 
         new_analyser.start()
 
         old_analyser = self.producer.switch_analyser(new_analyser)
         old_analyser.do_shutdown()
         self.analyser = new_analyser
+        return "Sucess"
 
-    def dbus_get_analyser(self):
+    def get_analyser(self):
         '''Return the current analyser thread.'''
         return self.analyser.__class__.__name__
 
-    def dbus_stop_service(self):
+    def stop_service(self):
         '''Cause the daemon to shutdown gracefully.'''
-        self.producer.do_shutdown()
-        self.analyser.do_shutdown()
-
-        _shutdown_touch_file(_safe_read_config(self.config,
-                                               "GENERAL",
-                                               "touch_file"))
+        if self.producer.do_shutdown():
+            if self.analyser.do_shutdown():
+                _shutdown_touch_file(_safe_read_config(self.config,
+                                                       "GENERAL",
+                                                       "touch_file"))
+                return True
+        return False
