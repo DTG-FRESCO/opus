@@ -34,3 +34,6 @@ PRODUCERS:
 ANALYSERS:
   LoggingAnalyser:
     log_path: ./prov.log
+
+GENERAL:
+  touch_file: .opus_live

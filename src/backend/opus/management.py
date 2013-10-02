@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
+Management systems for initialising system structure then handing off to the
+control systems.
 '''
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
@@ -20,9 +22,9 @@ class InvalidConfigFileException(common_utils.OPUSException):
                                                          )
 
 
-def safe_read_config(cfg, section, key):
-    '''Read the value of key from section in cfg while appropriatly catching
-    missing section and key exceptions and handling them by reraising invalid
+def _safe_read_config(cfg, section, key):
+    '''Read the value of key from section in cfg while appropriately catching
+    missing section and key exceptions and handling them by re-raising invalid
     config errors.'''
     try:
         sec = cfg[section]
@@ -36,14 +38,45 @@ def safe_read_config(cfg, section, key):
         raise InvalidConfigFileException()
 
 
+def _startup_touch_file(touch_file):
+    '''Generate a term message based on the presence or non-presence of the
+    touch file. Then create the touch file if necessary.'''
+    term_msg = uds_msg.TermMessage()
+    term_msg.downtime_start = 0
+    term_msg.downtime_end = 0
+
+    header = messaging.Header()
+    header.pid = 0
+    #Max int64 so ensure sorted after any messages in the queue
+    header.timestamp = (2**64)-1
+    header.tid = 0
+    header.payload_type = uds_msg.TERM_MSG
+
+    if os.path.exists(touch_file):
+        term_msg.reason = uds_msg.TermMessage.CRASH
+    else:
+        term_msg.reason = uds_msg.TermMessage.SHUTDOWN
+        with open(touch_file, "w") as _:
+            pass
+
+    header.payload_len = term_msg.ByteSize()
+
+    return header.dumps(), term_msg.SerializeToString()
+
+
+def _shutdown_touch_file(touch_file):
+    '''Removes the touch file, thus indicating a successful shutdown.'''
+    os.remove(touch_file)
+
+
 class DaemonManager(object):
     '''The daemon manager is created to launch the back-end.'''
     def __init__(self, config):
         self.config = config
 
-        analyser_type = safe_read_config(self.config, "MODULES", "Analyser")
-        analyser_args = safe_read_config(self.config, 'ANALYSERS', 
-                                         analyser_type)
+        analyser_type = _safe_read_config(self.config, "MODULES", "Analyser")
+        analyser_args = _safe_read_config(self.config, 'ANALYSERS', 
+                                          analyser_type)
 
         try:
             self.analyser = common_utils.meta_factory(analysis.Analyser,
@@ -58,9 +91,9 @@ class DaemonManager(object):
                           analyser_type)
             raise InvalidConfigFileException()
 
-        producer_type = safe_read_config(self.config, "MODULES", "Producer")
-        producer_args = safe_read_config(self.config, 'PRODUCERS',
-                                         producer_type)
+        producer_type = _safe_read_config(self.config, "MODULES", "Producer")
+        producer_args = _safe_read_config(self.config, 'PRODUCERS',
+                                          producer_type)
         producer_args['analyser_obj'] = self.analyser
 
         try:
@@ -77,41 +110,18 @@ class DaemonManager(object):
             raise InvalidConfigFileException()
 
         self.analyser.start()
-        startup_msg_pair = self._startup_touch_file()
+        startup_msg_pair = _startup_touch_file(_safe_read_config(self.config,
+                                                                 "GENERAL",
+                                                                 "touch_file"))
         self.analyser.put_msg([startup_msg_pair])
 
         self.producer.start()
 
-    def _startup_touch_file(self):
-        term_msg = uds_msg.TermMessage()
-        term_msg.downtime_start = 0
-        term_msg.downtime_end = 0
-
-        header = messaging.Header()
-        header.pid = 0
-        header.timestamp = (2**64)-1
-        header.tid = 0
-        header.payload_type = uds_msg.TERM_MSG
-
-        if os.path.exists(".opus-live"):
-            term_msg.reason = uds_msg.TermMessage.CRASH
-        else:
-            term_msg.reason = uds_msg.TermMessage.SHUTDOWN
-            with open(".opus-live", "w") as fh:
-                pass
-
-        header.payload_len = term_msg.ByteSize()
-
-        return header.dumps(),term_msg.SerializeToString()
-
-    def _shutdown_touch_file(self):
-        os.remove(".opus-live")
-
     def dbus_set_analyser(self, new_analyser_type):
         '''Handle a dbus message signalling for an analyser change.'''
         try:
-            new_analyser_args = safe_read_config(self.config, 'ANALYSERS', 
-                                                 new_analyser_type)
+            new_analyser_args = _safe_read_config(self.config, 'ANALYSERS', 
+                                                  new_analyser_type)
         except InvalidConfigFileException:
             logging.error("Please choose an analyser type that has a config"
                           " specified in the systems configuration file.")
@@ -144,4 +154,6 @@ class DaemonManager(object):
         self.producer.do_shutdown()
         self.analyser.do_shutdown()
 
-        self._shutdown_touch_file()
+        _shutdown_touch_file(_safe_read_config(self.config,
+                                               "GENERAL",
+                                               "touch_file"))
