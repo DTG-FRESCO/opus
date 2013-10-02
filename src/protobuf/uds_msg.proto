@@ -6,6 +6,7 @@ enum PayloadType {
     LIBINFO_MSG = 2;
     FUNCINFO_MSG = 3;
     GENERIC_MSG = 4;
+    TERM_MSG = 5;
 }
 
 enum GenMsgType {
@@ -58,4 +59,15 @@ message GenericMessage {
     optional GenMsgType msg_type = 1; // Type of generic message
     optional string msg_desc = 2; // Description of the message
     optional string sys_time = 3; // Formatted system date time
+}
+
+message TermMessage {
+    optional int64 downtime_start = 1;
+    optional int64 downtime_end = 2;
+
+    enum TermState {
+        SHUTDOWN = 1;
+        CRASH = 2;
+    }
+    optional TermState reason = 3;
 }

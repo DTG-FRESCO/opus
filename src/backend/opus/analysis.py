@@ -49,26 +49,6 @@ class Analyser(threading.Thread):
             return False
         return not self.isAlive()
 
-
-def create_blank_marker():
-    '''Create a blank message to be inserted as a break into the log.'''
-    if __debug__:
-        logging.debug("Creating blank message.")
-    if hasattr(create_blank_marker, "blank_msg"):
-        return create_blank_marker.blank_msg
-
-    header = messaging.Header()
-    header.timestamp = 0
-    header.pid = 0
-    header.tid = 0
-    header.payload_type = uds_msg.BLANK_MSG
-    header.payload_len = 0
-
-    create_blank_marker.blank_msg = header.dumps()
-
-    return create_blank_marker.blank_msg
-
-
 class LoggingAnalyser(Analyser):
     '''Implementation of a logging analyser'''
     def __init__(self, log_path, *args, **kwargs):
@@ -84,9 +64,6 @@ class LoggingAnalyser(Analyser):
             raise common_utils.OPUSException("log file open error")
         if __debug__:
             logging.debug("Opened file %s", self.logfile_path)
-
-        #Write a blank sentinal to the file.
-        self.file_object.write(create_blank_marker())
 
     def put_msg(self, msg_list):
         '''Takes a list of tuples (header, payload)
@@ -157,12 +134,17 @@ class OrderingAnalyser(Analyser):
             hdr_obj = messaging.Header()
             hdr_obj.loads(hdr)
 
-            if hdr_obj.payload_type == 0:
+            pay_obj = common_utils.get_payload_type(hdr_obj)
+            pay_obj.ParseFromString(pay)
+            msg_chunk += [(hdr_obj.timestamp, (hdr_obj, pay_obj))]
+
+            if hdr_obj.payload_type == uds_msg.TERM_MSG:
                 if __debug__:
-                    logging.debug("M:Received blank message.")
+                    logging.debug("M:Received term message.")
                     logging.debug("M:Pushing remaining message chunk.")
                     logging.debug("M:Message chunk length:%d", len(msg_chunk))
                 self.event_orderer.push(msg_chunk)
+                msg_chunk = []
                 if __debug__:
                     logging.debug("M:Signalling queue clear.")
                 self.event_orderer.start_clear()
@@ -177,10 +159,7 @@ class OrderingAnalyser(Analyser):
                 self.queue_cleared.clear()
                 if __debug__:
                     logging.debug("M:Queue cleared, continuing.")
-            else:
-                pay_obj = common_utils.get_payload_type(hdr_obj)
-                pay_obj.ParseFromString(pay)
-                msg_chunk += [(hdr_obj.timestamp, (hdr_obj, pay_obj))]
+
         self.event_orderer.push(msg_chunk)
 
     def cleanup(self):
@@ -224,4 +203,6 @@ class PVMAnalyser(OrderingAnalyser):
                 posix.handle_disconnect(hdr.pid)
             elif pay.msg_type == uds_msg.PRE_FUNC_CALL:
                 posix.handle_prefunc(hdr.pid, pay)
+        elif hdr.payload_type == uds_msg.TERM_MSG:
+            posix.handle_startup(tran, pay)
         tran.commit()

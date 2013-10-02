@@ -7,6 +7,7 @@ enum ObjType {
     LOCAL = 4;
     EVENT = 5;
     ANNOT = 6;
+    TERM = 7;
 }
 
 enum LinkState {
@@ -89,4 +90,23 @@ message EventObj {
 message AnnotationObj {
     optional string desc = 1; //Description of annotation
     optional bytes data_blob = 2; //Blob of data e.g messages arriving late
+}
+
+message TermMarkerObj {
+    
+    enum TermState {
+        SHUTDOWN = 1;
+        CRASH = 2;
+    }
+
+    optional TermState reason = 1;
+    optional int64 downtime_start = 2;
+    optional int64 downtime_end = 3;
+
+    message KVPair{
+        optional int64 key = 1;
+        optional int64 value = 2;
+    }
+
+    repeated KVPair id_state = 4;
 }
