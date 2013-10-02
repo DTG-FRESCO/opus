@@ -70,9 +70,13 @@ class ProcUtils
                                         ::fresco::opus::IPCMessage::GenericMessage *__gen_obj);
         static void restore_proto_tls();
 
+        static void incr_conn_ref_count();
+        static uint32_t decr_conn_ref_count();
+
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;
+        static __thread uint32_t conn_ref_count;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
 

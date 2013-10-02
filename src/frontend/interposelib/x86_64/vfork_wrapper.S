@@ -7,22 +7,21 @@
     .globl vfork
     .type vfork, @function
 vfork:
-    pop     %r15 # Save return address
+    pop     %rdi                # pop the return address
+    call    push_ret_addr@PLT   # store return address in memory
+
     call    get_vfork_symbol@PLT
-    call    *%rax # Call the real vfork
-    push    %r15 # push return address on the stack
-    push    %rax # push return value on the stack
+    call    *%rax               # Call real vfork
 
-    cmp     $0, %eax # pid_t is 32 bits
-    je      __child_handler
+    mov     %rax, %r12          # copy the return value
 
-    # Parent process
-    pop     %rax
+    call    pop_ret_addr@PLT    # retrieve the return address
+    push    %rax                # Push return address on the stack
+    push    %r12                # Push return value on the stack
+
+    mov     %r12, %rdi          # Pass the pid as argument to record
+    call    vfork_record_interpose@PLT
+
+    pop     %rax                # Pop the return value
     ret
-
-__child_handler:
-    call    vfork_send_startup_message@PLT
-    pop     %rax # Get saved return value
-    ret
-
 #endif

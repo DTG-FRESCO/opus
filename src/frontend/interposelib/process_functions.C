@@ -252,7 +252,8 @@ static inline void exit_program(const char *exit_str, const int status)
         set_func_info_msg(func_msg, exit_str, start_time, end_time, errno_value);
         set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
-        ProcUtils::disconnect();
+        if (ProcUtils::decr_conn_ref_count() == 0)
+            ProcUtils::disconnect();
 
         (*exit_ptr)(status);
 
