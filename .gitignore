@@ -25,6 +25,11 @@ lib
 src/backend/config.yaml
 
 #
+#Ignore Flag Files
+#
+.opus_live
+
+#
 #C Ignores
 #
 *.o
@@ -64,6 +69,7 @@ src/frontend/interposelib/gen_functions.C
 #
 src/backend/opus/*_pb2.py
 src/backend/opus/messaging.py
+src/backend/scripts/op
 
 #
 #Specific Util excludes

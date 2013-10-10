@@ -6,10 +6,18 @@ from __future__ import (absolute_import, division,
 
 
 import cmd
+import logging
 import re
 import readline
+import select
+import socket
 
-from opus import cc_msg_pb2
+from opus import cc_msg_pb2, cc_utils, common_utils
+
+
+class CommandInterfaceStartupError(common_utils.OPUSException):
+    def __init__(self, *args, **kwargs):
+        super(CommandInterfaceStartupError, self).__init__(*args, **kwargs)
 
 
 class CommandControl(object):
@@ -21,15 +29,15 @@ class CommandControl(object):
     def set_interface(self, inter):
         self.cmd_if = inter
 
-    def exec_cmd(self, cmd):
-        if cmd.cmd_name == "getan":
+    def exec_cmd(self, msg):
+        if msg.cmd_name == "getan":
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
             rsp.rsp_data = self.daemon_manager.get_analyser()
             return rsp
-        elif cmd.cmd_name == "setan":
+        elif msg.cmd_name == "setan":
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
             new_an = None
-            for arg in cmd.args:
+            for arg in msg.args:
                 if arg.key == "new_an":
                     new_an = arg.value
             if new_an is None:
@@ -37,7 +45,7 @@ class CommandControl(object):
             else:
                 rsp.rsp_data = self.daemon_manager.set_analyser(new_an)
             return rsp
-        elif cmd.cmd_name == "shutdown":
+        elif msg.cmd_name == "shutdown":
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
             if self.daemon_manager.stop_service():
                 rsp.rsp_data = "Y"
@@ -45,7 +53,7 @@ class CommandControl(object):
                 rsp.rsp_data = "N"
             return rsp
         else:
-            self.prod_ctrl.write(cmd)
+            self.prod_ctrl.write(msg)
             return self.prod_ctrl.read()
 
     def run(self):
@@ -62,7 +70,52 @@ class CommandInterface(object):
 
 
 class TCPInterface(CommandInterface):
-    pass
+    def __init__(self, listen_addr, listen_port, whitelist_location=None,
+                 *args, **kwargs):
+        super(TCPInterface, self).__init__(*args, **kwargs)
+
+        self.whitelist = []
+
+        if whitelist_location is not None:
+            try:
+                with open(whitelist_location, "r") as fh:
+                    for line in fh:
+                        self.whitelist += [line]
+            except IOError:
+                logging.error("Failed to read specified whitelist file %s",
+                              whitelist_location)
+                raise CommandInterfaceStartupError("Failed to read whitelist.")
+
+        self.host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        try:
+            self.host_sock.bind((listen_addr, listen_port))
+        except IOError:
+            logging.error("Failed to bind cmd socket on address %s port %d.",
+                          listen_addr, listen_port)
+            raise CommandInterfaceStartupError("Failed to bind socket.")
+        self.host_sock.listen(10)
+
+    def run(self):
+        while True:
+            select.select([self.host_sock], [], [])
+
+            (new_conn, new_addr) = self.host_sock.accept()
+
+            if self.whitelist and new_addr not in self.whitelist:
+                new_conn.close()
+                logging.info("Recieved connection from %s, dropped due"
+                             " to not matching white list.", new_addr)
+                continue
+
+            pay = cc_utils.recv_cc_msg(new_conn)
+
+            rsp = self.command_control.exec_cmd(pay)
+
+            cc_utils.send_cc_msg(new_conn, rsp)
+
+            if pay.cmd_name == "shutdown" and rsp.rsp_data == "Y":
+                break
 
 
 class CMDInterface(CommandInterface, cmd.Cmd):
@@ -75,30 +128,30 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         """List all processes currently being interposed by the OPUS system.
 
         Arguments: None"""
-        cmd = cc_msg_pb2.CmdCtlMessage()
-        cmd.cmd_name = "ps"
+        msg = cc_msg_pb2.CmdCtlMessage()
+        msg.cmd_name = "ps"
 
-        rsp = self.command_control.exec_cmd(cmd)
+        rsp = self.command_control.exec_cmd(msg)
         print("Interposed Processes:\n\n"
               " Pid │ Thread Count\n"
               "═════╪══════════════")
         for psdat in rsp.ps_data:
             print("%5u│%14u" % (psdat.pid, psdat.thread_count))
-        
+
     def do_kill(self, args):
         """Deactivate interposition for the specified process.
 
         Arguments: pid"""
-        cmd = cc_msg_pb2.CmdCtlMessage()
-        cmd.cmd_name = "kill"
-        arg = cmd.args.add()
+        msg = cc_msg_pb2.CmdCtlMessage()
+        msg.cmd_name = "kill"
+        arg = msg.args.add()
         arg.key = "pid"
         if re.match("\A\d*\Z", args) is None:
             print("Error: Kill takes a single number as an argument.")
             return False
         arg.value = args
 
-        rsp = self.command_control.exec_cmd(cmd)
+        rsp = self.command_control.exec_cmd(msg)
 
         print(rsp.rsp_data)
 
@@ -106,10 +159,10 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         """Return the current analyser.
 
         Arguments: None"""
-        cmd = cc_msg_pb2.CmdCtlMessage()
-        cmd.cmd_name = "getan"
+        msg = cc_msg_pb2.CmdCtlMessage()
+        msg.cmd_name = "getan"
 
-        rsp = self.command_control.exec_cmd(cmd)
+        rsp = self.command_control.exec_cmd(msg)
 
         print(rsp.rsp_data)
 
@@ -117,13 +170,13 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         """Switch the current analyser for the specified one.
 
         Arguments: new_analyser_type"""
-        cmd = cc_msg_pb2.CmdCtlMessage()
-        cmd.cmd_name = "setan"
-        arg = cmd.args.add()
+        msg = cc_msg_pb2.CmdCtlMessage()
+        msg.cmd_name = "setan"
+        arg = msg.args.add()
         arg.key = "new_an"
         arg.value = args
 
-        rsp = self.command_control.exec_cmd(cmd)
+        rsp = self.command_control.exec_cmd(msg)
 
         print(rsp.rsp_data)
 
@@ -131,10 +184,10 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         """Shutdown the system.
 
         Arguments: None"""
-        cmd = cc_msg_pb2.CmdCtlMessage()
-        cmd.cmd_name = "shutdown"
+        msg = cc_msg_pb2.CmdCtlMessage()
+        msg.cmd_name = "shutdown"
         print("Shutting down...")
-        rsp = self.command_control.exec_cmd(cmd)
+        rsp = self.command_control.exec_cmd(msg)
 
         if rsp.rsp_data == "Y":
             print("System successfully shutdown.")
