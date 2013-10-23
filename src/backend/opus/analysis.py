@@ -27,6 +27,7 @@ class Analyser(threading.Thread):
         '''Initialize class members'''
         super(Analyser, self).__init__(*args, **kwargs)
         self.stop_event = threading.Event()
+        self.daemon = True
 
     def run(self):
         '''Should be overridden in the derived class'''
@@ -79,6 +80,7 @@ class LoggingAnalyser(Analyser):
         and close the file object'''
         os.fsync(self.file_object.fileno())
         self.file_object.close()
+        return True
 
 
 class OrderingAnalyser(Analyser):
@@ -124,7 +126,7 @@ class OrderingAnalyser(Analyser):
         if __debug__:
             logging.debug("M:Completing flush.")
         self.queue_cleared.clear()
-        super(OrderingAnalyser, self).do_shutdown()
+        return super(OrderingAnalyser, self).do_shutdown()
 
     def put_msg(self, msg_list):
         '''Place a set of messages onto the queue, clearing the queue if any

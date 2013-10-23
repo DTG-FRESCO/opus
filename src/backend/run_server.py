@@ -41,14 +41,6 @@ def parse_args():
     return args.config
 
 
-def command_help():
-    print("======Commands======\n"
-                  "Analyser Set    -> set\n"
-                  "Analyser Type   -> type\n"
-                  "Quit            -> quit\n"
-                  "Help            -> ?\n")
-
-
 def main():
     '''Main loop method, creates the mock daemon manager then loops for user
     input calling methods of the daemon manager as appropriate. Finally calls
@@ -71,21 +63,7 @@ def main():
         logging.error("Failed to read in config file.")
         return
 
-    command_help()
-    while True:
-        command = raw_input("Enter Command:")
-        if command == "quit":
-            break
-        elif command == "?":
-            command_help()
-        elif command == "type":
-            print(daemon_manager.dbus_get_analyser())
-        elif command == "set":
-            new_analyser = raw_input("Enter desired analyser:")
-            daemon_manager.dbus_set_analyser(new_analyser)
-
-    daemon_manager.dbus_stop_service()
-
+    daemon_manager.loop()
 
 if __name__ == "__main__":
     custom_time.patch_custom_monotonic_time()

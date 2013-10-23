@@ -1,0 +1,32 @@
+package fresco.opus.CtlCmdObjects;
+
+enum CC_MSG_TYPE {
+    CMDCTL = 1;
+    CMDCTLRSP = 2;
+    PSRSP = 3;
+}
+
+message CmdCtlMessage {
+
+    message KVPair {
+        optional string key = 1;
+        optional string value = 2;
+    }
+
+    optional string cmd_name = 1; // opus-ps, opus-kill etc.
+    repeated KVPair args = 2; // list of arg name and value
+}
+
+message CmdCtlMessageRsp {
+    optional string rsp_data = 1; // anything in string format
+}
+
+message PSMessageRsp {
+
+    message PSData {
+        optional int64 pid = 1; // Process ID
+        optional int64 thread_count = 2; // Number of active threads for the process
+    }
+
+    repeated PSData ps_data = 1; // Process data
+}

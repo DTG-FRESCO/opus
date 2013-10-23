@@ -10,8 +10,10 @@ import copy
 import logging
 import threading
 import functools
+import os
+import struct
 
-from opus import uds_msg_pb2
+from opus import uds_msg_pb2, cc_msg_pb2
 
 
 '''Number of seconds to wait for a thread to join on shutdown.'''
@@ -52,6 +54,67 @@ class FixedDict(object):
         if key not in self._dictionary:
             raise KeyError("The key {} is not defined.".format(key))
         return self._dictionary[key]
+
+
+class BiDict(object):
+    '''Implements a one-to-one mapping.'''
+    def __init__(self):
+        self.dict = {}
+
+    def __getitem__(self, key):
+        '''Retrieve the value associated with key.'''
+        return self.dict[key]
+
+    def __setitem__(self, key, value):
+        '''Set the pair key and value.'''
+        self.dict[key] = value
+        self.dict[value] = key
+
+    def __delitem__(self, key):
+        '''Remove the pair including key.'''
+        self.dict.pop(self.dict.pop(key))
+
+
+def _cc_msg_type_transcode(obj):
+    if not hasattr(_cc_msg_type_transcode, "trans_dict"):
+        trans_dict = BiDict()
+        trans_dict[cc_msg_pb2.CMDCTL] = type(cc_msg_pb2.CmdCtlMessage())
+        trans_dict[cc_msg_pb2.CMDCTLRSP] = type(cc_msg_pb2.CmdCtlMessageRsp())
+        trans_dict[cc_msg_pb2.PSRSP] = type(cc_msg_pb2.PSMessageRsp())
+        _cc_msg_type_transcode.trans_dict = trans_dict
+    return _cc_msg_type_transcode.trans_dict[obj]
+
+
+class RWPipePair(object):
+    '''Pair of pipes that can be used to exchange data.'''
+    def __init__(self, r_pipe, w_pipe):
+        super(RWPipePair, self).__init__()
+        self.r_pipe = r_pipe
+        self.w_pipe = w_pipe
+
+    def read(self):
+        hdr_size = struct.calcsize(str("@II"))
+        hdr_buf = os.read(self.r_pipe, hdr_size)
+        pay_len, pay_type = struct.unpack(str("@II"), hdr_buf)
+        pay_buf = os.read(self.r_pipe, pay_len)
+        pay_cls = _cc_msg_type_transcode(pay_type)
+        return pay_cls.FromString(pay_buf)
+
+    def write(self, msg):
+        msg_len = msg.ByteSize()
+        msg_type = _cc_msg_type_transcode(type(msg))
+        buf = struct.pack(str("@II"), msg_len, msg_type)
+        buf += msg.SerializeToString()
+        os.write(self.w_pipe, buf)
+
+    @classmethod
+    def create_pair(cls):
+        (rd1, wr1) = os.pipe()
+        (rd2, wr2) = os.pipe()
+
+        pair1 = cls(rd1, wr2)
+        pair2 = cls(rd2, wr1)
+        return (pair1, pair2)
 
 
 def meta_factory(base, tag, *args, **kwargs):

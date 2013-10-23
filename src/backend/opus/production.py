@@ -21,7 +21,7 @@ import threading
 import time
 import opuspb
 
-from opus import (common_utils, messaging, uds_msg_pb2)
+from opus import (cc_msg_pb2, common_utils, messaging, uds_msg_pb2)
 
 
 def unlink_uds_path(path):
@@ -98,16 +98,19 @@ class UDSCommunicationManager(CommunicationManager):
                                 close_connection=100, 
                                 try_again_later=101)
 
-    def __init__(self, uds_path, max_conn=10, 
-                select_timeout=5.0, *args, **kwargs):
+    def __init__(self, uds_path, ctrl_sock,
+                 max_conn=10, select_timeout=5.0,
+                 *args, **kwargs):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__(*args, **kwargs)
         unlink_uds_path(uds_path)
         self.input_client_map = {} # fileno to sock object map
+        self.pid_map = {}  # pid to list of sock objects map
         self.uds_path = uds_path # Configurable
         self.max_server_conn = max_conn # Configurable
         self.select_timeout = select_timeout # Configurable
         self.server_socket = None
+        self.control_sock = ctrl_sock
 
         try:
             self.server_socket = socket.socket(socket.AF_UNIX, 
@@ -123,6 +126,8 @@ class UDSCommunicationManager(CommunicationManager):
         self.epoll = select.epoll()
         self.epoll.register(self.server_socket.fileno(),
                         select.EPOLLIN | select.EPOLLERR)
+        self.epoll.register(self.control_sock.r_pipe,
+                            select.EPOLLIN | select.EPOLLERR)
 
     def do_poll(self):
         '''Returns a list of tuples for all ready file descriptors'''
@@ -142,6 +147,8 @@ class UDSCommunicationManager(CommunicationManager):
         for fileno, event in event_list:
             if fileno == self.server_socket.fileno():
                 self.__handle_new_connection()
+            elif fileno == self.control_sock.r_pipe:
+                self.__handle_command(ret_list)
             elif event & select.EPOLLIN:
                 self.__handle_client(self.input_client_map[fileno], ret_list)
             elif event & select.EPOLLHUP:
@@ -150,6 +157,33 @@ class UDSCommunicationManager(CommunicationManager):
                 self.__handle_close_connection(self.input_client_map[fileno],
                                                 ret_list)
         return ret_list
+
+    def __handle_command(self, ret_list):
+        '''Handles a command message from the command and control system.'''
+        cmd = self.control_sock.read()
+        if cmd.cmd_name == "ps":
+            rsp = cc_msg_pb2.PSMessageRsp()
+            for pid in self.pid_map:
+                entry = rsp.ps_data.add()
+                entry.pid = pid
+                entry.thread_count = len(self.pid_map[pid])
+        elif cmd.cmd_name == "kill":
+            pid = None
+            rsp = cc_msg_pb2.CmdCtlMessageRsp()
+            for arg in cmd.args:
+                if arg.key == "pid":
+                    pid = int(arg.value)
+            if pid is None or pid not in self.pid_map:
+                rsp.rsp_data = "No valid pid argument supplied."
+            else:
+                sock_objs = self.pid_map[pid][:]
+                for sock in sock_objs:
+                    self.__handle_close_connection(sock, ret_list)
+                rsp.rsp_data = "Success. %d connections closed."% len(sock_objs)
+        else:
+            rsp = cc_msg_pb2.CmdCtlMessageRsp()
+            rsp.rsp_data = "%s is not a valid command."% cmd.cmd_name
+        self.control_sock.write(rsp)        
 
     def __handle_client(self, sock_fd, ret_list):
         '''Receives data from client or closes the client connection'''
@@ -171,6 +205,11 @@ class UDSCommunicationManager(CommunicationManager):
         ret_list.append(tuple(create_close_conn_obj(sock_fd)))
         if sock_fd in self.input_client_map:
             del self.input_client_map[sock_fd.fileno()]
+        self.pid_map = {pid: [sock
+                              for sock in sock_list
+                              if sock is not sock_fd]
+                        for pid, sock_list in self.pid_map.items()
+                        if sock_fd not in sock_list or len(sock_list) > 1}
         if __debug__:
             logging.debug('closing socket: %d', sock_fd.fileno())
         sock_fd.close()
@@ -186,6 +225,10 @@ class UDSCommunicationManager(CommunicationManager):
         self.epoll.register(client_fd.fileno(),
                         select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
         self.input_client_map[client_fd.fileno()] = client_fd
+        if pid in self.pid_map:
+            self.pid_map[pid] += [client_fd]
+        else:
+            self.pid_map[pid] = [client_fd]
 
     def __receive(self, sock_fd, size):
         '''Receives data for a given size from a socket'''
@@ -252,11 +295,13 @@ class UDSCommunicationManager(CommunicationManager):
 
 class Producer(threading.Thread):
     '''Base class for the producer thread'''
-    def __init__(self, analyser_obj):
+    def __init__(self, analyser_obj, comm_pipe):
         '''Initialize class data members'''
         super(Producer, self).__init__()
         self.analyser = analyser_obj
+        self.comm_pipe = comm_pipe
         self.stop_event = threading.Event()
+        self.daemon = True
 
     def run(self):
         '''Override in the derived class'''
@@ -294,7 +339,7 @@ class SocketProducer(Producer):
         '''Initialize the class data members'''
         super(SocketProducer, self).__init__(*args, **kwargs)
         self.comm_mgr_type = comm_mgr_type
-
+        comm_mgr_args['ctrl_sock'] = self.comm_pipe
         try:
             self.comm_manager = common_utils.meta_factory(CommunicationManager, 
                                         self.comm_mgr_type, **comm_mgr_args)
@@ -317,4 +362,4 @@ class SocketProducer(Producer):
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
-        super(SocketProducer, self).do_shutdown()
+        return super(SocketProducer, self).do_shutdown()
