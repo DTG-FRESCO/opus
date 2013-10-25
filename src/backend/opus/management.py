@@ -19,8 +19,8 @@ class InvalidConfigFileException(common_utils.OPUSException):
     '''Error in the formatting or content of the systems config file.'''
     def __init__(self):
         super(InvalidConfigFileException, self).__init__(
-                                            "Error: Failed to load config file."
-                                                         )
+            "Error: Failed to load config file."
+        )
 
 
 def _safe_read_config(cfg, section, key):
@@ -72,6 +72,9 @@ def _shutdown_touch_file(touch_file):
 
 def _load_module(config, mod_name, mod_base,
                  mod_extra_args=None, mod_type=None):
+    '''Loads the configuration for a module of name and base class from config,
+    allows the load to be augmented with extra arguments and allow config type
+    lookup to be overridden.'''
     if mod_type is None:
         mod_type = _safe_read_config(config, "MODULES", mod_name)
 
@@ -135,7 +138,7 @@ class DaemonManager(object):
                                         mod_type=new_analyser_type)
         except InvalidConfigFileException:
             return ("Please choose an analyser type that has a config"
-                          " specified in the systems configuration file.")
+                    " specified in the systems configuration file.")
 
         new_analyser.start()
 

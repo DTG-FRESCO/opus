@@ -5,6 +5,7 @@
 #
 
 '''
+Messaging implementation for python.
 '''
 from __future__ import (unicode_literals, print_function,
                         absolute_import, division)
@@ -12,29 +13,49 @@ from __future__ import (unicode_literals, print_function,
 
 import struct
 
-class Message:
-    def loads(self, st):
-        data = struct.unpack(self.struct_string, st)
+
+class Message(object):
+    '''Base message class.'''
+    struct_string = ""
+
+    def __init__(self):
+        pass
+
+    def loads(self,  buf):
+        '''Load data from buf into self.'''
+        data = struct.unpack(self.struct_string, buf)
         self.tuple_to_self(data)
 
     def dumps(self):
+        '''Dump data from self to string.'''
         data = self.self_to_tuple()
         return struct.pack(self.struct_string, *data)
 
+    def tuple_to_self(self, tup):
+        '''Import the tuple tup into internal fields.'''
+        raise NotImplementedError()
+
+    def self_to_tuple(self):
+        '''Export local fields as a tuple.'''
+        raise NotImplementedError()
+
     def __str__(self):
-    	return self.self_to_tuple()
+        '''Print self.'''
+        return str(self.self_to_tuple())
 
 {% for msg in msgs %}
 class {{msg.name}}(Message):
+    '''Generated message of type {{msg.name}}'''
     struct_string = str("{{msg|struct_string}}")
     length = struct.calcsize(struct_string)
 
-    def __init__(self):{% for field in msg.fields %}
+    def __init__(self):
+        super({{msg.name}}, self).__init__(){% for field in msg.fields %}
         {{"self."~field.name~" = None"}}{% endfor %} 
 
-    def tuple_to_self(self, tu):
+    def tuple_to_self(self, tup):
         ({% for field in msg.fields %}{{"self."~field.name}}{% if not loop.last %},
-         {% endif %}{% endfor %}) = tu
+         {% endif %}{% endfor %}) = tup
 
     def self_to_tuple(self):
         return ({% for field in msg.fields %}{{"self."~field.name}}{% if not loop.last %},

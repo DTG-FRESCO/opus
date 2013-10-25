@@ -13,6 +13,7 @@ import ctypes
 import errno
 import logging
 
+
 class ClockConstant(object):
     '''Clock type values from from <linux/time.h>'''
     CLOCK_MONOTONIC = 1
@@ -21,7 +22,7 @@ class ClockConstant(object):
 
 class Timespec(ctypes.Structure):
     '''Describes the fields in timespec structure'''
-    _fields_ = [ ('tv_sec', ctypes.c_long), ('tv_nsec', ctypes.c_long) ]
+    _fields_ = [('tv_sec', ctypes.c_long), ('tv_nsec', ctypes.c_long)]
 
 
 def monotonic_time(clock_type):
@@ -29,12 +30,12 @@ def monotonic_time(clock_type):
     if not hasattr(monotonic_time, "clock_gettime"):
         librt = ctypes.CDLL('librt.so.1', use_errno=True)
         monotonic_time.clock_gettime = librt.clock_gettime
-        monotonic_time.clock_gettime.argtypes = \
-                [ctypes.c_int, ctypes.POINTER(Timespec)]
+        monotonic_time.clock_gettime.argtypes = [ctypes.c_int,
+                                                 ctypes.POINTER(Timespec)]
 
     _time = Timespec()
-    if monotonic_time.clock_gettime(clock_type, 
-                            ctypes.pointer(_time)) != 0:
+    if monotonic_time.clock_gettime(clock_type,
+                                    ctypes.pointer(_time)) != 0:
         _errno = ctypes.get_errno()
         raise OSError(_errno, os.strerror(_errno))
     return _time.tv_sec + _time.tv_nsec * 1e-9

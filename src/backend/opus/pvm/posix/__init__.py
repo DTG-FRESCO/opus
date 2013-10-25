@@ -101,9 +101,10 @@ def handle_prefunc(pid, msg):
     if "exec" in msg.msg_desc:
         DisconController.proc_exec(pid)
 
+
 def handle_startup(tran, pay):
     '''Handle system startup.'''
-    t_id, t_obj = tran.create(prov_db.TERM)
+    _, t_obj = tran.create(prov_db.TERM)
     t_obj.reason = pay.reason
     t_obj.downtime_start = pay.downtime_start
     t_obj.downtime_end = pay.downtime_end

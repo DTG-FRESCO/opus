@@ -24,8 +24,8 @@ class ActionMap(object):
         '''Return the function associated with key.'''
         if cls.action_map[name]['proc_err']:
             if err > 0:
-                return args[1] #p_id
-            
+                return args[1]  # p_id
+
             return cls.action_map[name]['func'](*args, **kwargs)
         return cls.action_map[name]['func'](err, *args, **kwargs)
 
@@ -42,7 +42,7 @@ class ActionMap(object):
 
 
 @ActionMap.add('event', True)
-def event_action(tran, p_id):
+def event_action(_, p_id):
     '''Action representing a function that only generates a process event.'''
     return p_id
 
@@ -64,7 +64,7 @@ def write_action(err, tran, p_id, filedes):
 
 
 @ActionMap.add('null', False)
-def null_action(err, tran, p_id, filedes):
+def null_action(_, tran, p_id, filedes):
     '''Action that interacts with a file descriptor but is neither a read or a
     write. Also the common basis between both the read and write actions.'''
     try:
@@ -178,6 +178,7 @@ def link_action(tran, p_id, orig_name, new_name):
     new_l_id = tran.get(l_id).next_version.id
     pvm.drop_l(tran, new_l_id)
     return l_id
+
 
 @ActionMap.add('touch', True)
 def touch_action(tran, p_id, filename):
