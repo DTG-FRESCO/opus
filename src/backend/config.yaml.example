@@ -22,7 +22,7 @@ LOGGING:
 MODULES:
   Producer: SocketProducer
   Analyser: LoggingAnalyser
-  CommandInterface: CMDInterface
+  CommandInterface: TCPInterface
 
 PRODUCER:
   SocketProducer:
@@ -38,6 +38,9 @@ ANALYSER:
 
 COMMANDINTERFACE:
   CMDInterface: {}
+  TCPInterface:
+    listen_addr: localhost
+    listen_port: 10101
 
 GENERAL:
   touch_file: .opus_live

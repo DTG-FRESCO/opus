@@ -6,7 +6,8 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (analysis, command, common_utils, production, messaging)
+from opus import (analysis, cc_utils, command,
+                  common_utils, production, messaging)
 from opus import uds_msg_pb2 as uds_msg
 
 import logging
@@ -101,7 +102,7 @@ class DaemonManager(object):
 
         self.analyser = _load_module(config, "Analyser", analysis.Analyser)
 
-        (prod_comm, ctrl_prod) = common_utils.RWPipePair.create_pair()
+        (prod_comm, ctrl_prod) = cc_utils.RWPipePair.create_pair()
 
         self.producer = _load_module(config, "Producer", production.Producer,
                                      {"analyser_obj": self.analyser,
