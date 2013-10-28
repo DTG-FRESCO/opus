@@ -64,6 +64,10 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     }\
     else\
     {\
+        char desc_buf[256] = ""; \
+        snprintf(desc_buf, 256, "Process terminating. Received signal %d", sig); \
+        send_telemetry_msg(FrontendTelemetry::CRITICAL, desc_buf); \
+                                        \
         set_signal(sig, SIG_DFL);\
         SignalUtils::restore_signal_mask(&old_set);\
                                         \
@@ -328,8 +332,10 @@ bool SignalUtils::is_signal_valid(const int sig)
  * Installs signal handlers for
  * signals that we need to capture.
  */
-void SignalUtils::init_signal_capture()
+bool SignalUtils::init_signal_capture()
 {
+    bool ret = true;
+
     try
     {
         static const int signal_list[] = {
@@ -394,10 +400,13 @@ void SignalUtils::init_signal_capture()
             }
         }
     }
-    catch(const std::exception& e)
+    catch(const std::bad_alloc& e)
     {
+        ret = false;
+        ProcUtils::interpose_off(e.what());
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
+    return ret;
 }
 
 /**

@@ -7,6 +7,7 @@ enum PayloadType {
     FUNCINFO_MSG = 3;
     GENERIC_MSG = 4;
     TERM_MSG = 5;
+    TELEMETRY_MSG = 6;
 }
 
 enum GenMsgType {
@@ -58,7 +59,19 @@ message FuncInfoMessage {
 message GenericMessage {
     optional GenMsgType msg_type = 1; // Type of generic message
     optional string msg_desc = 2; // Description of the message
-    optional string sys_time = 3; // Formatted system date time
+    optional int64 sys_time = 3; // Unix time
+}
+
+message FrontendTelemetry {
+
+    enum TelMsgType {
+        CRITICAL = 1; // e.g: process crash
+        SEVERE = 2; // e.g: memory allocation failure
+    }
+
+    optional int64 sys_time = 1; // Unix time
+    optional TelMsgType msg_type = 2; // Telemetry message type
+    optional string desc = 3; // Description of event
 }
 
 message TermMessage {

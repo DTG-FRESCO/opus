@@ -48,7 +48,8 @@ void opus_init(int argc, char** argv, char** envp)
     }
 
 #ifdef CAPTURE_SIGNALS
-    SignalUtils::init_signal_capture();
+    if (!SignalUtils::init_signal_capture())
+        return;
 #endif
     ProcUtils::send_startup_message(argc, argv, envp);
     ProcUtils::send_loaded_libraries();

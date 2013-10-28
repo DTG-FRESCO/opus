@@ -44,6 +44,15 @@ static int __open_internal(const char* pathname, int flags,
         return ret;
     }
 
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        errno = 0;
+        int ret = (*real_open)(pathname, flags, mode);
+        err_obj = errno;
+        return ret;
+    }
+
     uint64_t start_time = ProcUtils::get_time();
 
     errno = 0;

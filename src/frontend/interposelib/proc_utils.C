@@ -48,6 +48,9 @@ __thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
 
+/** global interposition off flag */
+volatile sig_atomic_t ProcUtils::opus_interpose_off = __FALSE;
+
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
@@ -346,6 +349,7 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
         disconnect(); // Close the socket with the OPUS backend
+        interpose_off(e.what());
         ret = false;
     }
 
@@ -422,6 +426,10 @@ const string ProcUtils::get_user_name(const uid_t user_id)
 
         user_name_str = pwd.pw_name;
     }
+    catch(const std::bad_alloc& e)
+    {
+        ProcUtils::interpose_off(e.what());
+    }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
@@ -457,6 +465,10 @@ const string ProcUtils::get_group_name(const gid_t group_id)
         }
 
         group_name_str = grp.gr_name;
+    }
+    catch(const std::bad_alloc& e)
+    {
+        ProcUtils::interpose_off(e.what());
     }
     catch(const std::exception& e)
     {
@@ -677,8 +689,16 @@ void* ProcUtils::get_sym_addr(const string& symbol)
         not be found is when a libc function is invoked from 
         a processes .preinit_array method.
     */
-    if (!libc_func_map)
-        libc_func_map = new std::map<string, void*>();
+    try
+    {
+        if (!libc_func_map)
+            libc_func_map = new std::map<string, void*>();
+    }
+    catch(const std::bad_alloc& e)
+    {
+        // No point turning off interposition we will crash anyway.
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what().c_str());
+    }
 
     std::map<string, void*>::iterator miter = libc_func_map->find(symbol);
     if (miter != libc_func_map->end())
@@ -699,8 +719,16 @@ void* ProcUtils::add_sym_addr(const string& symbol)
     void *func_ptr = NULL;
     char *sym_error = NULL;
 
-    if (!libc_func_map)
-        libc_func_map = new std::map<string, void*>();
+    try
+    {
+        if (!libc_func_map)
+            libc_func_map = new std::map<string, void*>();
+    }
+    catch(const std::bad_alloc& e)
+    {
+        // No point turning off interposition we will crash anyway.
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what().c_str());
+    }
 
     dlerror();
     func_ptr = dlsym(RTLD_NEXT, symbol.c_str());
@@ -739,6 +767,7 @@ bool ProcUtils::connect()
     catch(const std::exception& e)
     {
         ret = false;
+        interpose_off(e.what());
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
@@ -837,6 +866,11 @@ Message* ProcUtils::get_proto_msg(const PayloadType msg_type)
                 throw std::runtime_error("ERROR!! Invalid message type");
         }
     }
+    catch(const std::bad_alloc& e)
+    {
+        interpose_off(e.what());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
     catch(const std::exception& e)
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
@@ -901,4 +935,36 @@ void ProcUtils::incr_conn_ref_count()
 uint32_t ProcUtils::decr_conn_ref_count()
 {
     return --conn_ref_count;
+}
+
+/**
+ * Check if global interpose off flag is set
+ */
+bool ProcUtils::is_interpose_off()
+{
+    if (opus_interpose_off)
+        return true;
+
+    return false;
+}
+
+/**
+ * Used to report a severe error such as resource
+ * allocation error. Will turn interposition off
+ * on all threads in the process.
+ */
+void ProcUtils::interpose_off(const string& desc)
+{
+    ProcUtils::test_and_set_flag(true);
+
+    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, desc.c_str());
+
+    if (comm_obj)
+    {
+        send_telemetry_msg(FrontendTelemetry::SEVERE, desc.c_str());
+        disconnect();
+    }
+
+    // atomic operation
+    opus_interpose_off = __TRUE;
 }
