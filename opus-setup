@@ -1,3 +1,7 @@
+# Logging levels
+DEBUG=1 ERROR=2 CRITICAL=3
+export OPUS_LOG_LEVEL=$CRITICAL
+
 export PROJ_HOME=$PWD
 export TOP=$PROJ_HOME
 export PROJ_INCLUDE=$PROJ_HOME/include
