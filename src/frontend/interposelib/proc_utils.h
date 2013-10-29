@@ -14,8 +14,6 @@
 // Process global constants
 #define MAX_INT32_LEN   16
 #define MAX_TEL_DESC    256
-#define __TRUE    1
-#define __FALSE   0
 #define INTERPOSE_OFF_MSG "Global interpose flag is off"
 
 /**
@@ -89,7 +87,7 @@ class ProcUtils
         static __thread uint32_t conn_ref_count;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
-        static volatile sig_atomic_t opus_interpose_off;
+        static sig_atomic_t opus_interpose_off;
 
         /* Thread local cached message objects */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;

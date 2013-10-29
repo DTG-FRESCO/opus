@@ -27,14 +27,14 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
  * Macros to replace repetitive
  * code in signal and sigaction
  */
-#define CALL_REAL_SIGNAL \
-    errno = 0; \
-    ret = (*real_signal)(signum, real_handler); \
+#define CALL_REAL_SIGNAL                            \
+    errno = 0;                                      \
+    ret = (*real_signal)(signum, real_handler);     \
     err_obj = errno;
 
-#define CALL_REAL_SIGACTION \
-    errno = 0; \
-    ret = (*real_sigaction)(signum, act, oldact); \
+#define CALL_REAL_SIGACTION                         \
+    errno = 0;                                      \
+    ret = (*real_sigaction)(signum, act, oldact);   \
     err_obj = errno;
 
 
@@ -42,71 +42,71 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
  * Macros to minimize repetitive
  * code used in all exec functions
  */
-#define PRE_EXEC_CALL(fptr_type, fname, desc, arg1, ...) \
-    static fptr_type real_fptr = NULL; \
-    TrackErrno err_obj(errno); \
-                                        \
-    /* Get the symbol address and store it */\
+#define PRE_EXEC_CALL(fptr_type, fname, desc, arg1, ...)    \
+    static fptr_type real_fptr = NULL;                      \
+    TrackErrno err_obj(errno);                              \
+                                                            \
+    /* Get the symbol address and store it */               \
     if (!real_fptr)\
         real_fptr = (fptr_type)ProcUtils::get_sym_addr(fname); \
-                                                \
-    /* Call function if global flag is true */ \
-    if (ProcUtils::test_and_set_flag(true)) \
-    {                                       \
-        errno = 0;                          \
-        int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-        err_obj = errno; \
-        return ret; \
-    } \
-                                        \
-    if (ProcUtils::is_interpose_off()) \
-    {                                   \
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG); \
-        errno = 0;                          \
-        int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-        err_obj = errno; \
-        return ret; \
-    } \
-                                            \
-    /* Send pre function call generic message */ \
-    bool comm_ret = send_pre_func_generic_msg(desc); \
-                                                    \
-    /* Call the original exec */ \
+                                                            \
+    /* Call function if global flag is true */              \
+    if (ProcUtils::test_and_set_flag(true))                 \
+    {                                                       \
+        errno = 0;                                          \
+        int ret = (*real_fptr)(arg1, __VA_ARGS__);          \
+        err_obj = errno;                                    \
+        return ret;                                         \
+    }                                                       \
+                                                            \
+    if (ProcUtils::is_interpose_off())                      \
+    {                                                       \
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);        \
+        errno = 0;                                          \
+        int ret = (*real_fptr)(arg1, __VA_ARGS__);          \
+        err_obj = errno;                                    \
+        return ret;                                         \
+    }                                                       \
+                                                            \
+    /* Send pre function call generic message */            \
+    bool comm_ret = send_pre_func_generic_msg(desc);        \
+                                                            \
+    /* Call the original exec */                            \
     uint64_t start_time = ProcUtils::get_time();
 
-#define POST_EXEC_CALL(desc, arg1_val) \
-                                    \
-    if (!comm_ret) return ret; \
-                                    \
-    /* This part will execute only if exec fails */ \
-    uint64_t end_time = ProcUtils::get_time(); \
-    int errno_value = errno; \
-                                \
+#define POST_EXEC_CALL(desc, arg1_val)                      \
+                                                            \
+    if (!comm_ret) return ret;                              \
+                                                            \
+    /* This part will execute only if exec fails */         \
+    uint64_t end_time = ProcUtils::get_time();              \
+    int errno_value = errno;                                \
+                                                            \
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>( \
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG)); \
-    if (!func_msg) return ret; \
-                    \
+    if (!func_msg) return ret;                              \
+                                                            \
     set_func_info_msg(func_msg, desc, ret, start_time, end_time, errno_value); \
-                        \
-    KVPair* arg_kv; \
-    arg_kv = func_msg->add_args(); \
-    arg_kv->set_key(STRINGIFY(arg1)); \
-    arg_kv->set_value(arg1_val); \
-                            \
+                                                            \
+    KVPair* arg_kv;                                         \
+    arg_kv = func_msg->add_args();                          \
+    arg_kv->set_key(STRINGIFY(arg1));                       \
+    arg_kv->set_value(arg1_val);                            \
+                                                            \
     comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG); \
-    ProcUtils::test_and_set_flag(!comm_ret); \
-    func_msg->Clear(); \
+    ProcUtils::test_and_set_flag(!comm_ret);                \
+    func_msg->Clear();                                      \
     return ret;
 
 /**
  * This function macro is used by exec functions
  * that do not pass environment variables
  */
-#define EXEC_FUNC(fptr_type, fname, desc, arg1, ...) \
+#define EXEC_FUNC(fptr_type, fname, desc, arg1, ...)        \
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
-    errno = 0; \
-    int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-    err_obj = errno; \
+    errno = 0;                                              \
+    int ret = (*real_fptr)(arg1, __VA_ARGS__);              \
+    err_obj = errno;                                        \
     POST_EXEC_CALL(desc, arg1);
 
 /**
@@ -114,13 +114,13 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
  * that pass environment variables. The environment
  * data allocated on the heap is released if exec fails.
  */
-#define EXEC_FUNC_ENV(fptr_type, fname, desc, arg1, ...) \
+#define EXEC_FUNC_ENV(fptr_type, fname, desc, arg1, ...)    \
     PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
-    errno = 0; \
-    int ret = (*real_fptr)(arg1, __VA_ARGS__); \
-    err_obj = errno; \
+    errno = 0;                                              \
+    int ret = (*real_fptr)(arg1, __VA_ARGS__);              \
+    err_obj = errno;                                        \
     /* If exec returns, it indicates an error. Free allocated memory */ \
-    cleanup_allocated_memory(&env_vec); \
+    cleanup_allocated_memory(&env_vec);                     \
     POST_EXEC_CALL(desc, arg1);
 
 

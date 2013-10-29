@@ -14,15 +14,15 @@
 #include "track_errno.h"
 
 
-#define GET_MODE \
-    mode_t mode = 0; \
-    if ((flags & O_CREAT) != 0) \
-    {                           \
-        va_list arg; \
-        va_start(arg, flags); \
+#define GET_MODE                    \
+    mode_t mode = 0;                \
+    if ((flags & O_CREAT) != 0)     \
+    {                               \
+        va_list arg;                \
+        va_start(arg, flags);       \
         mode = va_arg(arg, mode_t); \
-        va_end(arg); \
-    }               \
+        va_end(arg);                \
+    }
 
 /**
  * Function template to merge open and open64

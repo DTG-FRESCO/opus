@@ -49,7 +49,7 @@ __thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
 pid_t ProcUtils::opus_pid = -1;
 
 /** global interposition off flag */
-volatile sig_atomic_t ProcUtils::opus_interpose_off = __FALSE;
+sig_atomic_t ProcUtils::opus_interpose_off = false;
 
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
@@ -942,10 +942,7 @@ uint32_t ProcUtils::decr_conn_ref_count()
  */
 bool ProcUtils::is_interpose_off()
 {
-    if (opus_interpose_off)
-        return true;
-
-    return false;
+    return opus_interpose_off;
 }
 
 /**
@@ -966,5 +963,5 @@ void ProcUtils::interpose_off(const string& desc)
     }
 
     // atomic operation
-    opus_interpose_off = __TRUE;
+    opus_interpose_off = true;
 }
