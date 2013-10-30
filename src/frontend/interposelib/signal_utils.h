@@ -22,7 +22,7 @@ class SignalUtils
         static void opus_type_one_signal_handler(int sig);
         static void opus_type_two_signal_handler(int sig,
                                         siginfo_t *info, void *u_ctx);
-        static void init_signal_capture();
+        static bool init_signal_capture();
         static bool initialize();
         static void reset();
         static bool is_signal_valid(const int sig);

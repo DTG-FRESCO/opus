@@ -1,6 +1,7 @@
 #ifndef SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
 #define SRC_FRONTEND_INTERPOSELIB_PROC_UTILS_H_
 
+#include <signal.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -10,7 +11,10 @@
 #include "uds_client.h"
 #include "messaging.h"
 
+// Process global constants
 #define MAX_INT32_LEN   16
+#define MAX_TEL_DESC    256
+#define INTERPOSE_OFF_MSG "Global interpose flag is off"
 
 /**
  * A utility class that encapsulates common
@@ -73,12 +77,17 @@ class ProcUtils
         static void incr_conn_ref_count();
         static uint32_t decr_conn_ref_count();
 
+        /* Functions to check and turn off interposition */
+        static bool is_interpose_off();
+        static void interpose_off(const std::string& desc);
+
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;
         static __thread uint32_t conn_ref_count;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
+        static sig_atomic_t opus_interpose_off;
 
         /* Thread local cached message objects */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;

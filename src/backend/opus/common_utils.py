@@ -115,5 +115,7 @@ def get_payload_type(header):
         return uds_msg_pb2.GenericMessage()
     elif header.payload_type == uds_msg_pb2.TERM_MSG:
         return uds_msg_pb2.TermMessage()
+    elif header.payload_type == uds_msg_pb2.TELEMETRY_MSG:
+        return uds_msg_pb2.FrontendTelemetry()
     else:
         logging.error("Invalid payload type %d", header.payload_type)

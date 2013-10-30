@@ -1,3 +1,6 @@
+#ifndef SRC_FRONTEND_INTERPOSELIB_MESSAGE_UTIL_H_
+#define SRC_FRONTEND_INTERPOSELIB_MESSAGE_UTIL_H_
+
 /**
  * This file contains protocol buffer message
  * utility functions that may be inlined.
@@ -12,6 +15,7 @@ namespace
     using ::fresco::opus::IPCMessage::FuncInfoMessage;
     using ::fresco::opus::IPCMessage::LibInfoMessage;
     using ::fresco::opus::IPCMessage::StartupMessage;
+    using ::fresco::opus::IPCMessage::FrontendTelemetry;
 
 
     inline bool set_header_and_send(const Message& pay_msg,
@@ -41,10 +45,7 @@ namespace
 
         gen_msg->set_msg_type(gen_msg_type);
         gen_msg->set_msg_desc(desc);
-
-        std::string date_time;
-        ProcUtils::get_formatted_time(&date_time);
-        gen_msg->set_sys_time(date_time);
+        gen_msg->set_sys_time(time(NULL));
 
         bool ret_val = set_header_and_send(*gen_msg, PayloadType::GENERIC_MSG);
         gen_msg->Clear();
@@ -79,4 +80,18 @@ namespace
         func_msg->set_ret_val(ret);
         set_func_info_msg(func_msg, desc, start_time, end_time, errno_value);
     }
+
+    inline void send_telemetry_msg(const FrontendTelemetry::TelMsgType msg_type,
+                                    const char *desc)
+    {
+        FrontendTelemetry tel_msg;
+
+        tel_msg.set_sys_time(time(NULL));
+        tel_msg.set_msg_type(msg_type);
+        tel_msg.set_desc(desc);
+
+        set_header_and_send(tel_msg, PayloadType::TELEMETRY_MSG);
+    }
 }
+
+#endif  // SRC_FRONTEND_INTERPOSELIB_MESSAGE_UTIL_H_

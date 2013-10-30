@@ -26,59 +26,63 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
  * type is passed to the function macro along
  * with arguments for the handler.
  */
-#define HANDLER_BODY(ptr_type, ...) \
-    ProcUtils::test_and_set_flag(true); \
-                        \
-    bool interpose_off_flag = false; \
-    FuncInfoMessage *func_msg = NULL; \
-    GenericMessage *gen_msg = NULL; \
-                                    \
-    sigset_t old_set; \
-    SignalUtils::block_all_signals(&old_set); \
-                                            \
-    try                                     \
-    {                                       \
-        func_msg = new FuncInfoMessage(); \
-        gen_msg = new GenericMessage(); \
-                                                    \
-        ProcUtils::use_alt_proto_msg(func_msg, gen_msg); \
-                                              \
-        char sig_buf[MAX_INT32_LEN] = "";         \
-                                              \
-        send_generic_msg(GenMsgType::SIGNAL, ProcUtils::opus_itoa(sig, sig_buf));\
-    }                                       \
-    catch(const std::exception& e)          \
-    {                                       \
-        DEBUG_LOG("[%s:%d]: %s\n", e.what()); \
-        interpose_off_flag = true;               \
-    }                                       \
-                                             \
-    void *real_handler = NULL; \
-    if ((real_handler = get_real_handler(sig)) != NULL)\
-    {\
-        SignalUtils::restore_signal_mask(&old_set);\
-                                                    \
-        ProcUtils::test_and_set_flag(interpose_off_flag); \
-        reinterpret_cast<ptr_type>(real_handler)(__VA_ARGS__);\
-        ProcUtils::test_and_set_flag(true); \
-    }\
-    else\
-    {\
-        set_signal(sig, SIG_DFL);\
-        SignalUtils::restore_signal_mask(&old_set);\
-                                        \
-        if (raise(sig) != 0)\
-        {\
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, \
-                        ProcUtils::get_error(errno).c_str());\
-            _exit(EXIT_FAILURE);\
-        }\
-    }\
-                                    \
-    ProcUtils::restore_proto_tls(); \
-    delete func_msg;                \
-    delete gen_msg;                 \
-                                    \
+#define HANDLER_BODY(ptr_type, ...)                                 \
+    ProcUtils::test_and_set_flag(true);                             \
+                                                                    \
+    bool interpose_off_flag = false;                                \
+    FuncInfoMessage *func_msg = NULL;                               \
+    GenericMessage *gen_msg = NULL;                                 \
+                                                                    \
+    sigset_t old_set;                                               \
+    SignalUtils::block_all_signals(&old_set);                       \
+                                                                    \
+    try                                                             \
+    {                                                               \
+        func_msg = new FuncInfoMessage();                           \
+        gen_msg = new GenericMessage();                             \
+                                                                    \
+        ProcUtils::use_alt_proto_msg(func_msg, gen_msg);            \
+                                                                    \
+        char sig_buf[MAX_INT32_LEN] = "";                           \
+                                                                    \
+        send_generic_msg(GenMsgType::SIGNAL, ProcUtils::opus_itoa(sig, sig_buf)); \
+    }                                                               \
+    catch(const std::exception& e)                                  \
+    {                                                               \
+        DEBUG_LOG("[%s:%d]: %s\n", e.what());                       \
+        interpose_off_flag = true;                                  \
+    }                                                               \
+                                                                    \
+    void *real_handler = NULL;                                      \
+    if ((real_handler = get_real_handler(sig)) != NULL)             \
+    {                                                               \
+        SignalUtils::restore_signal_mask(&old_set);                 \
+                                                                    \
+        ProcUtils::test_and_set_flag(interpose_off_flag);           \
+        reinterpret_cast<ptr_type>(real_handler)(__VA_ARGS__);      \
+        ProcUtils::test_and_set_flag(true);                         \
+    }                                                               \
+    else                                                            \
+    {                                                               \
+        char desc_buf[256];                                         \
+        snprintf(desc_buf, 256, "Process terminating. Received signal %d", sig); \
+        send_telemetry_msg(FrontendTelemetry::CRITICAL, desc_buf);  \
+                                                                    \
+        set_signal(sig, SIG_DFL);                                   \
+        SignalUtils::restore_signal_mask(&old_set);                 \
+                                                                    \
+        if (raise(sig) != 0)                                        \
+        {                                                           \
+            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,          \
+                        ProcUtils::get_error(errno).c_str());       \
+            _exit(EXIT_FAILURE);                                    \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    ProcUtils::restore_proto_tls();                                 \
+    delete func_msg;                                                \
+    delete gen_msg;                                                 \
+                                                                    \
     ProcUtils::test_and_set_flag(false);
 
 /**
@@ -328,8 +332,10 @@ bool SignalUtils::is_signal_valid(const int sig)
  * Installs signal handlers for
  * signals that we need to capture.
  */
-void SignalUtils::init_signal_capture()
+bool SignalUtils::init_signal_capture()
 {
+    bool ret = true;
+
     try
     {
         static const int signal_list[] = {
@@ -394,10 +400,13 @@ void SignalUtils::init_signal_capture()
             }
         }
     }
-    catch(const std::exception& e)
+    catch(const std::bad_alloc& e)
     {
+        ret = false;
+        ProcUtils::interpose_off(e.what());
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
+    return ret;
 }
 
 /**

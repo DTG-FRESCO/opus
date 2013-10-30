@@ -61,7 +61,7 @@ def create_close_conn_obj(sock_fd):
     gen_msg = uds_msg_pb2.GenericMessage()
     gen_msg.msg_type = uds_msg_pb2.DISCON
     gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
-    gen_msg.sys_time = str(datetime.datetime.now())
+    gen_msg.sys_time = int(time.time())
 
     header = messaging.Header()
     header.timestamp = mono_time_in_nanosecs()
