@@ -429,6 +429,36 @@ static void add_uds_path(std::vector<char*>* env_vec_ptr)
 }
 
 /**
+ * Adds the OPUS_INTERPOSE_OFF the list of environment
+ * variables being passed to the execed program
+ */
+static void add_opus_interpose_off(std::vector<char*>* env_vec_ptr)
+{
+    try
+    {
+        char *ipose_off_value = ProcUtils::get_env_val("OPUS_INTERPOSE_OFF");
+
+        std::string opus_interpose_off = "OPUS_INTERPOSE_OFF=";
+        opus_interpose_off += std::string(ipose_off_value);
+
+        char *env_data = alloc_and_copy(opus_interpose_off);
+        if (!env_data)
+        {
+            throw std::runtime_error("Could not add OPUS_INTERPOSE_OFF");
+        }
+
+        env_vec_ptr->push_back(env_data);
+
+        DEBUG_LOG("[%s:%d]: Added OPUS_INTERPOSE_OFF: %s\n",
+                    __FILE__, __LINE__, env_data);
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+}
+
+/**
  * Adds environment variables related to OPUS
  * if missing before the call to exec is made.
  */
@@ -483,6 +513,7 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
     }
 
     add_uds_path(env_vec_ptr);
+    add_opus_interpose_off(env_vec_ptr);
 }
 
 /**

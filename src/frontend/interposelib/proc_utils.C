@@ -697,7 +697,7 @@ void* ProcUtils::get_sym_addr(const string& symbol)
     catch(const std::bad_alloc& e)
     {
         // No point turning off interposition we will crash anyway.
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what().c_str());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     std::map<string, void*>::iterator miter = libc_func_map->find(symbol);
@@ -727,7 +727,7 @@ void* ProcUtils::add_sym_addr(const string& symbol)
     catch(const std::bad_alloc& e)
     {
         // No point turning off interposition we will crash anyway.
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what().c_str());
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     dlerror();
@@ -795,7 +795,8 @@ const char* ProcUtils::canonicalise_path(const char *path, char *actual_path)
     char *real_path = realpath(path, actual_path);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
         return path;
     }
 
@@ -817,7 +818,8 @@ const char* ProcUtils::abs_path(const char *path, char *abs_path)
     char *real_path = realpath(path_head, abs_path);
     if (!real_path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
         return path;
     }
 
@@ -833,7 +835,8 @@ const char* ProcUtils::abs_path(const char *path, char *abs_path)
 char* ProcUtils::opus_itoa(const int32_t val, char *str)
 {
     if (snprintf(str, MAX_INT32_LEN, "%d", val) < 0)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
 
     return str;
 }
@@ -953,6 +956,13 @@ bool ProcUtils::is_interpose_off()
 void ProcUtils::interpose_off(const string& desc)
 {
     ProcUtils::test_and_set_flag(true);
+
+    const char *ipos_off_env = "OPUS_INTERPOSE_OFF=1";
+    if (putenv(const_cast<char*>(ipos_off_env)) != 0)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
+    }
 
     DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, desc.c_str());
 
