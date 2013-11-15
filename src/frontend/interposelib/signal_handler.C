@@ -36,6 +36,16 @@ void SignalHandler::check_and_reset_handler_flag(int *flags)
     }
 }
 
+void SignalHandler::get_sigact_data(struct sigaction *act)
+{
+    if (sa_flags & SA_SIGINFO)
+        act->sa_sigaction = reinterpret_cast<SA_SIGACTION_PTR>(get_handler());
+    else act->sa_handler = reinterpret_cast<sighandler_t>(get_handler());
+
+    act->sa_mask = sa_mask;
+    act->sa_flags = sa_flags;
+}
+
 /**
  * Constructor for type one signal handler
  * called when the signal function is invoked.
@@ -45,6 +55,8 @@ SAHandler::SAHandler(const int sig, sighandler_t handler)
 {
     if (signal_handler == SIG_DFL || signal_handler == SIG_IGN)
         callable_flag = false;
+
+    signal_func_type = SignalHandler::SIGNAL;
 }
 
 /**
@@ -57,7 +69,10 @@ SAHandler::SAHandler(const int sig, struct sigaction *act)
 {
     if (!act) return;
 
+    signal_func_type = SignalHandler::SIGACTION;
     signal_handler = act->sa_handler;
+    sa_mask = act->sa_mask;
+    sa_flags = act->sa_flags;
 
     if (signal_handler == SIG_DFL || signal_handler == SIG_IGN)
         callable_flag = false;
@@ -107,7 +122,10 @@ SASigaction::SASigaction(const int sig, struct sigaction *act)
 {
     if (!act) return;
 
+    signal_func_type = SignalHandler::SIGACTION;
     signal_handler = act->sa_sigaction;
+    sa_mask = act->sa_mask;
+    sa_flags = act->sa_flags;
 
     check_and_reset_handler_flag(&act->sa_flags);
 }
@@ -137,3 +155,6 @@ void* SASigaction::get_handler() const
 {
     return reinterpret_cast<void*>(signal_handler);
 }
+
+// TODO: Need a function that will return the old act
+// data so that we can retore the signal state

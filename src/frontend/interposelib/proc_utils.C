@@ -29,6 +29,7 @@
 #include "uds_client.h"
 #include "message_util.h"
 #include "messaging.h"
+#include "signal_utils.h"
 
 #define STRINGIFY(value) #value
 
@@ -953,6 +954,8 @@ bool ProcUtils::is_interpose_off()
 void ProcUtils::interpose_off(const string& desc)
 {
     ProcUtils::test_and_set_flag(true);
+
+    if (!opus_interpose_off) SignalUtils::restore_all_signal_states();
 
     DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, desc.c_str());
 
