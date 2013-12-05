@@ -416,6 +416,13 @@ mkfifo:
       - msg_arg
       - pathname
 
+__xmknod:
+  action: touch
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+
 remove:
   action: delete
   arg_map:
@@ -589,3 +596,7 @@ pclose:
     filedes: 
       - msg_arg
       - stream
+
+_exit:
+  action: event
+  arg_map: {}

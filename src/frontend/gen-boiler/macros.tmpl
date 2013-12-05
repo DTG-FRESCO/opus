@@ -6,7 +6,11 @@
     {%- endfor -%}{{"..."}}
   {%- else -%}
     {%- for arg in fn.args -%}
-      {{arg.type~" "~arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+      {%- if arg.dims -%}
+        {{arg.type~" "~arg.name~arg.dims}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+      {%- else -%}
+        {{arg.type~" "~arg.name}}{%- if not loop.last -%}{{", "}}{%- endif -%}
+      {%- endif -%}
     {%- endfor -%}
   {%- endif -%}
 {%- endmacro %}
