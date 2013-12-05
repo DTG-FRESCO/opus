@@ -18,6 +18,9 @@ enum LinkState {
     RaW = 4;
     CLOSED = 5;
     DELETED = 6;
+    BIN = 7;
+    CoE = 8;
+    CLOEXEC = 9;
 }
 
 message Link {
