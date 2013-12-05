@@ -550,7 +550,7 @@
     name: s
     type: "char *"
 
-  - flags: []
+  - flags: [read]
     name: n
     type: "int"
 

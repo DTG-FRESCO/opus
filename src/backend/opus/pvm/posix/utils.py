@@ -227,9 +227,12 @@ def proc_dup_fd(tran, p_id, fd_i, fd_o):
     if fd_i == fd_o:
         return
     i_id = proc_get_local(tran, p_id, fd_i)
-    o_id = proc_get_local(tran, p_id, fd_o)
     i_obj = tran.get(i_id)
-    if o_id is not None:
+    try:
+        o_id = proc_get_local(tran, p_id, fd_o)
+    except NoMatchingLocalError:
+        pass
+    else:
         o_obj = tran.get(o_id)
         if len(o_obj.file_object) > 0:
             if len(o_obj.file_object) > 1:

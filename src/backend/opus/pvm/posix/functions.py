@@ -155,7 +155,7 @@ def posix_dup(tran, p_id, msg):
     '''Implementation of dup in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     old_fd = args['oldfd']
-    new_fd = msg.ret_val
+    new_fd = str(msg.ret_val)
     i_id = utils.proc_get_local(tran, p_id, old_fd)
     utils.proc_dup_fd(tran, p_id, old_fd, new_fd)
     return i_id
