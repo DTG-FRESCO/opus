@@ -1496,3 +1496,299 @@
   ret: "int"
   flags: [nogen]
   args: "int sig"
+
+- name: fcntl
+  ret: "int"
+  flags: [nogen]
+  args: "int fildes, int cmd, ..."
+
+- name: _IO_getc
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: _IO_putc
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: c
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+- name: _IO_puts
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "const char *"
+
+- name: __fprintf_chk
+  ret: "int"
+  real_func: "__vfprintf_chk"
+  flags: [vararg, nofnptr]
+  args: 
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: "format"
+    type: "const char *"
+
+- name: __vfprintf_chk
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: format
+    type: "const char *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: __fgets_chk
+  ret: "char *"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "char *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: strsize
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: __fgets_unlocked_chk
+  ret: "char *"
+  flags: []
+  args:
+  - flags: []
+    name: s
+    type: "char *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: strsize
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: __fgetws_chk
+  ret: "wchar_t *"
+  flags: []
+  args:
+  - flags: []
+    name: ws
+    type: "wchar_t *"
+
+  - flags: [read]
+    name: size
+    type: "size_t"
+
+  - flags: [read]
+    name: strsize
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: __fgetws_unlocked_chk
+  ret: "wchar_t *"
+  flags: []
+  args:
+  - flags: []
+    name: ws
+    type: "wchar_t *"
+
+  - flags: [read]
+    name: strsize
+    type: "size_t"
+
+  - flags: [read]
+    name: n
+    type: "int"
+
+  - flags: [read]
+    name: stream
+    type: "FILE *"
+
+
+- name: __pread64_chk
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "void *"
+
+  - flags: [read]
+    name: nbytes
+    type: "size_t"
+
+  - flags: [read]
+    name: offset
+    type: "off64_t"
+
+  - flags: [read]
+    name: buflen
+    type: "size_t"
+
+
+- name: __pread_chk
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "void *"
+
+  - flags: [read]
+    name: nbytes
+    type: "size_t"
+
+  - flags: [read]
+    name: offset
+    type: "off_t"
+
+  - flags: [read]
+    name: buflen
+    type: "size_t"
+
+
+- name: __read_chk
+  ret: "ssize_t"
+  flags: []
+  args:
+  - flags: [read]
+    name: fd
+    type: "int"
+
+  - flags: []
+    name: buf
+    type: "void *"
+
+  - flags: [read]
+    name: nbytes
+    type: "size_t"
+
+  - flags: [read]
+    name: buflen
+    type: "size_t"
+
+
+- name: __vfwprintf_chk
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: fp
+    type: "FILE *"
+
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: format
+    type: "const wchar_t *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: __vwprintf_chk
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: format
+    type: "const wchar_t *"
+
+  - flags: []
+    name: ap
+    type: "va_list"
+
+
+- name: __fwprintf_chk
+  ret: "int"
+  real_func: "__vfwprintf_chk"
+  flags: [vararg, nofnptr]
+  args:
+  - flags: [read]
+    name: fp
+    type: "FILE *"
+
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: format
+    type: "const wchar_t *"
+
+
+- name: __wprintf_chk
+  ret: "int"
+  real_func: "__vwprintf_chk"
+  flags: [vararg, nofnptr]
+  args:
+  - flags: []
+    name: flag
+    type: "int"
+
+  - flags: []
+    name: format
+    type: "const wchar_t *"

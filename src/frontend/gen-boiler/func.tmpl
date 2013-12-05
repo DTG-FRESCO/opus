@@ -127,7 +127,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     int ret_val = -1;
     if (ret) ret_val = fileno(ret);
     set_func_info_msg(func_msg, "{{func.name}}", ret_val, start_time, end_time, errno_value);
-    {%- elif func.ret != "char *" and func.ret != "void" -%}
+    {%- elif func.ret != "char *" and func.ret != "wchar_t *" and func.ret != "void" -%}
     set_func_info_msg(func_msg, "{{func.name}}", ret, start_time, end_time, errno_value);
     {%- else -%}
     set_func_info_msg(func_msg, "{{func.name}}", start_time, end_time, errno_value);
