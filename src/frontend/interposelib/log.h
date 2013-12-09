@@ -4,15 +4,15 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
-#ifdef LOGGING
-#define DEBUG_LOG(level, ...)                   \
+#ifdef DEBUG_LOGGING
+#define LOG_MSG(level, ...)                   \
     if (unlikely(level >= Logging::get_current_level()))  \
-        Logging::debug_msg(__VA_ARGS__)
+        Logging::log_msg(__VA_ARGS__)
 #else
-#define DEBUG_LOG(...)
+#define LOG_MSG(level, ...)
 #endif
 
-enum {DEBUG = 1, ERROR, CRITICAL};
+enum {LOG_DEBUG = 1, LOG_ERROR, LOG_CRITICAL};
 
 class Logging
 {
@@ -20,7 +20,7 @@ class Logging
         static void init_logging();
         static uint16_t get_current_level() { return logging_level; };
 
-        static void debug_msg(const char* msg, ...);
+        static void log_msg(const char* msg, ...);
 
     private:
         static uint16_t logging_level;

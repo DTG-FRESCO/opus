@@ -44,7 +44,7 @@ void opus_init(int argc, char** argv, char** envp)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
         return; // Interposition is turned off
     }
 
@@ -65,7 +65,7 @@ void opus_fini()
 {
     ProcUtils::test_and_set_flag(true);
 
-    DEBUG_LOG(DEBUG, "[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
                 __FILE__, __LINE__, ProcUtils::getpid(), ProcUtils::gettid());
 
     ProcUtils::disconnect();

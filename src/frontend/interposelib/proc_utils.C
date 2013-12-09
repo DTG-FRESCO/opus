@@ -70,7 +70,7 @@ static int get_loaded_libs(struct dl_phdr_info *info,
         char *real_path = realpath(info->dlpi_name, NULL);
         if (!real_path)
         {
-            DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+            LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                         ProcUtils::get_error(errno).c_str());
             return -1;
         }
@@ -141,7 +141,7 @@ static inline void set_rlimit_info(StartupMessage* start_msg)
         struct rlimit rlim;
         if (getrlimit((*citer).second, &rlim) < 0)
         {
-            DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+            LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                         ProcUtils::get_error(errno).c_str());
             continue;
         }
@@ -162,7 +162,7 @@ static inline void set_system_info(StartupMessage* start_msg)
 
     if (uname(&buf) < 0)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                     ProcUtils::get_error(errno).c_str());
         return;
     }
@@ -256,14 +256,14 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
     {
         char *preload_path = get_env_val("LD_PRELOAD");
 
-        DEBUG_LOG(DEBUG, "[%s:%d]: LD_PRELOAD path: %s\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
 
         *ld_preload_path = preload_path;
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -275,7 +275,7 @@ uint64_t ProcUtils::get_time()
     struct timespec tp;
 
     if (clock_gettime(CLOCK_MONOTONIC_RAW, &tp) < 0)
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                     ProcUtils::get_error(errno).c_str());
 
     uint64_t nsecs = (uint64_t)tp.tv_sec * 1000000000UL + (uint64_t)tp.tv_nsec;
@@ -299,7 +299,7 @@ void ProcUtils::get_formatted_time(string* date_time)
 
     if (strftime(buffer, sizeof(buffer), "%Y-%m-%d %T", &timeinfo) == 0)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: strftime returned zero bytes\n",
+        LOG_MSG(LOG_ERROR, "[%s:%d]: strftime returned zero bytes\n",
                         __FILE__, __LINE__);
         return;
     }
@@ -344,7 +344,7 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
         disconnect(); // Close the socket with the OPUS backend
         ret = false;
     }
@@ -387,11 +387,11 @@ void ProcUtils::get_uds_path(string* uds_path_str)
 
         *uds_path_str = uds_path;
 
-        DEBUG_LOG(DEBUG, "[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: OPUS UDS path: %s\n", __FILE__, __LINE__, uds_path);
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -424,7 +424,7 @@ const string ProcUtils::get_user_name(const uid_t user_id)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     delete[] buf;
@@ -460,7 +460,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     delete[] buf;
@@ -477,7 +477,7 @@ const string ProcUtils::get_group_name(const gid_t group_id)
  */
 void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     incr_conn_ref_count();
@@ -592,7 +592,7 @@ void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     if (fd != -1) close(fd);
@@ -607,7 +607,7 @@ pid_t ProcUtils::gettid()
     pid_t tid = -1;
 
     if ((tid = syscall(__NR_gettid)) < 0)
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                     ProcUtils::get_error(errno).c_str());
 
     return tid;
@@ -648,7 +648,7 @@ pid_t ProcUtils::__getpid()
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
         pid = ::getpid(); // use glibc's getpid
     }
 
@@ -707,7 +707,7 @@ void* ProcUtils::add_sym_addr(const string& symbol)
     if (func_ptr == NULL)
     {
         if ((sym_error = dlerror()) != NULL)
-            DEBUG_LOG(ERROR, "[%s:%d]: Critical error!! %s\n",
+            LOG_MSG(LOG_ERROR, "[%s:%d]: Critical error!! %s\n",
                         __FILE__, __LINE__, sym_error);
 
         exit(EXIT_FAILURE);
@@ -739,7 +739,7 @@ bool ProcUtils::connect()
     catch(const std::exception& e)
     {
         ret = false;
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return ret;
@@ -766,7 +766,7 @@ const char* ProcUtils::canonicalise_path(const char *path, char *actual_path)
     char *real_path = realpath(path, actual_path);
     if (!real_path)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
         return path;
     }
 
@@ -788,7 +788,7 @@ const char* ProcUtils::abs_path(const char *path, char *abs_path)
     char *real_path = realpath(path_head, abs_path);
     if (!real_path)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
         return path;
     }
 
@@ -804,7 +804,7 @@ const char* ProcUtils::abs_path(const char *path, char *abs_path)
 char* ProcUtils::opus_itoa(const int32_t val, char *str)
 {
     if (snprintf(str, MAX_INT32_LEN, "%d", val) < 0)
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
 
     return str;
 }
@@ -834,12 +834,12 @@ Message* ProcUtils::get_proto_msg(const PayloadType msg_type)
                 return gen_msg_obj;
 
             default:
-                throw std::runtime_error("ERROR!! Invalid message type");
+                throw std::runtime_error("LOG_ERROR!! Invalid message type");
         }
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return NULL;
@@ -866,7 +866,7 @@ const string ProcUtils::get_error(const int err_num)
     char *err_str = strerror_r(err_num, err_buf, sizeof(err_buf));
     if (!err_str)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: strerror_r error: %d\n",
+        LOG_MSG(LOG_ERROR, "[%s:%d]: strerror_r error: %d\n",
                     __FILE__, __LINE__, errno);
         return "";
     }

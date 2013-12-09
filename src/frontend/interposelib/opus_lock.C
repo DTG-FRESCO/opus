@@ -57,7 +57,7 @@ void SimpleLock::destroy_lock()
           this fails, we cannot do much apart from
           reallocating a new lock object.
         */
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
     }
 }
@@ -73,7 +73,7 @@ void SimpleLock::acquire()
 
     while ((err = pthread_mutex_lock(&simple_lock)) != 0)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
 
         if (err == EOWNERDEAD)
@@ -133,7 +133,7 @@ void ConditionLock::destroy_lock()
           this fails, we cannot do much apart from
           reallocating a new lock object.
         */
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
     }
 }
@@ -228,7 +228,7 @@ void ReadWriteLock::destroy_lock()
           this fails, we cannot do much apart from
           reallocating a new lock object.
         */
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
     }
 }

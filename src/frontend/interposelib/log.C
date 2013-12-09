@@ -23,9 +23,9 @@ static void get_time_stamp(char *time_stamp)
 }
 
 /**
- *  Logs debug messages to standard error
+ *  Logs messages to standard error
  */
-void Logging::debug_msg(const char* msg, ...)
+void Logging::log_msg(const char* msg, ...)
 {
     va_list list;
     char time_stamp[16] = "";
@@ -48,17 +48,17 @@ void Logging::init_logging()
         char *log_level = ProcUtils::get_env_val("OPUS_LOG_LEVEL");
         logging_level = atoi(log_level);
 
-        if (logging_level < DEBUG || logging_level > CRITICAL)
+        if (logging_level < LOG_DEBUG || logging_level > LOG_CRITICAL)
         {
             logging_level = LOGGING_OFF;
             throw std::runtime_error("Invalid logging level");
         }
 
-        DEBUG_LOG(DEBUG, "[%s:%d]: Logging level set to %d\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Logging level set to %d\n",
                         __FILE__, __LINE__, logging_level);
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG(ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }

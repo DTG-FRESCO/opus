@@ -20,7 +20,7 @@ class OPUSException
 
         void print_msg() const
         {
-            DEBUG_LOG(DEBUG, "[%s:%d]: %s\n", file_name.c_str(),
+            LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", file_name.c_str(),
                         line_no, message.c_str());
         }
 

@@ -37,7 +37,7 @@ UDSCommClient::~UDSCommClient()
  */
 bool UDSCommClient::connect(const std::string& path)
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
         __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     if (uds_path.empty()) uds_path = path;
@@ -51,7 +51,7 @@ bool UDSCommClient::connect(const std::string& path)
         {
             if (errno == EINTR)
             {
-                DEBUG_LOG(ERROR, "[%s:%d]: socket interrupted\n", __FILE__, __LINE__);
+                LOG_MSG(LOG_ERROR, "[%s:%d]: socket interrupted\n", __FILE__, __LINE__);
                 continue;
             }
             else throw UDSCommException(__FILE__, __LINE__,
@@ -68,7 +68,7 @@ bool UDSCommClient::connect(const std::string& path)
         {
             if (errno == EINTR)
             {
-                DEBUG_LOG(ERROR, "[%s:%d]: connect interrupted\n", __FILE__, __LINE__);
+                LOG_MSG(LOG_ERROR, "[%s:%d]: connect interrupted\n", __FILE__, __LINE__);
                 continue;
             }
             else if (errno == EINPROGRESS) break;
@@ -91,7 +91,7 @@ bool UDSCommClient::connect(const std::string& path)
  */
 bool UDSCommClient::reconnect()
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
         __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     return connect(uds_path);
@@ -103,14 +103,14 @@ bool UDSCommClient::reconnect()
  */
 bool UDSCommClient::send_data(const void* const data, const int data_size)
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
         __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     size_t bytes_left = data_size;
 
     try
     {
-        DEBUG_LOG(DEBUG, "[%s:%d]: Bytes to be sent: %d\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Bytes to be sent: %d\n",
                     __FILE__, __LINE__, data_size);
 
         uint32_t total_bytes_sent = 0;
@@ -124,7 +124,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
             {
                 if (errno == EINTR)
                 {
-                    DEBUG_LOG(ERROR, "[%s:%d]: send interrupted\n",
+                    LOG_MSG(LOG_ERROR, "[%s:%d]: send interrupted\n",
                                 __FILE__, __LINE__);
                     continue;
                 }
@@ -132,7 +132,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
                                     ProcUtils::get_error(errno));
             }
 
-            DEBUG_LOG(DEBUG, "[%s:%d]: Wrote %ld bytes to socket\n",
+            LOG_MSG(LOG_DEBUG, "[%s:%d]: Wrote %ld bytes to socket\n",
                         __FILE__, __LINE__, bytes_sent);
 
             total_bytes_sent += bytes_sent;
@@ -155,7 +155,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
  */
 bool UDSCommClient::send_data(const std::string& data)
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     const char* data_ptr = data.c_str();
@@ -169,7 +169,7 @@ bool UDSCommClient::send_data(const std::string& data)
  */
 void UDSCommClient::close_connection()
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     try
@@ -178,7 +178,7 @@ void UDSCommClient::close_connection()
         {
             if (errno == EINTR)
             {
-                DEBUG_LOG(ERROR, "[%s:%d]: close interrupted\n", __FILE__, __LINE__);
+                LOG_MSG(LOG_ERROR, "[%s:%d]: close interrupted\n", __FILE__, __LINE__);
                 continue;
             }
             else throw UDSCommException(__FILE__, __LINE__,
@@ -196,7 +196,7 @@ void UDSCommClient::close_connection()
  */
 void UDSCommClient::shutdown()
 {
-    DEBUG_LOG(DEBUG, "[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     close_connection();
