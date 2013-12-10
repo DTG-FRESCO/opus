@@ -470,19 +470,23 @@ void SignalUtils::restore_all_signal_states()
         /* Obtain a lock */
         LockGuard guard(*sig_vec_lock);
 
-        for (uint16_t sig = 0; sig < sig_handler_vec->size(); sig++)
+        int sig = 0;
+        std::vector<SignalHandler*>::iterator viter;
+
+        for (viter = sig_handler_vec->begin();
+                viter != sig_handler_vec->end(); ++sig, ++viter)
         {
             if (!is_signal_valid(sig)) continue;
 
-            if ((*sig_handler_vec)[sig] == NULL)
+            SignalHandler* &handler = *viter;
+
+            if (!handler)
             {
                 DEBUG_LOG("[%s:%d]: Setting signal %d to SIG_DFL\n",
                                     __FILE__, __LINE__, sig);
                 set_signal(sig, SIG_DFL);
                 continue;
             }
-
-            SignalHandler *&handler = (*sig_handler_vec)[sig];
 
             if (handler->get_signal_func_type() == SignalHandler::SIGNAL)
             {

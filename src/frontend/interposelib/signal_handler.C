@@ -155,6 +155,3 @@ void* SASigaction::get_handler() const
 {
     return reinterpret_cast<void*>(signal_handler);
 }
-
-// TODO: Need a function that will return the old act
-// data so that we can retore the signal state
