@@ -96,7 +96,9 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% if func.args|capture_arg %}KVPair* tmp_arg;{% endif %}
     {% for arg in func.args if 'read' in arg.flags %}
     tmp_arg = func_msg->add_args();
+    {% if 'rwpair' not in arg.flags %}
     tmp_arg->set_key("{{arg.name}}");
+    {% endif %}
     {% if arg.type == "char *" or arg.type == "const char *" -%}
     if ({{arg.name}})
     {
@@ -118,8 +120,19 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {%- elif arg.type == "gid_t" -%}
     tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
     {%- else -%}
+    {% if 'rwpair' in arg.flags %}
+    char read_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_key("read_fd");
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}[0], read_fd_buf));
+
+    tmp_arg = func_msg->add_args();
+    char write_fd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_key("write_fd");
+    tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}[1], write_fd_buf));
+    {% else %}
     char {{arg.name}}_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}, {{arg.name}}_buf));
+    {% endif %}
     {%- endif -%}
     {%- endfor %}
 

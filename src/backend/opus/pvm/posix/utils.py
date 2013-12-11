@@ -308,3 +308,23 @@ def set_link(tran, l_id, state):
             if lnk.id == l_id:
                 lnk.state = state
                 break
+
+
+def process_rw_pair(tran, p_id, msg):
+    '''Helper function to implement PVM operations for a pair of file
+    descriptors typically created by calls to pipe and socketpair'''
+    args = parse_kvpair_list(msg.args)
+
+    # Create local objects for read and write fds
+    read_fd = args['read_fd']
+    l_id1 = pvm.get_l(tran, p_id, read_fd)
+    write_fd = args['write_fd']
+    l_id2 = pvm.get_l(tran, p_id, write_fd)
+
+    # Get a global object ID and bind both read and write fds
+    (new_g_id, _) = tran.create(prov_db.GLOBAL)
+    pvm.bind(tran, l_id1, new_g_id)
+    add_event(tran, l_id1, msg)
+    pvm.bind(tran, l_id2, new_g_id)
+    return l_id2
+

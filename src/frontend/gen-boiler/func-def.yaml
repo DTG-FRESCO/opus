@@ -902,6 +902,27 @@
     type: "mode_t"
 
 
+- name: __xmknod
+  ret: "int"
+  flags: []
+  args:
+  - flags: []
+    name: __ver
+    type: "int"
+
+  - flags: [read,can]
+    name: pathname
+    type: "const char *"
+
+  - flags: [read]
+    name: mode
+    type: "mode_t"
+
+  - flags: []
+    name: dev
+    type: dev_t
+
+
 - name: remove
   ret: "int"
   flags: []
@@ -1406,6 +1427,85 @@
   - flags: []
     name: "format"
     type: "const char *"
+
+
+- name: socket
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: domain
+    type: "int"
+
+  - flags: [read]
+    name: type
+    type: "int"
+
+  - flags: [read]
+    name: protocol
+    type: "int"
+
+
+- name: accept
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: sockfd
+    type: "int"
+
+  - flags: []
+    name: addr
+    type: "struct sockaddr *"
+
+  - flags: []
+    name: addrlen
+    type: "socklen_t *"
+
+
+- name: pipe
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read, rwpair]
+    name: pipefd
+    type: "int"
+    dims: "[2]"
+
+- name: pipe2
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read, rwpair]
+    name: pipefd
+    type: "int"
+    dims: "[2]"
+
+  - flags: [read]
+    name: flags
+    type: "int"
+
+- name: socketpair
+  ret: "int"
+  flags: []
+  args:
+  - flags: [read]
+    name: domain
+    type: "int"
+
+  - flags: [read]
+    name: type
+    type: "int"
+
+  - flags: [read]
+    name: protocol
+    type: "int"
+
+  - flags: [read, rwpair]
+    name: sv
+    type: "int"
+    dims: "[2]"
+
 
 - name: execl
   ret: "int"

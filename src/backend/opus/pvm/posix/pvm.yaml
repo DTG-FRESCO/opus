@@ -416,6 +416,13 @@ mkfifo:
       - msg_arg
       - pathname
 
+__xmknod:
+  action: touch
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+
 remove:
   action: delete
   arg_map:
@@ -701,3 +708,7 @@ __wprintf_chk:
     filedes: 
       - const
       - 1
+
+_exit:
+  action: event
+  arg_map: {}

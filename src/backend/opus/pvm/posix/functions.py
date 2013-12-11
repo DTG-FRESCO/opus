@@ -151,6 +151,43 @@ def posix_fchownat():
     pass
 
 
+@FuncController.dec('socket')
+@utils.check_message_error_num
+def posix_socket(tran, p_id, msg):
+    '''Implementation of socket in PVM semantics.'''
+    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
+    return l_id
+
+
+@FuncController.dec('accept')
+@utils.check_message_error_num
+def posix_accept(tran, p_id, msg):
+    '''Implementation of accept in PVM semantics.'''
+    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
+    return l_id
+
+
+@FuncController.dec('pipe')
+@utils.check_message_error_num
+def posix_pipe(tran, p_id, msg):
+    '''Implementation of pipe in PVM semantics.'''
+    return utils.process_rw_pair(tran, p_id, msg)
+
+
+@FuncController.dec('pipe2')
+@utils.check_message_error_num
+def posix_pipe2(tran, p_id, msg):
+    '''Implementation of pipe2 in PVM semantics.'''
+    return utils.process_rw_pair(tran, p_id, msg)
+
+
+@FuncController.dec('socketpair')
+@utils.check_message_error_num
+def posix_socketpair(tran, p_id, msg):
+    '''Implementation of socketpair in PVM semantics.'''
+    return utils.process_rw_pair(tran, p_id, msg)
+
+
 @FuncController.dec('dup')
 @utils.check_message_error_num
 def posix_dup(tran, p_id, msg):
