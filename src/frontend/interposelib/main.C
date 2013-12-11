@@ -16,6 +16,24 @@ __attribute__((section(".init_array")))
 __attribute__((section(".fini_array")))
     typeof(opus_fini) *__opus_fini = opus_fini;
 
+
+static bool check_env_opus_interpose_off()
+{
+    try
+    {
+        char *ipose_off_value = ProcUtils::get_env_val("OPUS_INTERPOSE_OFF");
+
+        // Return true if OPUS_INTERPOSE_OFF exists
+        if (ipose_off_value) return true;
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+
+    return false;
+}
+
 /**
  * Initializes datastructures and functionalities
  * within OPUS. Also sends the process startup
@@ -30,6 +48,13 @@ void opus_init(int argc, char** argv, char** envp)
 
     // Set the correct pid
     ProcUtils::setpid(getpid());
+
+    if (check_env_opus_interpose_off())
+    {
+        DEBUG_LOG("[%s:%d]: OPUS_INTERPOSE_OFF flag is enabled\n",
+                    __FILE__, __LINE__);
+        return;
+    }
 
     try
     {
