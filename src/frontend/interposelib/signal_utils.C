@@ -92,8 +92,8 @@ static inline void set_signal(const int sig, sighandler_t handler)
 {
     sighandler_t ret = ::signal(sig, handler);
     if (ret == SIG_ERR)
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
+        DEBUG_LOG("[%s:%d]: %s for %d\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str(), sig);
 }
 
 /**
@@ -451,4 +451,76 @@ void SignalUtils::reset()
     {
         DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
+}
+
+/**
+ * Restores the signal handlers for the process
+ * to the state they were before interposition
+ */
+void SignalUtils::restore_all_signal_states()
+{
+    DEBUG_LOG("[%s:%d]: Entering %s\n",
+                __FILE__, __LINE__, __PRETTY_FUNCTION__);
+
+    sigset_t old_set;
+    block_all_signals(&old_set);
+
+    try
+    {
+        /* Obtain a lock */
+        LockGuard guard(*sig_vec_lock);
+
+        int sig = 0;
+        std::vector<SignalHandler*>::iterator viter;
+
+        for (viter = sig_handler_vec->begin();
+                viter != sig_handler_vec->end(); ++sig, ++viter)
+        {
+            if (!is_signal_valid(sig)) continue;
+
+            SignalHandler* &handler = *viter;
+
+            if (!handler)
+            {
+                DEBUG_LOG("[%s:%d]: Setting signal %d to SIG_DFL\n",
+                                    __FILE__, __LINE__, sig);
+                set_signal(sig, SIG_DFL);
+                continue;
+            }
+
+            if (handler->get_signal_func_type() == SignalHandler::SIGNAL)
+            {
+                DEBUG_LOG("[%s:%d]: Setting signal %d using signal\n",
+                                    __FILE__, __LINE__, sig);
+
+                sighandler_t signal_handler = reinterpret_cast<sighandler_t>
+                                                    (handler->get_handler());
+                set_signal(sig, signal_handler);
+            }
+            else
+            {
+                struct sigaction act;
+                handler->get_sigact_data(&act);
+
+                DEBUG_LOG("[%s:%d]: Setting signal %d using sigaction\n",
+                                    __FILE__, __LINE__, sig);
+
+                if (sigaction(sig, &act, NULL) < 0)
+                {
+                    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                                ProcUtils::get_error(errno).c_str());
+                    continue;
+                }
+            }
+
+            delete handler;
+            handler = NULL;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        DEBUG_LOG("[%s:%d]: %s", __FILE__, __LINE__, e.what());
+    }
+
+    restore_signal_mask(&old_set);
 }

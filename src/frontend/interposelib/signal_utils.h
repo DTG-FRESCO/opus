@@ -51,6 +51,10 @@ class SignalUtils
                                         SignalHandler* new_handler);
         static void remove_signal_handler(const int sig);
 
+        /* Function to restore signal states when interposition it turned off */
+        static void restore_all_signal_states();
+
+
     private:
         static std::vector<bool> *sig_valid_ptr;
         static OPUSLock *sig_vec_lock;
