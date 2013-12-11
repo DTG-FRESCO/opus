@@ -89,7 +89,8 @@ class OrderingAnalyser(Analyser):
     process method to consume messages.'''
     def __init__(self, *args, **kwargs):
         super(OrderingAnalyser, self).__init__(*args, **kwargs)
-        self.event_orderer = order.EventOrderer(50)  # TODO - Proper max_wind
+        # TODO(tb403) - Proper max_wind
+        self.event_orderer = order.EventOrderer(50)
         self.queue_cleared = threading.Event()
 
     def run(self):

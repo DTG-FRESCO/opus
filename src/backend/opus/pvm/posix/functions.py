@@ -195,7 +195,7 @@ def posix_link(tran, p_id, msg):
 @FuncController.dec('rename')
 def posix_rename(tran, p_id, msg):
     '''Implementation of rename in PVM semantics.'''
-    #TODO: Fix to only use a single omega.
+    # TODO(tb403): Fix to only use a single omega.
     args = utils.parse_kvpair_list(msg.args)
     if tran.name_get(args['newpath']) is not None:
         actions.delete_action(tran, p_id, args['newpath'])
@@ -218,7 +218,7 @@ def posix_umask(tran, p_id, msg):
 def posix_popen(tran, p_id, msg):
     '''Implementation of popen in PVM semantics.'''
     l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id  # TODO properly implement pipes
+    return l_id  # TODO(tb403) properly implement pipes
 
 
 @FuncController.dec('tmpfile')

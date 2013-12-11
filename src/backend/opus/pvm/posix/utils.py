@@ -26,13 +26,13 @@ class NoMatchingLocalError(PVMException):
     '''Failed to find a local object matching the supplied name.'''
     def __init__(self, p_id, name):
         super(NoMatchingLocalError, self).__init__(
-                   "Error: Failed to find local %s in process %d" % (name, p_id)
-                                                   )
+            "Error: Failed to find local %s in process %d" % (name, p_id)
+        )
 
 
 def parse_kvpair_list(args):
     '''Converts a list of KVPair messages to a dictionary.'''
-    return {arg.key:arg.value for arg in args}
+    return {arg.key: arg.value for arg in args}
 
 
 def check_message_error_num(func):
@@ -52,12 +52,12 @@ def process_from_startup(tran, (hdr, pay)):
     (p_id, p_obj) = tran.create(prov_db.PROCESS)
     p_obj.pid = hdr.pid
     time_stamp = hdr.timestamp
-    
+
     if pay.HasField('cwd'):
         cwd_id = new_meta(tran, "cwd", pay.cwd, time_stamp)
         p_obj.other_meta.add().id = cwd_id
-    
-    if pay.HasField('user_name'):        
+
+    if pay.HasField('user_name'):
         uid_id = new_meta(tran, "uid", pay.user_name, time_stamp)
         p_obj.other_meta.add().id = uid_id
 
@@ -118,14 +118,14 @@ def event_from_msg(tran, msg):
 
 
 def trace_latest_global_version(tran, g_id):
-    '''From the object g_id trace through decendant relations avoiding deletions
-    to find the newest version of the object that has not been deleted.
-    Assumes that all global objects have either a single child that may be
-    deleted or two children only one of which can be deleted.'''
+    '''From the object g_id trace through decendant relations avoiding
+    deletions to find the newest version of the object that has not been
+    deleted. Assumes that all global objects have either a single child that
+    may be deleted or two children only one of which can be deleted.'''
     g_obj = tran.get(g_id)
     # If a g_id has no children then it must be the last.
     while len(g_obj.next_version) != 0:
-        if len(g_obj.next_version) == 1: # Single Child Case
+        if len(g_obj.next_version) == 1:  # Single Child Case
             if g_obj.next_version[0].state == prov_db.DELETED:
                 # If the child is deleted then the current g_id is the last.
                 break
@@ -133,7 +133,7 @@ def trace_latest_global_version(tran, g_id):
                 # Otherwise make the child the current g_id and repeat.
                 g_id = g_obj.next_version[0].id
                 g_obj = tran.get(g_id)
-        else: # Double Child Case
+        else:  # Double Child Case
             for lnk in g_obj.next_version:
                 if lnk.state != prov_db.DELETED:
                     g_id = lnk.id
@@ -143,7 +143,7 @@ def trace_latest_global_version(tran, g_id):
 
 
 def proc_get_local(tran, p_id, loc_name):
-    '''Retrieves the local object that corrisponds with a given name from a 
+    '''Retrieves the local object that corrisponds with a given name from a
     process.'''
     p_obj = tran.get(p_id)
     for i in range(len(p_obj.local_object)):
@@ -152,7 +152,7 @@ def proc_get_local(tran, p_id, loc_name):
             continue
         l_id = p_obj.local_object[i].id
         l_obj = tran.get(l_id)
-        if l_obj.name == loc_name: # Found local object with matching name.
+        if l_obj.name == loc_name:  # Found local object with matching name.
             if p_obj.local_object[i].state == prov_db.CoT:
                 # If the object is Copy on Touch
                 del p_obj.local_object[i]
@@ -165,7 +165,9 @@ def proc_get_local(tran, p_id, loc_name):
                         new_g_id = pvm.version_global(tran, g_id)
                         pvm.bind(tran, new_l_id, new_g_id)
                     else:
-                        logging.error("Tracing latest global of invalid local.")
+                        logging.error(
+                            "Tracing latest global of invalid local."
+                        )
                 return new_l_id
             else:
                 return l_id
@@ -207,8 +209,8 @@ def update_proc_meta(tran, p_id, meta_name, new_val, timestamp):
 
 
 def add_event(tran, o_id, msg):
-    '''Adds an event to an object identified by o_id, automatically deriving the
-    object type.'''
+    '''Adds an event to an object identified by o_id, automatically deriving
+    the object type.'''
     ev_id = event_from_msg(tran, msg)
     o_type = storage.derv_type(o_id)
     if o_type == prov_db.LOCAL:
@@ -218,7 +220,7 @@ def add_event(tran, o_id, msg):
 
 
 def proc_dup_fd(tran, p_id, fd_i, fd_o):
-    '''Helper for duplicating file descriptors. Handles closing the old 
+    '''Helper for duplicating file descriptors. Handles closing the old
     descriptor if needed and binding it to the new identifier.'''
     if fd_i == fd_o:
         return
@@ -230,7 +232,7 @@ def proc_dup_fd(tran, p_id, fd_i, fd_o):
         if len(o_obj.file_object) > 0:
             if len(o_obj.file_object) > 1:
                 logging.error("Duping invalid local.")
-            else:   
+            else:
                 g_id = o_obj.file_object[0].id
                 pvm.drop_g(tran, o_id, g_id)
                 new_o_id = o_obj.next_version.id
@@ -245,8 +247,8 @@ def proc_dup_fd(tran, p_id, fd_i, fd_o):
 
 
 def process_put_env(tran, p_id, env, overwrite):
-    '''Helper for edit processes environment, attempts to put name, val, ts into
-    the processes environment. Clears keys if val is None, only overwrites
+    '''Helper for edit processes environment, attempts to put name, val, ts
+    into the processes environment. Clears keys if val is None, only overwrites
     existing keys if overwrite is set and inserts if the key is not found and
     val is not None.'''
     p_obj = tran.get(p_id)
@@ -270,16 +272,16 @@ def process_put_env(tran, p_id, env, overwrite):
 
 
 def set_rw_lnk(tran, l_id, state):
-    '''Sets the link between l_id and the global it is connected to. The link is
-    set to either state or the appropriate combination(if the link is already
-    READ trying to set it to WRITE will result in RaW).'''
+    '''Sets the link between l_id and the global it is connected to. The link
+    is set to either state or the appropriate combination(if the link is
+    already READ trying to set it to WRITE will result in RaW).'''
     l_obj = tran.get(l_id)
     if len(l_obj.file_object) == 1:
         g_id = l_obj.file_object[0].id
         g_obj = tran.get(g_id)
-        if((state == prov_db.READ and 
+        if((state == prov_db.READ and
             l_obj.file_object[0].state == prov_db.WRITE) or
-           (state == prov_db.WRITE and 
+           (state == prov_db.WRITE and
             l_obj.file_object[0].state == prov_db.READ) or
            l_obj.file_object[0].state == prov_db.RaW):
             new_state = prov_db.RaW
