@@ -22,14 +22,15 @@ except ImportError:
 
 
 from opus import pvm
-from opus.pvm.posix import actions, utils 
+from opus.pvm.posix import actions, utils
 
 
 class MissingMappingError(utils.PVMException):
     '''Failed to find a mapping for a given function.'''
     def __init__(self):
         super(MissingMappingError, self).__init__(
-                                    "Error: Failed to find a function mapping.")
+            "Error: Failed to find a function mapping."
+        )
 
 
 def wrap_action(action, arg_map):
@@ -39,13 +40,13 @@ def wrap_action(action, arg_map):
         '''Wrapper internal. '''
         args = utils.parse_kvpair_list(msg.args)
         arg_set = {}
-        for k,v in arg_map.items():
-            if v[0] == "msg_arg":
-                arg_set[k] = args[v[1]]
-            elif v[0] == "ret_val":
+        for k, val in arg_map.items():
+            if val[0] == "msg_arg":
+                arg_set[k] = args[val[1]]
+            elif val[0] == "ret_val":
                 arg_set[k] = str(msg.ret_val)
-            elif v[0] == "const":
-                arg_set[k] = str(v[1])
+            elif val[0] == "const":
+                arg_set[k] = str(val[1])
         return actions.ActionMap.call(action, msg.error_num,
                                       tran, p_id, **arg_set)
     return fun
@@ -117,10 +118,11 @@ def posix_freopen(tran, p_id, msg):
     try:
         utils.proc_get_local(tran, p_id, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(tran, p_id, args['stream'])
+        actions.close_action(msg.error_num, tran, p_id, args['stream'])
     new_l_id = actions.open_action(tran, p_id,
                                    args['filename'], str(msg.ret_val))
     return new_l_id
+
 
 @FuncController.dec('freopen64')
 def posix_freopen64(tran, p_id, msg):
@@ -129,7 +131,7 @@ def posix_freopen64(tran, p_id, msg):
     try:
         utils.proc_get_local(tran, p_id, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(tran, p_id, args['stream'])
+        actions.close_action(msg.error_num, tran, p_id, args['stream'])
     new_l_id = actions.open_action(tran, p_id,
                                    args['filename'], str(msg.ret_val))
     return new_l_id
@@ -187,13 +189,13 @@ def posix_dup3(tran, p_id, msg):
 def posix_link(tran, p_id, msg):
     '''Implementation of link in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    return actions.link_action(tran, p_id, msg, args['path1'], args['path2'])
+    return actions.link_action(tran, p_id, args['path1'], args['path2'])
 
 
 @FuncController.dec('rename')
 def posix_rename(tran, p_id, msg):
     '''Implementation of rename in PVM semantics.'''
-    #TODO: Fix to only use a single omega.
+    # TODO(tb403): Fix to only use a single omega.
     args = utils.parse_kvpair_list(msg.args)
     if tran.name_get(args['newpath']) is not None:
         actions.delete_action(tran, p_id, args['newpath'])
@@ -216,7 +218,7 @@ def posix_umask(tran, p_id, msg):
 def posix_popen(tran, p_id, msg):
     '''Implementation of popen in PVM semantics.'''
     l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id #TODO properly implement pipes
+    return l_id  # TODO(tb403) properly implement pipes
 
 
 @FuncController.dec('tmpfile')

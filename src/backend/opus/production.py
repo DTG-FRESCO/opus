@@ -19,7 +19,7 @@ import socket
 import struct
 import threading
 import time
-import opuspb
+import opuspb  # pylint: disable=W0611
 
 from opus import (cc_msg_pb2, common_utils, messaging, uds_msg_pb2)
 
@@ -29,19 +29,20 @@ def unlink_uds_path(path):
     if(os.path.exists(path)):
         os.unlink(path)
 
+
 def get_credentials(client_fd):
     '''Reads the peer credentials from a UDS descriptor'''
     if not hasattr(get_credentials, "SO_PEERCRED"):
         get_credentials.SO_PEERCRED = 17
-    credentials = client_fd.getsockopt (socket.SOL_SOCKET,
-                                        get_credentials.SO_PEERCRED,
-                                        struct.calcsize(str('3i')))
+    credentials = client_fd.getsockopt(socket.SOL_SOCKET,
+                                       get_credentials.SO_PEERCRED,
+                                       struct.calcsize(str('3i')))
     pid, uid, gid = struct.unpack('3i', credentials)
     return pid, uid, gid
 
+
 def mono_time_in_nanosecs():
-    '''Returns a monotonic time if 
-    available, else returns 0'''
+    '''Returns a monotonic time if available, else returns 0'''
     ret_time = 0
 
     if hasattr(time, 'clock_gettime'):
@@ -51,6 +52,7 @@ def mono_time_in_nanosecs():
             logging.error("Error: %d, Message: %s", _errno, err_msg)
 
     return ret_time
+
 
 def create_close_conn_obj(sock_fd):
     '''Returns objects to mark a client connection close'''
@@ -72,10 +74,6 @@ def create_close_conn_obj(sock_fd):
 
     return header.dumps(), gen_msg.SerializeToString()
 
-def check_mailbox():
-    '''Check for local messages'''
-    pass
-
 
 class CommunicationManager(object):
     '''Base class for the communication manager class'''
@@ -94,9 +92,9 @@ class CommunicationManager(object):
 
 class UDSCommunicationManager(CommunicationManager):
     '''UDS specific server implementation'''
-    StatusCode = common_utils.enum(success=0, 
-                                close_connection=100, 
-                                try_again_later=101)
+    StatusCode = common_utils.enum(success=0,
+                                   close_connection=100,
+                                   try_again_later=101)
 
     def __init__(self, uds_path, ctrl_sock,
                  max_conn=10, select_timeout=5.0,
@@ -104,17 +102,17 @@ class UDSCommunicationManager(CommunicationManager):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__(*args, **kwargs)
         unlink_uds_path(uds_path)
-        self.input_client_map = {} # fileno to sock object map
+        self.input_client_map = {}  # fileno to sock object map
         self.pid_map = {}  # pid to list of sock objects map
-        self.uds_path = uds_path # Configurable
-        self.max_server_conn = max_conn # Configurable
-        self.select_timeout = select_timeout # Configurable
+        self.uds_path = uds_path  # Configurable
+        self.max_server_conn = max_conn  # Configurable
+        self.select_timeout = select_timeout  # Configurable
         self.server_socket = None
         self.control_sock = ctrl_sock
 
         try:
-            self.server_socket = socket.socket(socket.AF_UNIX, 
-                                                socket.SOCK_STREAM)
+            self.server_socket = socket.socket(socket.AF_UNIX,
+                                               socket.SOCK_STREAM)
             self.server_socket.bind(self.uds_path)
             self.server_socket.listen(self.max_server_conn)
         except socket.error as err:
@@ -122,16 +120,16 @@ class UDSCommunicationManager(CommunicationManager):
                 self.server_socket.close()
             logging.error("Error: %s", str(err))
             raise common_utils.OPUSException("socket error")
-        self.server_socket.setblocking(0) # Make the socket non-blocking
+        self.server_socket.setblocking(0)  # Make the socket non-blocking
         self.epoll = select.epoll()
         self.epoll.register(self.server_socket.fileno(),
-                        select.EPOLLIN | select.EPOLLERR)
+                            select.EPOLLIN | select.EPOLLERR)
         self.epoll.register(self.control_sock.r_pipe,
                             select.EPOLLIN | select.EPOLLERR)
 
     def do_poll(self):
         '''Returns a list of tuples for all ready file descriptors'''
-        ret_list = [] # List of tuples of form (header, payload)
+        ret_list = []  # List of tuples of form (header, payload)
 
         try:
             event_list = self.epoll.poll(self.select_timeout)
@@ -155,7 +153,7 @@ class UDSCommunicationManager(CommunicationManager):
                 if __debug__:
                     logging.debug("Got an EPOLLHUP event")
                 self.__handle_close_connection(self.input_client_map[fileno],
-                                                ret_list)
+                                               ret_list)
         return ret_list
 
     def __handle_command(self, ret_list):
@@ -179,11 +177,12 @@ class UDSCommunicationManager(CommunicationManager):
                 sock_objs = self.pid_map[pid][:]
                 for sock in sock_objs:
                     self.__handle_close_connection(sock, ret_list)
-                rsp.rsp_data = "Success. %d connections closed."% len(sock_objs)
+                rsp.rsp_data = ("Success. %d connections closed." %
+                                len(sock_objs))
         else:
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
-            rsp.rsp_data = "%s is not a valid command."% cmd.cmd_name
-        self.control_sock.write(rsp)        
+            rsp.rsp_data = "%s is not a valid command." % cmd.cmd_name
+        self.control_sock.write(rsp)
 
     def __handle_client(self, sock_fd, ret_list):
         '''Receives data from client or closes the client connection'''
@@ -219,11 +218,12 @@ class UDSCommunicationManager(CommunicationManager):
         client_fd, _ = self.server_socket.accept()
         pid, uid, gid = get_credentials(client_fd)
         if __debug__:
-            logging.debug("Got a new connection from pid: %d, uid: %d, gid: %d",
-                        pid, uid, gid)
-        client_fd.setblocking(0) # Make the socket non-blocking
+            logging.debug("Got a new connection from"
+                          " pid: %d, uid: %d, gid: %d",
+                          pid, uid, gid)
+        client_fd.setblocking(0)  # Make the socket non-blocking
         self.epoll.register(client_fd.fileno(),
-                        select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
+                            select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
         self.input_client_map[client_fd.fileno()] = client_fd
         if pid in self.pid_map:
             self.pid_map[pid] += [client_fd]
@@ -263,7 +263,7 @@ class UDSCommunicationManager(CommunicationManager):
 
         # Read header data and obtain the payload len
         hdr_buf, status_code = self.__receive(sock_fd,
-                                messaging.Header.length)
+                                              messaging.Header.length)
         if status_code != UDSCommunicationManager.StatusCode.success:
             return status_code, None, None
         header = messaging.Header()
@@ -341,8 +341,9 @@ class SocketProducer(Producer):
         self.comm_mgr_type = comm_mgr_type
         comm_mgr_args['ctrl_sock'] = self.comm_pipe
         try:
-            self.comm_manager = common_utils.meta_factory(CommunicationManager, 
-                                        self.comm_mgr_type, **comm_mgr_args)
+            self.comm_manager = common_utils.meta_factory(CommunicationManager,
+                                                          self.comm_mgr_type,
+                                                          **comm_mgr_args)
         except common_utils.InvalidTagException as err_msg:
             raise common_utils.OPUSException(err_msg.msg)
 
@@ -357,7 +358,6 @@ class SocketProducer(Producer):
                 if __debug__:
                     logging.debug("Calling put_msg on analyser")
                 self._send_data_to_analyser(msg_list)
-            check_mailbox()
         self.comm_manager.close()
 
     def do_shutdown(self):

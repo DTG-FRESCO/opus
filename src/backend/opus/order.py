@@ -11,13 +11,14 @@ import time
 
 from opus import common_utils
 
+
 class QueueClearingException(common_utils.OPUSException):
     '''Exception raised when attempting to put an item into a queue that is
     being cleared.'''
     def __init__(self):
         super(QueueClearingException, self).__init__(
-                                        "Cannot insert message, queue clearing."
-                                        )
+            "Cannot insert message, queue clearing."
+        )
 
 
 def _cur_time():
@@ -51,11 +52,12 @@ class EventOrderer(object):
 
     def _window_size(self):
         '''Return the current minimum window size.'''
-        return max(self.max_wind * (self.min_inter / self.inter), self.max_wind)
+        return max(self.max_wind * (self.min_inter / self.inter),
+                   self.max_wind)
 
     def _extract_cond(self):
         '''Evaluate the extraction condition, queue_size > min_window'''
-        return (self.clearing or 
+        return (self.clearing or
                 self.priority_queue.qsize() > self._window_size())
 
     def push(self, msgs):

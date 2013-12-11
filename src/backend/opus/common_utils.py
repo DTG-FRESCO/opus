@@ -24,6 +24,7 @@ class OPUSException(Exception):
         '''Initialize message'''
         super(OPUSException, self).__init__()
         self.msg = msg
+
     def __str__(self):
         '''Return message'''
         return self.msg
@@ -42,20 +43,30 @@ class FixedDict(object):
         '''Take a copy of the dictionary'''
         super(FixedDict, self).__init__()
         self._dictionary = copy.deepcopy(dictionary)
+
     def __setitem__(self, key, item):
         '''Sets a value for a valid key'''
         if key not in self._dictionary:
             raise KeyError("The key {} is not defined.".format(key))
         self._dictionary[key] = item
+
     def __getitem__(self, key):
         '''Returns the value for a valid key'''
         if key not in self._dictionary:
             raise KeyError("The key {} is not defined.".format(key))
         return self._dictionary[key]
 
+    def __delitem__(self, key):
+        '''Removing items from fixed dict not allowed.'''
+        raise NotImplementedError("Removing key from FixedDict not supported.")
+
+    def __len__(self):
+        '''Returns the length of the dictionary.'''
+        return len(self._dictionary)
+
 
 def meta_factory(base, tag, *args, **kwargs):
-    '''Return an instance of the class 
+    '''Return an instance of the class
     derived from base with the name "tag"'''
     def compute_subs(cls):
         '''Compute the transitive colsure of
@@ -81,6 +92,7 @@ def analyser_lock(func):
     '''Decorator method for accessing analyser object'''
     if not hasattr(analyser_lock, "mutex"):
         analyser_lock.mutex = threading.Lock()
+
     @functools.wraps(func)
     def deco(self, *args, **kwargs):
         '''Wraps function call with lock acquire and release'''

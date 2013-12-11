@@ -27,8 +27,8 @@ def version_local(tran, old_l_id, f_id):
     for lnk in old_l_obj.file_object:
         new_lnk = new_l_obj.file_object.add()
         new_lnk.id = f_id
-        new_lnk.state = lnk.state #TODO Possibly questionable
-        
+        new_lnk.state = lnk.state  # TODO(tb403) Possibly questionable
+
     new_l_obj.ref_count = old_l_obj.ref_count
     return new_l_id
 
@@ -83,8 +83,8 @@ def get_l(tran, p_id, loc_name):
 
 
 def get_g(tran, l_id, glob_name):
-    '''Performs a PVM get on the global object identified by glob_name and binds
-    it to l_id.'''
+    '''Performs a PVM get on the global object identified by glob_name and
+    binds it to l_id.'''
     old_g_id = tran.name_get(glob_name)
     if old_g_id is None:
         (new_g_id, new_g_obj) = tran.create(prov_db.GLOBAL)

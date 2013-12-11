@@ -21,41 +21,41 @@ class AlreadyCommittedException(common_utils.OPUSException):
     transaction that has already been committed.'''
     def __init__(self):
         super(AlreadyCommittedException, self).__init__(
-                                        "Error: Transaction already committed."
-                                        )
+            "Error: Transaction already committed."
+        )
 
 
 class UnknownObjectTypeException(common_utils.OPUSException):
     '''Exception indicating that a object type lookup failed to be matched.'''
     def __init__(self):
         super(UnknownObjectTypeException, self).__init__(
-                                    "Error: Unknown db object type referefence."
-                                    )
+            "Error: Unknown db object type referefence."
+        )
 
 
 class ReadOnlyException(common_utils.OPUSException):
-    '''Exception indicating that an invalid operation was invoked on a read-only
-    transaction.'''
+    '''Exception indicating that an invalid operation was invoked on a
+    read-only transaction.'''
     def __init__(self):
         super(ReadOnlyException, self).__init__(
-                               "Error: Invalid access of read-only transaction."
-                                    )
+            "Error: Invalid access of read-only transaction."
+        )
 
 
 OBJ_TYPE_MAP = {
-    prov_db.ANNOT:prov_db.AnnotationObj,
-    prov_db.EVENT:prov_db.EventObj,
-    prov_db.GLOBAL:prov_db.GlobalObj,
-    prov_db.LOCAL:prov_db.LocalObj,
-    prov_db.META:prov_db.MetaObj,
-    prov_db.PROCESS:prov_db.ProcObj,
-    prov_db.TERM:prov_db.TermMarkerObj
+    prov_db.ANNOT: prov_db.AnnotationObj,
+    prov_db.EVENT: prov_db.EventObj,
+    prov_db.GLOBAL: prov_db.GlobalObj,
+    prov_db.LOCAL: prov_db.LocalObj,
+    prov_db.META: prov_db.MetaObj,
+    prov_db.PROCESS: prov_db.ProcObj,
+    prov_db.TERM: prov_db.TermMarkerObj
 }
 
 
 def get_db_obj_class(obj_type):
-    '''Given an object type identifier return either the matching class or raise
-    UnknownObjectTypeException.'''
+    '''Given an object type identifier return either the matching class or
+    raise UnknownObjectTypeException.'''
     if obj_type in OBJ_TYPE_MAP:
         return OBJ_TYPE_MAP[obj_type]
     else:
@@ -254,6 +254,7 @@ class DBTransaction(object):
 
     @commit_wrapper
     def id_state(self):
+        '''Displays the current state of the ID mappings for the database.'''
         return self.id_map
 
     @commit_wrapper

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
+Systems to control the back end. Allowing for activating and deactivating
+subsystems and for sending commands to those subsystems.
 '''
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
@@ -8,7 +10,7 @@ from __future__ import (absolute_import, division,
 import cmd
 import logging
 import re
-import readline
+import readline  # pylint: disable=W0611
 import select
 import socket
 
@@ -16,20 +18,26 @@ from opus import cc_msg_pb2, cc_utils, common_utils
 
 
 class CommandInterfaceStartupError(common_utils.OPUSException):
+    '''Exception indicating that the command interface has failed to
+    initialise.'''
     def __init__(self, *args, **kwargs):
         super(CommandInterfaceStartupError, self).__init__(*args, **kwargs)
 
 
 class CommandControl(object):
+    '''Command and control core system.'''
     def __init__(self, daemon_manager, prod_ctrl):
         self.daemon_manager = daemon_manager
         self.prod_ctrl = prod_ctrl
         self.cmd_if = None
 
     def set_interface(self, inter):
+        '''Set the control systems interface.'''
         self.cmd_if = inter
 
     def exec_cmd(self, msg):
+        '''Executes a command message that it has recieved, producing a
+        response message.'''
         if msg.cmd_name == "getan":
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
             rsp.rsp_data = self.daemon_manager.get_analyser()
@@ -57,19 +65,23 @@ class CommandControl(object):
             return self.prod_ctrl.read()
 
     def run(self):
+        '''Engages the systems processing loop.'''
         self.cmd_if.run()
 
 
 class CommandInterface(object):
+    '''Command and control interface base class.'''
     def __init__(self, command_control, *args, **kwargs):
         super(CommandInterface, self).__init__(*args, **kwargs)
         self.command_control = command_control
 
     def run(self):
+        '''Causes the system to loop and process commands.'''
         raise NotImplementedError()
 
 
 class TCPInterface(CommandInterface):
+    '''TCP listening interface for command and control.'''
     def __init__(self, listen_addr, listen_port, whitelist_location=None,
                  *args, **kwargs):
         super(TCPInterface, self).__init__(*args, **kwargs)
@@ -78,8 +90,8 @@ class TCPInterface(CommandInterface):
 
         if whitelist_location is not None:
             try:
-                with open(whitelist_location, "r") as fh:
-                    for line in fh:
+                with open(whitelist_location, "r") as white_file:
+                    for line in white_file:
                         self.whitelist += [line]
             except IOError:
                 logging.error("Failed to read specified whitelist file %s",
@@ -119,6 +131,7 @@ class TCPInterface(CommandInterface):
 
 
 class CMDInterface(CommandInterface, cmd.Cmd):
+    '''Command line interface for command and control module.'''
     def __init__(self, *args, **kwargs):
         super(CMDInterface, self).__init__(*args, **kwargs)
         cmd.Cmd.__init__(self)

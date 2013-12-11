@@ -13,7 +13,7 @@ import os
 import logging
 import threading
 import time
-import opuspb
+import opuspb  # pylint: disable=W0611
 
 
 from opus import common_utils, storage, order, messaging
@@ -49,6 +49,7 @@ class Analyser(threading.Thread):
             logging.error(exc)
             return False
         return not self.isAlive()
+
 
 class LoggingAnalyser(Analyser):
     '''Implementation of a logging analyser'''
@@ -88,12 +89,13 @@ class OrderingAnalyser(Analyser):
     process method to consume messages.'''
     def __init__(self, *args, **kwargs):
         super(OrderingAnalyser, self).__init__(*args, **kwargs)
-        self.event_orderer = order.EventOrderer(50) #TODO - Proper max_wind
+        # TODO(tb403) - Proper max_wind
+        self.event_orderer = order.EventOrderer(50)
         self.queue_cleared = threading.Event()
 
     def run(self):
-        '''Pull events from the queue and process them as long as the stop_event
-        is not set.'''
+        '''Pull events from the queue and process them as long as the
+        stop_event is not set.'''
         while not self.stop_event.is_set():
             try:
                 _, msg = self.event_orderer.pop()
@@ -180,10 +182,10 @@ class PVMAnalyser(OrderingAnalyser):
     def __init__(self, storage_args, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
         self.storage_interface = storage.StorageIFace(**storage_args)
-        
+
     def run(self):
-        '''Run a standard processing loop, also close the storage interface once
-        it is complete.'''
+        '''Run a standard processing loop, also close the storage interface
+        once it is complete.'''
         super(PVMAnalyser, self).run()
         self.storage_interface.close()
 
