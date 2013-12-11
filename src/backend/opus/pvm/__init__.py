@@ -27,8 +27,7 @@ def version_local(tran, old_l_id, f_id):
     for lnk in old_l_obj.file_object:
         new_lnk = new_l_obj.file_object.add()
         new_lnk.id = f_id
-        new_lnk.state = lnk.state  # TODO(tb403) Possibly questionable
-
+        #new_lnk.state = lnk.state  # TODO(tb403) Possibly questionable
     new_l_obj.ref_count = old_l_obj.ref_count
     return new_l_id
 

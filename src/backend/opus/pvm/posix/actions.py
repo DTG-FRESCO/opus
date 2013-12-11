@@ -51,7 +51,8 @@ def event_action(_, p_id):
 def read_action(err, tran, p_id, filedes):
     '''Action that reads from a names file descriptor.'''
     l_id = null_action(err, tran, p_id, filedes)
-    utils.set_rw_lnk(tran, l_id, prov_db.READ)
+    if l_id != p_id:
+        utils.set_rw_lnk(tran, l_id, prov_db.READ)
     return l_id
 
 
@@ -59,7 +60,8 @@ def read_action(err, tran, p_id, filedes):
 def write_action(err, tran, p_id, filedes):
     '''Action that writes to a named file descriptor.'''
     l_id = null_action(err, tran, p_id, filedes)
-    utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
+    if l_id != p_id:
+        utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
     return l_id
 
 

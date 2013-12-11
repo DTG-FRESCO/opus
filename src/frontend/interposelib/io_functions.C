@@ -24,6 +24,8 @@
         va_end(arg);                \
     }
 
+enum fcntl_arg_fmt_t {NO_ARG, INT_ARG, FLOCK_ARG};
+
 /**
  * Function template to merge open and open64
  */
@@ -119,4 +121,122 @@ extern "C" int open64(const char *pathname, int flags, ...)
 
     GET_MODE;
     return __open_internal(pathname, flags, "open64", real64_open, mode);
+}
+
+
+static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt)
+{
+    static FCNTL_POINTER real_fcntl = NULL;
+    int int_arg;
+    struct flock *flock_arg;
+    int ret;
+    TrackErrno err_obj(errno);
+
+    if (!real_fcntl)
+        real_fcntl = (FCNTL_POINTER)ProcUtils::get_sym_addr("fcntl");
+
+    if(argfmt == INT_ARG){
+        int_arg = va_arg(arg, int);
+    }else if(argfmt == FLOCK_ARG){
+        flock_arg = va_arg(arg, struct flock*);
+
+    }
+    va_end(arg);
+
+    if (ProcUtils::test_and_set_flag(true))
+    {
+        errno = 0;
+        if(argfmt == NO_ARG){
+            ret = real_fcntl(filedes, cmd);
+        }else if(argfmt == INT_ARG){
+            ret = real_fcntl(filedes, cmd, int_arg);
+        }else{
+            ret = real_fcntl(filedes, cmd, flock_arg);
+        }
+        err_obj = errno;
+        return ret;
+    }
+
+    uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
+    if(argfmt == NO_ARG){
+        ret = real_fcntl(filedes, cmd);
+    }else if(argfmt == INT_ARG){
+        ret = real_fcntl(filedes, cmd, int_arg);
+    }else{
+        ret = real_fcntl(filedes, cmd, flock_arg);
+    }
+
+    int errno_value = errno;
+    err_obj = errno;
+    uint64_t end_time = ProcUtils::get_time();
+
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    KVPair *tmp_arg;
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("filedes");
+
+    char filedes_buf[MAX_INT32_LEN];
+    tmp_arg->set_value(ProcUtils::opus_itoa(filedes, filedes_buf));
+
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("cmd");
+
+    char cmd_buf[MAX_INT32_LEN];
+    tmp_arg->set_value(ProcUtils::opus_itoa(cmd, cmd_buf));
+
+    if(argfmt == INT_ARG){
+        tmp_arg = func_msg->add_args();
+        tmp_arg->set_key("arg");
+
+        char arg_buf[MAX_INT32_LEN];
+        tmp_arg->set_value(ProcUtils::opus_itoa(int_arg, arg_buf));
+    }
+
+    set_func_info_msg(func_msg, "fcntl", ret,
+                      start_time, end_time, errno_value);
+
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
+    return ret;
+}
+
+extern "C" int fcntl(int filedes, int cmd, ...)
+{
+    va_list args;
+    va_start(args, cmd);
+    switch(cmd){
+        case F_DUPFD:
+            return inner_fcntl(filedes, cmd, args, INT_ARG);
+        case F_GETFD:
+            return inner_fcntl(filedes, cmd, args, NO_ARG);
+        case F_SETFD:
+            return inner_fcntl(filedes, cmd, args, INT_ARG);
+        case F_GETFL:
+            return inner_fcntl(filedes, cmd, args, NO_ARG);
+        case F_SETFL:
+            return inner_fcntl(filedes, cmd, args, INT_ARG);
+        case F_GETOWN:
+            return inner_fcntl(filedes, cmd, args, NO_ARG);
+        case F_SETOWN:
+            return inner_fcntl(filedes, cmd, args, INT_ARG);
+        case F_GETLK:
+            return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
+        case F_SETLK:
+            return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
+        case F_SETLKW:
+            return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
+        default:
+            errno = -EINVAL;
+            return -1;
+    }
+
 }

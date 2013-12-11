@@ -57,6 +57,10 @@ def process_from_startup(tran, (hdr, pay)):
         cwd_id = new_meta(tran, "cwd", pay.cwd, time_stamp)
         p_obj.other_meta.add().id = cwd_id
 
+    if pay.HasField('cmd_line_args'):
+        cmd_id = new_meta(tran, "cmd_args", pay.cmd_line_args, time_stamp)
+        p_obj.other_meta.add().id = cmd_id
+
     if pay.HasField('user_name'):
         uid_id = new_meta(tran, "uid", pay.user_name, time_stamp)
         p_obj.other_meta.add().id = uid_id
@@ -86,7 +90,7 @@ def clone_file_des(tran, old_p_id, new_p_id):
     new_p_obj = tran.get(new_p_id)
     old_p_obj = tran.get(old_p_id)
     for lnk in old_p_obj.local_object:
-        if lnk.state == prov_db.CLOSED:
+        if lnk.state in [prov_db.CLOSED, prov_db.CLOEXEC]:
             continue
         new_lnk = new_p_obj.local_object.add()
         new_lnk.id = lnk.id
@@ -225,9 +229,12 @@ def proc_dup_fd(tran, p_id, fd_i, fd_o):
     if fd_i == fd_o:
         return
     i_id = proc_get_local(tran, p_id, fd_i)
-    o_id = proc_get_local(tran, p_id, fd_o)
     i_obj = tran.get(i_id)
-    if o_id is not None:
+    try:
+        o_id = proc_get_local(tran, p_id, fd_o)
+    except NoMatchingLocalError:
+        pass
+    else:
         o_obj = tran.get(o_id)
         if len(o_obj.file_object) > 0:
             if len(o_obj.file_object) > 1:
@@ -288,8 +295,16 @@ def set_rw_lnk(tran, l_id, state):
         else:
             new_state = state
 
-        l_obj.file_object[0].state = new_state
+        set_link(tran, l_id, new_state)
+
+def set_link(tran, l_id, state):
+    '''Sets the link between l_id and the global it is connected to.'''
+    l_obj = tran.get(l_id)
+    if len(l_obj.file_object) == 1:
+        g_obj = tran.get(l_obj.file_object[0].id)
+
+        l_obj.file_object[0].state = state
         for lnk in g_obj.process_object:
             if lnk.id == l_id:
-                lnk.state = new_state
+                lnk.state = state
                 break

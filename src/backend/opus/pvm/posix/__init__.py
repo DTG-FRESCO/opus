@@ -68,7 +68,7 @@ def handle_process(tran, hdr, pay):
     p_id = utils.process_from_startup(tran, (hdr, pay))
 
     l_id = actions.touch_action(tran, p_id, pay.exec_name)
-    utils.set_rw_lnk(tran, l_id, prov_db.READ)
+    utils.set_link(tran, l_id, prov_db.BIN)
 
     p_obj = tran.get(p_id)
     if p_obj.pid in PIDMAP:

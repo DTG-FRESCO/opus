@@ -589,3 +589,115 @@ pclose:
     filedes: 
       - msg_arg
       - stream
+
+__fprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+__vfprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+_IO_getc:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+_IO_putc:
+  action: write
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+_IO_puts:
+  action: write
+  arg_map:
+    filedes: 
+      - const
+      - 1
+
+__fgets_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+__fgets_unlocked_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+__fgetws_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+__fgetws_unlocked_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - stream
+
+__pread64_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
+
+__pread_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
+
+__read_chk:
+  action: read
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fd
+
+__vfwprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fp
+
+__vwprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - const
+      - 1
+
+__fwprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - msg_arg
+      - fp
+
+__wprintf_chk:
+  action: write
+  arg_map:
+    filedes: 
+      - const
+      - 1

@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
+import fcntl
 import logging
 import sys
 
@@ -23,6 +24,7 @@ except ImportError:
 
 from opus import pvm
 from opus.pvm.posix import actions, utils
+from opus import prov_db_pb2 as prov_db
 
 
 class MissingMappingError(utils.PVMException):
@@ -155,7 +157,7 @@ def posix_dup(tran, p_id, msg):
     '''Implementation of dup in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     old_fd = args['oldfd']
-    new_fd = msg.ret_val
+    new_fd = str(msg.ret_val)
     i_id = utils.proc_get_local(tran, p_id, old_fd)
     utils.proc_dup_fd(tran, p_id, old_fd, new_fd)
     return i_id
@@ -373,3 +375,19 @@ def posix_unsetenv(tran, p_id, msg):
     env = (args['name'], None, msg.end_time)
     utils.process_put_env(tran, p_id, env, True)
     return p_id
+
+@FuncController.dec('fcntl')
+@utils.check_message_error_num
+def posix_fcntl(tran, p_id, msg):
+    '''Implementation of fnctl in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    i_id = utils.proc_get_local(tran, p_id, args['filedes'])
+    if int(args['cmd']) == fcntl.F_DUPFD:
+        utils.proc_dup_fd(tran, p_id, args['filedes'], str(msg.ret_val))
+    if int(args['cmd']) == fcntl.F_SETFD:
+        if int(args['arg']) == fcntl.FD_CLOEXEC:
+            utils.set_link(tran, i_id, prov_db.CLOEXEC)
+        else:
+            utils.set_link(tran, i_id, prov_db.NONE)
+
+    return i_id
