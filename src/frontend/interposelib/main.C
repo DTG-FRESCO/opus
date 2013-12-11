@@ -23,8 +23,8 @@ static bool check_env_opus_interpose_off()
     {
         char *ipose_off_value = ProcUtils::get_env_val("OPUS_INTERPOSE_OFF");
 
-        if (atoi(ipose_off_value) == 1)
-            return true;
+        // Return true if OPUS_INTERPOSE_OFF exists
+        if (ipose_off_value) return true;
     }
     catch(const std::exception& e)
     {
