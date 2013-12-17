@@ -49,7 +49,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     }                                                               \
     catch(const std::exception& e)                                  \
     {                                                               \
-        DEBUG_LOG("[%s:%d]: %s\n", e.what());                       \
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", e.what());              \
         interpose_off_flag = true;                                  \
     }                                                               \
                                                                     \
@@ -73,7 +73,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
                                                                     \
         if (raise(sig) != 0)                                        \
         {                                                           \
-            DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,          \
+            LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, \
                         ProcUtils::get_error(errno).c_str());       \
             _exit(EXIT_FAILURE);                                    \
         }                                                           \
@@ -85,6 +85,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
                                                                     \
     ProcUtils::test_and_set_flag(false);
 
+
 /**
  * Calls signal and performs error checks
  */
@@ -92,8 +93,8 @@ static inline void set_signal(const int sig, sighandler_t handler)
 {
     sighandler_t ret = ::signal(sig, handler);
     if (ret == SIG_ERR)
-        DEBUG_LOG("[%s:%d]: %s for %d\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str(), sig);
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+                    ProcUtils::get_error(errno).c_str());
 }
 
 /**
@@ -133,7 +134,7 @@ void SignalUtils::block_all_signals(sigset_t *old_set)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", e.what());
     }
 }
 
@@ -150,7 +151,7 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", e.what());
     }
 }
 
@@ -251,7 +252,7 @@ void* SignalUtils::get_real_handler(const int sig)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s", __FILE__, __LINE__, e.what());
     }
 
     return real_handler;
@@ -296,7 +297,7 @@ void* SignalUtils::add_signal_handler(const int sig, SignalHandler* new_handler)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return real_handler;
@@ -319,7 +320,7 @@ void SignalUtils::remove_signal_handler(const int sig)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -374,7 +375,7 @@ bool SignalUtils::init_signal_capture()
             struct sigaction oldact;
             if (sigaction(sig, NULL, &oldact) < 0)
             {
-                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                         ProcUtils::get_error(errno).c_str());
                 continue;
             }
@@ -386,7 +387,7 @@ bool SignalUtils::init_signal_capture()
             /* If the current disposition is SIG_IGN do not install the OPUS handler */
             if (oldact.sa_handler == SIG_IGN)
             {
-                DEBUG_LOG("[%s:%d]: %d signal disposition is SIG_IGN\n",
+                LOG_MSG(LOG_DEBUG, "[%s:%d]: %d signal disposition is SIG_IGN\n",
                             __FILE__, __LINE__, sig);
                 continue;
             }
@@ -394,7 +395,7 @@ bool SignalUtils::init_signal_capture()
             /* Install the opus signal handler */
             if (sigaction(sig, &sa, NULL) < 0)
             {
-                DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                         ProcUtils::get_error(errno).c_str());
                 continue;
             }
@@ -404,7 +405,7 @@ bool SignalUtils::init_signal_capture()
     {
         ret = false;
         ProcUtils::interpose_off(e.what());
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
     return ret;
 }
@@ -424,7 +425,7 @@ bool SignalUtils::initialize()
     catch(const std::exception& e)
     {
         ret = false;
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return ret;
@@ -449,7 +450,7 @@ void SignalUtils::reset()
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -459,7 +460,7 @@ void SignalUtils::reset()
  */
 void SignalUtils::restore_all_signal_states()
 {
-    DEBUG_LOG("[%s:%d]: Entering %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     sigset_t old_set;
@@ -482,7 +483,7 @@ void SignalUtils::restore_all_signal_states()
 
             if (!handler)
             {
-                DEBUG_LOG("[%s:%d]: Setting signal %d to SIG_DFL\n",
+                LOG_MSG(LOG_DEBUG, "[%s:%d]: Setting signal %d to SIG_DFL\n",
                                     __FILE__, __LINE__, sig);
                 set_signal(sig, SIG_DFL);
                 continue;
@@ -490,7 +491,7 @@ void SignalUtils::restore_all_signal_states()
 
             if (handler->get_signal_func_type() == SignalHandler::SIGNAL)
             {
-                DEBUG_LOG("[%s:%d]: Setting signal %d using signal\n",
+                LOG_MSG(LOG_DEBUG, "[%s:%d]: Setting signal %d using signal\n",
                                     __FILE__, __LINE__, sig);
 
                 sighandler_t signal_handler = reinterpret_cast<sighandler_t>
@@ -502,12 +503,12 @@ void SignalUtils::restore_all_signal_states()
                 struct sigaction act;
                 handler->get_sigact_data(&act);
 
-                DEBUG_LOG("[%s:%d]: Setting signal %d using sigaction\n",
+                LOG_MSG(LOG_DEBUG, "[%s:%d]: Setting signal %d using sigaction\n",
                                     __FILE__, __LINE__, sig);
 
                 if (sigaction(sig, &act, NULL) < 0)
                 {
-                    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+                    LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__,
                                 ProcUtils::get_error(errno).c_str());
                     continue;
                 }
@@ -519,7 +520,7 @@ void SignalUtils::restore_all_signal_states()
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s", __FILE__, __LINE__, e.what());
     }
 
     restore_signal_mask(&old_set);

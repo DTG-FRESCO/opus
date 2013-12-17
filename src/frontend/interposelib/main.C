@@ -28,7 +28,7 @@ static bool check_env_opus_interpose_off()
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return false;
@@ -44,6 +44,7 @@ void opus_init(int argc, char** argv, char** envp)
 {
     ProcUtils::test_and_set_flag(true);
 
+    Logging::init_logging();
     opus_init_libc_funcs();
 
     // Set the correct pid
@@ -51,7 +52,7 @@ void opus_init(int argc, char** argv, char** envp)
 
     if (check_env_opus_interpose_off())
     {
-        DEBUG_LOG("[%s:%d]: OPUS_INTERPOSE_OFF flag is enabled\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: OPUS_INTERPOSE_OFF flag is enabled\n",
                     __FILE__, __LINE__);
         return;
     }
@@ -68,7 +69,7 @@ void opus_init(int argc, char** argv, char** envp)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
         return; // Interposition is turned off
     }
 
@@ -90,7 +91,7 @@ void opus_fini()
 {
     ProcUtils::test_and_set_flag(true);
 
-    DEBUG_LOG("[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
                 __FILE__, __LINE__, ProcUtils::getpid(), ProcUtils::gettid());
 
     ProcUtils::disconnect();

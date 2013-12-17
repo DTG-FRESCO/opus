@@ -166,13 +166,13 @@ static void* opus_thread_start_routine(void *args)
     int err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
     if (err != 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
     }
 
     ProcUtils::test_and_set_flag(true);
 
-    DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     OPUSThreadData *opus_thread_data = static_cast<OPUSThreadData*>(args);
 
@@ -198,14 +198,14 @@ static void* opus_thread_start_routine(void *args)
     catch(const std::exception& e)
     {
         // Interposition remains turned off
-        DEBUG_LOG("[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
     }
 
     /* Restore thread cancellation state */
     err = pthread_setcancelstate(oldstate, NULL);
     if (err != 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(err).c_str());
     }
 
@@ -226,14 +226,14 @@ static void get_lib_real_path(void *handle, std::string* real_path)
 
     if (dlinfo(handle, RTLD_DI_LINKMAP, &link) < 0)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, dlerror());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, dlerror());
         return;
     }
 
     char *path = realpath(link->l_name, NULL);
     if (!path)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                 ProcUtils::get_error(errno).c_str());
         return;
     }
@@ -340,7 +340,7 @@ static void setup_new_uds_connection()
     catch(const std::exception& e)
     {
         // Interposition remains turned off
-        DEBUG_LOG("[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: TID: %d. %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -375,7 +375,7 @@ static char* alloc_and_copy(const std::string& env_str)
     catch(const std::bad_alloc& e)
     {
         ProcUtils::interpose_off(e.what());
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
     return env_data;
@@ -404,7 +404,7 @@ static void check_and_add_opus_lib(std::string* env_str)
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -423,7 +423,7 @@ static void add_uds_path(std::vector<char*>* env_vec_ptr)
 
     env_vec_ptr->push_back(env_data);
 
-    DEBUG_LOG("[%s:%d]: Added OPUS_UDS_PATH: %s\n",
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Added OPUS_UDS_PATH: %s\n",
                 __FILE__, __LINE__, env_data);
 
 }
@@ -449,12 +449,12 @@ static void add_opus_interpose_off(std::vector<char*>* env_vec_ptr)
 
         env_vec_ptr->push_back(env_data);
 
-        DEBUG_LOG("[%s:%d]: Added OPUS_INTERPOSE_OFF: %s\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Added OPUS_INTERPOSE_OFF: %s\n",
                     __FILE__, __LINE__, env_data);
     }
     catch(const std::exception& e)
     {
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 }
 
@@ -501,14 +501,14 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
         char *env_data = alloc_and_copy(preload_str);
         if (!env_data)
         {
-            DEBUG_LOG("[%s:%d]: Could not add LD_PRELOAD path\n",
+            LOG_MSG(LOG_ERROR, "[%s:%d]: Could not add LD_PRELOAD path\n",
                         __FILE__, __LINE__);
             return;
         }
 
         env_vec_ptr->push_back(env_data);
 
-        DEBUG_LOG("[%s:%d]: Added LD_PRELOAD path: %s\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Added LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, env_data);
     }
 
@@ -838,7 +838,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     catch(const std::exception& e)
     {
         err_obj = errno;
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
 
@@ -930,7 +930,7 @@ extern "C" int sigaction(int signum,
     catch(const std::exception& e)
     {
         err_obj = errno;
-        DEBUG_LOG("[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
         delete sh_obj;
     }
 
@@ -997,8 +997,8 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     catch(const std::bad_alloc& e)
     {
         ProcUtils::interpose_off(e.what());
-        DEBUG_LOG("[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(errno).c_str());
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
     }
 
     int ret = (*real_pthread_create)(thread, attr, handler, args);
