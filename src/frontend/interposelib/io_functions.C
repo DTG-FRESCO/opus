@@ -123,6 +123,105 @@ extern "C" int open64(const char *pathname, int flags, ...)
     return __open_internal(pathname, flags, "open64", real64_open, mode);
 }
 
+template <typename T>
+static int __openat_internal(int dirfd, const char* pathname, int flags,
+                        const char *func_name, T real_openat, mode_t mode)
+{
+    TrackErrno err_obj(errno);
+
+    if (!real_openat)
+        real_openat = (T)ProcUtils::get_sym_addr(func_name);
+
+    if (ProcUtils::test_and_set_flag(true))
+    {
+        errno = 0;
+        int ret = (*real_openat)(dirfd, pathname, flags, mode);
+        err_obj = errno;
+        return ret;
+    }
+
+    uint64_t start_time = ProcUtils::get_time();
+
+    errno = 0;
+    int ret = (*real_openat)(dirfd, pathname, flags, mode);
+
+    int errno_value = errno;
+    err_obj = errno;
+    uint64_t end_time = ProcUtils::get_time();
+
+    FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
+                        ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
+
+    // Keep interposition turned off
+    if (!func_msg) return ret;
+
+    KVPair* tmp_arg;
+
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("dirfd");
+    char dirfd_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(dirfd, dirfd_buf));
+
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("pathname");
+    if (pathname)
+    {
+        char pathname_buf[PATH_MAX + 1] = "";
+        tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
+    }
+
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("flags");
+
+    char flags_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(flags, flags_buf));
+
+    tmp_arg = func_msg->add_args();
+    tmp_arg->set_key("mode");
+
+    char mode_buf[MAX_INT32_LEN] = "";
+    tmp_arg->set_value(ProcUtils::opus_itoa(mode, mode_buf));
+
+
+    /* Get the file path from the new file descriptor */
+    if (ret >= 0)
+    {
+        char file_path[PATH_MAX + 1] = "";
+        if (ProcUtils::get_abs_path_from_fd(ret, file_path))
+        {
+            tmp_arg = func_msg->add_args();
+            tmp_arg->set_key("file_path");
+            tmp_arg->set_value(file_path);
+        }
+    }
+
+    set_func_info_msg(func_msg, func_name, ret,
+                        start_time, end_time, errno_value);
+
+    bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+    ProcUtils::test_and_set_flag(!comm_ret);
+    func_msg->Clear();
+
+    return ret;
+}
+
+extern "C" int openat(int dirfd, const char *pathname, int flags, ...)
+{
+    static OPENAT_POINTER real_openat = NULL;
+
+    GET_MODE;
+    return __openat_internal(dirfd, pathname, flags, "openat", real_openat, mode);
+}
+
+
+extern "C" int openat64(int dirfd, const char *pathname, int flags, ...)
+{
+    static OPENAT64_POINTER real_openat64 = NULL;
+
+    GET_MODE;
+    return __openat_internal(dirfd, pathname, flags, "openat64", real_openat64, mode);
+}
+
 
 static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt)
 {

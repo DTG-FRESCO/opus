@@ -58,6 +58,7 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
+        static const char* get_abs_path_from_fd(const int fd, char *file_path);
         static const char* canonicalise_path(const char *path,
                                             char *actual_path);
         static const char* abs_path(const char *path, char *abs_path);

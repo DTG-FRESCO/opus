@@ -712,3 +712,25 @@ __wprintf_chk:
 _exit:
   action: event
   arg_map: {}
+
+openat:
+  action: open
+  arg_map:
+    filename:
+      - msg_arg
+      - file_path
+    filedes:
+      - ret_val
+
+openat64:
+  action: open
+  arg_map:
+    filename:
+      - msg_arg
+      - file_path
+    filedes:
+      - ret_val
+
+vfork:
+  action: event
+  arg_map: {}

@@ -975,3 +975,11 @@ void ProcUtils::interpose_off(const string& desc)
     // atomic operation
     opus_interpose_off = true;
 }
+
+const char* ProcUtils::get_abs_path_from_fd(const int fd, char *file_path)
+{
+    char proc_fd_path[PATH_MAX + 1] = "";
+    snprintf(proc_fd_path, PATH_MAX, "/proc/self/fd/%d", fd);
+
+    return ProcUtils::canonicalise_path(proc_fd_path, file_path);
+}

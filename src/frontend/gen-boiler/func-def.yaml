@@ -1892,3 +1892,14 @@
   - flags: []
     name: format
     type: "const wchar_t *"
+
+
+- name: openat
+  ret: "int"
+  flags: [nogen]
+  args: "int dirfd, const char *pathname, int flags, ..."
+
+- name: openat64
+  ret: "int"
+  flags: [nogen]
+  args: "int dirfd, const char *pathname, int flags, ..."
