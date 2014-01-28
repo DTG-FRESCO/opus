@@ -148,7 +148,9 @@ def pretty_yaml(funcs):
             else:
                 print("  args:")
                 for arg in func['args']:
-                    print("  - flags: [%s]"%(",".join(arg['flags'])))
+                    print("  - flags:")
+		    for flag in arg['flags']:
+			print("      %s: \"\""%(flag))
                     print("    name: %s"%arg['name'])
                     print("    type: \"%s\""%arg['type'])
                     print("")

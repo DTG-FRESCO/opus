@@ -139,18 +139,6 @@ def posix_freopen64(tran, p_id, msg):
     return new_l_id
 
 
-@FuncController.dec('fchmodat')
-def posix_fchmodat():
-    '''Implementation of fchmodat in PVM semantics.'''
-    pass
-
-
-@FuncController.dec('fchownat')
-def posix_fchownat():
-    '''Implementation of fchownat in PVM semantics.'''
-    pass
-
-
 @FuncController.dec('socket')
 @utils.check_message_error_num
 def posix_socket(tran, p_id, msg):
@@ -224,11 +212,9 @@ def posix_dup3(tran, p_id, msg):
     return i_id
 
 
-@FuncController.dec('link')
-def posix_link(tran, p_id, msg):
-    '''Implementation of link in PVM semantics.'''
-    args = utils.parse_kvpair_list(msg.args)
-    return actions.link_action(tran, p_id, args['path1'], args['path2'])
+@FuncController.dec('renameat')
+def posix_renameat(tran, p_id, msg):
+    return posix_rename(tran, p_id, msg)
 
 
 @FuncController.dec('rename')

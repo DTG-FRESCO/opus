@@ -132,8 +132,10 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
     if (!real_openat)
         real_openat = (T)ProcUtils::get_sym_addr(func_name);
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         int ret = (*real_openat)(dirfd, pathname, flags, mode);
         err_obj = errno;
@@ -187,7 +189,7 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
     if (ret >= 0)
     {
         char file_path[PATH_MAX + 1] = "";
-        if (ProcUtils::get_abs_path_from_fd(ret, file_path))
+        if (ProcUtils::get_path_from_fd(ret, file_path))
         {
             tmp_arg = func_msg->add_args();
             tmp_arg->set_key("file_path");
@@ -242,8 +244,10 @@ static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt
     }
     va_end(arg);
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         if(argfmt == NO_ARG){
             ret = real_fcntl(filedes, cmd);

@@ -29,22 +29,10 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     va_start(va_args, {{(func.args|last).name}});
     {%- endif %}
 
-    if (ProcUtils::test_and_set_flag(true)) {
-        errno = 0;
-
-        {{macros.fn_call(func)}}
-
-        err_obj = errno;
-
-        {% if "vararg" in func.flags -%}
-        va_end(va_args);
-        {%- endif %}
-        {{macros.return_func(func)}}
-    }
-
-    if (ProcUtils::is_interpose_off()) {
-
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    {
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
 
         errno = 0;
         {{macros.fn_call(func)}}
@@ -108,6 +96,40 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         {% elif 'abs' in arg.flags %}
         char {{arg.name}}_buf[PATH_MAX + 1] = "";
         tmp_arg->set_value(ProcUtils::abs_path({{arg.name}}, {{arg.name}}_buf));
+        {% elif 'dirfd' in arg.flags %}
+        char {{arg.name}}_ref[PATH_MAX + 1] = "";
+        {% if 'sym' in arg.flags.dirfd -%}
+        if(({{arg.flags.dirfd.sym.arg}} & {{arg.flags.dirfd.sym.val}}) == {{arg.flags.dirfd.sym.comp}}){
+            tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+                                                         {{arg.name}},
+                                                         {{arg.name}}_ref,
+                                                         &ProcUtils::abs_path));
+        }else{
+            tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+                                                         {{arg.name}},
+                                                         {{arg.name}}_ref,
+                                                         &ProcUtils::canonicalise_path));
+        }
+        {%- else -%}
+        {%- if "type" in arg.flags.dirfd -%}
+        {%- if arg.flags.dirfd.type == "abs" -%}
+        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+                                                     {{arg.name}},
+                                                     {{arg.name}}_ref,
+                                                     &ProcUtils::abs_path));
+        {%- else -%}
+        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+                                                     {{arg.name}},
+                                                     {{arg.name}}_ref,
+                                                     &ProcUtils::canonicalise_path));
+        {%- endif -%}
+        {%- else -%}
+        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+                                                     {{arg.name}},
+                                                     {{arg.name}}_ref,
+                                                     &ProcUtils::canonicalise_path));
+        {%- endif -%}
+        {%- endif -%}
         {% else %}
         tmp_arg->set_value({{arg.name}});
         {% endif %}

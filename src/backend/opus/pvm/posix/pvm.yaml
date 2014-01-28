@@ -734,3 +734,65 @@ openat64:
 vfork:
   action: event
   arg_map: {}
+
+mkfifoat:
+  action: touch
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+
+symlinkat:
+  action: touch
+  arg_map:
+    filename:
+      - msg_arg
+      - newpath
+
+mkdirat:
+  action: touch
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+
+unlinkat:
+  action: delete
+  arg_map:
+    filename:
+      - msg_arg
+      - pathname
+
+fchmodat:
+  action: touch
+  arg_map:
+    filename: 
+      - msg_arg
+      - pathname
+
+fchownat:
+  action: touch
+  arg_map:
+    filename: 
+      - msg_arg
+      - pathname
+
+linkat:
+  action: link
+  arg_map:
+    orig_name:
+      - msg_arg
+      - oldpath
+    new_name:
+      - msg_arg
+      - newpath
+
+link:
+  action: link
+  arg_map:
+    orig_name:
+      - msg_arg
+      - path1
+    new_name:
+      - msg_arg
+      - path2
