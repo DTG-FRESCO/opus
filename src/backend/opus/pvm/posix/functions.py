@@ -25,6 +25,7 @@ except ImportError:
 from opus import pvm
 from opus.pvm.posix import actions, utils
 from opus import prov_db_pb2 as prov_db
+from opus import storage
 
 
 class MissingMappingError(utils.PVMException):
@@ -36,9 +37,9 @@ class MissingMappingError(utils.PVMException):
 
 
 def wrap_action(action, arg_map):
-    '''Converts an item from the ActionMap into a lambda taking tran, p_id and
-    a msg.'''
-    def fun(tran, p_id, msg):
+    '''Converts an item from the ActionMap into a lambda taking
+    storage interface, process node and a msg.'''
+    def fun(storage_iface, proc_node, msg):
         '''Wrapper internal. '''
         args = utils.parse_kvpair_list(msg.args)
         arg_set = {}
@@ -50,7 +51,7 @@ def wrap_action(action, arg_map):
             elif val[0] == "const":
                 arg_set[k] = str(val[1])
         return actions.ActionMap.call(action, msg.error_num,
-                                      tran, p_id, **arg_set)
+                                      storage_iface, proc_node, **arg_set)
     return fun
 
 
@@ -100,43 +101,48 @@ FuncController.load("opus/pvm/posix/pvm.yaml")
 
 @FuncController.dec('fcloseall')
 @utils.check_message_error_num
-def posix_fcloseall(tran, p_id, _):
+def posix_fcloseall(storage_iface, proc_node, _):
     '''Implementation of fcloseall in PVM semantics.'''
-    p_obj = tran.get(p_id)
-    for l_lnk in p_obj.local_object:
-        l_id = l_lnk.id
-        l_obj = tran.get(l_id)
-        for lnk in l_obj.file_object:
-            pvm.drop_g(tran, l_id, lnk.id)
-        pvm.drop_l(tran, l_id)
+    local_node_link_list = get_locals_from_process(proc_node)
 
-    return p_id
+    for (loc_node, rel_link) in local_node_link_list:
+        glob_node_link_list = storage_iface.get_globals_from_local(loc_node)
+
+        for (glob_node, rel_link) in glob_node_link_list:
+            pvm.drop_g(storage_iface, loc_node, glob_node)
+        pvm.drop_l(storage_iface, loc_node)
+
+    return proc_node
 
 
 @FuncController.dec('freopen')
-def posix_freopen(tran, p_id, msg):
+def posix_freopen(storage_iface, proc_node, msg):
     '''Implementation of freopen in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
+
     try:
-        utils.proc_get_local(tran, p_id, args['stream'])
+        utils.proc_get_local(storage_iface, proc_node, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(msg.error_num, tran, p_id, args['stream'])
-    new_l_id = actions.open_action(tran, p_id,
+        actions.close_action(msg.error_num, storage_iface,
+                                proc_node, args['stream'])
+
+    new_loc_node = actions.open_action(storage_iface, proc_node,
                                    args['filename'], str(msg.ret_val))
-    return new_l_id
+    return new_loc_node
 
 
 @FuncController.dec('freopen64')
-def posix_freopen64(tran, p_id, msg):
+def posix_freopen64(storage_iface, proc_node, msg):
     '''Implementation of freopen64 in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     try:
-        utils.proc_get_local(tran, p_id, args['stream'])
+        utils.proc_get_local(storage_iface, proc_node, args['stream'])
     except utils.NoMatchingLocalError:
-        actions.close_action(msg.error_num, tran, p_id, args['stream'])
-    new_l_id = actions.open_action(tran, p_id,
-                                   args['filename'], str(msg.ret_val))
-    return new_l_id
+        actions.close_action(msg.error_num, storage_iface, proc_node,
+                                    args['stream'])
+    new_loc_node = actions.open_action(storage_iface, proc_node,
+                                    args['filename'], str(msg.ret_val))
+    return new_loc_node
 
 
 @FuncController.dec('fchmodat')
@@ -153,235 +159,254 @@ def posix_fchownat():
 
 @FuncController.dec('socket')
 @utils.check_message_error_num
-def posix_socket(tran, p_id, msg):
+def posix_socket(storage_iface, proc_node, msg):
     '''Implementation of socket in PVM semantics.'''
-    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node
 
 
 @FuncController.dec('accept')
 @utils.check_message_error_num
-def posix_accept(tran, p_id, msg):
+def posix_accept(storage_iface, proc_node, msg):
     '''Implementation of accept in PVM semantics.'''
-    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node
 
 
 @FuncController.dec('pipe')
 @utils.check_message_error_num
-def posix_pipe(tran, p_id, msg):
+def posix_pipe(storage_iface, proc_node, msg):
     '''Implementation of pipe in PVM semantics.'''
-    return utils.process_rw_pair(tran, p_id, msg)
+    return utils.process_rw_pair(storage_iface, proc_node, msg)
 
 
 @FuncController.dec('pipe2')
 @utils.check_message_error_num
-def posix_pipe2(tran, p_id, msg):
+def posix_pipe2(storage_iface, proc_node, msg):
     '''Implementation of pipe2 in PVM semantics.'''
-    return utils.process_rw_pair(tran, p_id, msg)
+    return utils.process_rw_pair(storage_iface, proc_node, msg)
 
 
 @FuncController.dec('socketpair')
 @utils.check_message_error_num
-def posix_socketpair(tran, p_id, msg):
+def posix_socketpair(storage_iface, proc_node, msg):
     '''Implementation of socketpair in PVM semantics.'''
-    return utils.process_rw_pair(tran, p_id, msg)
+    return utils.process_rw_pair(storage_iface, proc_node, msg)
 
 
 @FuncController.dec('dup')
 @utils.check_message_error_num
-def posix_dup(tran, p_id, msg):
+def posix_dup(socket_iface, proc_node, msg):
     '''Implementation of dup in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     old_fd = args['oldfd']
     new_fd = str(msg.ret_val)
-    i_id = utils.proc_get_local(tran, p_id, old_fd)
-    utils.proc_dup_fd(tran, p_id, old_fd, new_fd)
-    return i_id
+    loc_node = utils.proc_get_local(storage_iface, proc_node, old_fd)
+    utils.proc_dup_fd(storage_iface, proc_node, old_fd, new_fd)
+    return loc_node
 
 
 @FuncController.dec('dup2')
 @utils.check_message_error_num
-def posix_dup2(tran, p_id, msg):
+def posix_dup2(storage_iface, proc_node, msg):
     '''Implementation of dup2 in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     old_fd = args['oldfd']
     new_fd = args['newfd']
-    i_id = utils.proc_get_local(tran, p_id, old_fd)
-    utils.proc_dup_fd(tran, p_id, old_fd, new_fd)
-    return i_id
+    loc_node = utils.proc_get_local(storage_iface, proc_node, old_fd)
+    utils.proc_dup_fd(storage_iface, proc_node, old_fd, new_fd)
+    return loc_node
 
 
 @FuncController.dec('dup3')
 @utils.check_message_error_num
-def posix_dup3(tran, p_id, msg):
+def posix_dup3(storage_iface, proc_node, msg):
     '''Implementation of dup3 in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     old_fd = args['oldfd']
     new_fd = args['newfd']
-    i_id = utils.proc_get_local(tran, p_id, old_fd)
-    utils.proc_dup_fd(tran, p_id, old_fd, new_fd)
-    return i_id
+    loc_node = utils.proc_get_local(storage_iface, proc_node, old_fd)
+    utils.proc_dup_fd(storage_iface, proc_node, old_fd, new_fd)
+    return loc_node
 
 
 @FuncController.dec('link')
-def posix_link(tran, p_id, msg):
+def posix_link(storage_iface, proc_node, msg):
     '''Implementation of link in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    return actions.link_action(tran, p_id, args['path1'], args['path2'])
+    return actions.link_action(storage_iface, proc_node,
+                            args['path1'], args['path2'])
 
 
 @FuncController.dec('rename')
-def posix_rename(tran, p_id, msg):
+def posix_rename(storage_iface, proc_node, msg):
     '''Implementation of rename in PVM semantics.'''
     # TODO(tb403): Fix to only use a single omega.
     args = utils.parse_kvpair_list(msg.args)
-    if tran.name_get(args['newpath']) is not None:
-        actions.delete_action(tran, p_id, args['newpath'])
-    l_id = actions.link_action(tran, p_id, args['oldpath'], args['newpath'])
-    actions.delete_action(tran, p_id, args['oldpath'])
-    return l_id
+    dest_glob_node = storage_iface.get_latest_glob_version(args['newpath'])
+
+    if dest_glob_node is not None:
+        if storage_iface.is_glob_deleted(dest_glob_node) is False:
+            actions.delete_action(storage_iface, proc_node, args['newpath'])
+    loc_node = actions.link_action(storage_iface, proc_node,
+                            args['oldpath'], args['newpath'])
+    actions.delete_action(storage_iface, proc_node, args['oldpath'])
+    return loc_node
 
 
 @FuncController.dec('umask')
-def posix_umask(tran, p_id, msg):
+def posix_umask(storage_iface, proc_node, msg):
     '''Implementation of umask in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "file_mode_creation_mask",
+    utils.update_proc_meta(storage_iface, proc_node, "file_mode_creation_mask",
                            args["mask"], msg.end_time)
-    return p_id
+    return proc_node
 
 
 @FuncController.dec('popen')
 @utils.check_message_error_num
-def posix_popen(tran, p_id, msg):
+def posix_popen(storage_iface, proc_node, msg):
     '''Implementation of popen in PVM semantics.'''
-    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id  # TODO(tb403) properly implement pipes
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node # TODO(tb403) properly implement pipes
 
 
 @FuncController.dec('tmpfile')
 @utils.check_message_error_num
-def posix_tmpfile(tran, p_id, msg):
+def posix_tmpfile(storage_iface, proc_node, msg):
     '''Implementation of tmpfile in PVM semantics.'''
-    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node
 
 
 @FuncController.dec('tmpfile64')
 @utils.check_message_error_num
-def posix_tmpfile64(tran, p_id, msg):
+def posix_tmpfile64(storage_iface, proc_node, msg):
     '''Implementation of tmpfile64 in PVM semantics.'''
-    l_id = pvm.get_l(tran, p_id, str(msg.ret_val))
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node
 
 
 @FuncController.dec('chdir')
 @utils.check_message_error_num
-def posix_chdir(tran, p_id, msg):
+def posix_chdir(storage_iface, proc_node, msg):
     '''Implementation of chdir in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "cwd", args["path"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "cwd",
+                                args["path"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('fchdir')
-def posix_fchdir(tran, p_id, msg):
+def posix_fchdir(storage_iface, proc_node, msg):
     '''Implementation of fchdir in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     try:
-        l_id = utils.proc_get_local(tran, p_id, args['fd'])
+        loc_node = utils.proc_get_local(storage_iface, proc_node, args['fd'])
     except utils.NoMatchingLocalError:
-        return p_id
+        return proc_node
 
     if msg.error_num > 0:
-        return l_id
+        return loc_node
 
-    l_obj = tran.get(l_id)
-    if len(l_obj.file_object) < 1 or len(l_obj.file_object) > 1:
-        return l_id
+    glob_node_rel_list = storage_iface.get_globals_from_local(loc_node)
+    if len(glob_node_link_list) == 0 or len(glob_node_link_list) > 1:
+        return loc_node
 
-    g_obj = tran.get(l_obj.file_object[0].id)
-    dir_name = g_obj.name[0]
+    glob_node = glob_node_rel_list[0]
+    name_list = storage_iface.get_property(glob_node, 'name')
+    dir_name = name_list[0]
 
-    utils.update_proc_meta(tran, p_id, "cwd", dir_name, msg.end_time)
-    return l_id
+    utils.update_proc_meta(storage_iface, proc_node, "cwd",
+                            dir_name, msg.end_time)
+    return loc_node
 
 
 @FuncController.dec('seteuid')
 @utils.check_message_error_num
-def posix_seteuid(tran, p_id, msg):
+def posix_seteuid(storage_iface, proc_node, msg):
     '''Implementation of seteuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "euid", args["euid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "euid",
+                            args["euid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('setegid')
 @utils.check_message_error_num
-def posix_setegid(tran, p_id, msg):
+def posix_setegid(storage_iface, proc_node, msg):
     '''Implementation of setegid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "egid", args["egid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "egid",
+                            args["egid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('setgid')
 @utils.check_message_error_num
-def posix_setgid(tran, p_id, msg):
+def posix_setgid(storage_iface, proc_node, msg):
     '''Implementation of setgid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "gid", args["gid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "gid",
+                            args["gid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('setreuid')
 @utils.check_message_error_num
-def posix_setreuid(tran, p_id, msg):
+def posix_setreuid(storage_iface, proc_node, msg):
     '''Implementation of setreuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "ruid", args["ruid"], msg.end_time)
-    utils.update_proc_meta(tran, p_id, "euid", args["euid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "ruid",
+                                args["ruid"], msg.end_time)
+    utils.update_proc_meta(storage_iface, proc_node, "euid",
+                                args["euid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('setregid')
 @utils.check_message_error_num
-def posix_setregid(tran, p_id, msg):
+def posix_setregid(storage_iface, proc_node, msg):
     '''Implementation of setregid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "rgid", args["rgid"], msg.end_time)
-    utils.update_proc_meta(tran, p_id, "egid", args["egid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "rgid",
+                                args["rgid"], msg.end_time)
+    utils.update_proc_meta(storage_iface, proc_node, "egid",
+                                args["egid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('setuid')
 @utils.check_message_error_num
-def posix_setuid(tran, p_id, msg):
+def posix_setuid(storage_iface, proc_node, msg):
     '''Implementation of setuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    utils.update_proc_meta(tran, p_id, "uid", args["uid"], msg.end_time)
-    return p_id
+    utils.update_proc_meta(storage_iface, proc_node, "uid",
+                                args["uid"], msg.end_time)
+    return proc_node
 
 
 @FuncController.dec('clearenv')
 @utils.check_message_error_num
-def posix_clearenv(tran, p_id, msg):
+def posix_clearenv(storage_iface, proc_node, msg):
     '''Implementation of clearenv in PVM semantics.'''
-    p_obj = tran.get(p_id)
-    for meta in p_obj.env:
-        old_m_id = meta.id
-        old_m_obj = tran.get(old_m_id)
-        m_id = utils.new_meta(tran, old_m_obj.name, None, msg.end_time)
-        m_obj = tran.get(m_id)
-        m_obj.prev_version.id = old_m_id
-        meta.id = m_id
-    return p_id
+    env_meta_list = storage_iface.get_proc_meta(proc_node,
+                                storage.RelType.ENV_META)
+
+    for meta_node, meta_rel in env_meta_list:
+        new_meta_node = utils.new_meta(storage_iface, meta_node['name'],
+                                        None, msg.end_time)
+        storage_iface.create_relationship(new_meta_node, meta_node,
+                                        storage.RelType.META_PREV)
+        storage_iface.create_relationship(proc_node, new_meta_node,
+                                        storage.RelType.ENV_META)
+        storage_iface.delete_relationship(meta_rel)
+    return proc_node
 
 
 @FuncController.dec('putenv')
 @utils.check_message_error_num
-def posix_putenv(tran, p_id, msg):
+def posix_putenv(storage_iface, proc_node, msg):
     '''Implementation of putenv in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
 
@@ -390,41 +415,44 @@ def posix_putenv(tran, p_id, msg):
         env = (parts[0], parts[1], msg.end_time)
     else:
         env = (parts[0], None, msg.end_time)
-    utils.process_put_env(tran, p_id, env, True)
-    return p_id
+    utils.process_put_env(storage_iface, proc_node, env, True)
+    return proc_node
 
 
 @FuncController.dec('setenv')
 @utils.check_message_error_num
-def posix_setenv(tran, p_id, msg):
+def posix_setenv(storage_iface, proc_node, msg):
     '''Implementation of setenv in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     env = (args['name'], args['value'], msg.end_time)
-    utils.process_put_env(tran, p_id, env, args['overwrite'] > 0)
-    return p_id
+    utils.process_put_env(storage_iface, proc_node, env, args['overwrite'] > 0)
+    return proc_node
 
 
 @FuncController.dec('unsetenv')
 @utils.check_message_error_num
-def posix_unsetenv(tran, p_id, msg):
+def posix_unsetenv(storage_iface, proc_node, msg):
     '''Implementation of unsetenv in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     env = (args['name'], None, msg.end_time)
-    utils.process_put_env(tran, p_id, env, True)
-    return p_id
+    utils.process_put_env(storage_iface, proc_node, env, True)
+    return proc_node
+
 
 @FuncController.dec('fcntl')
 @utils.check_message_error_num
-def posix_fcntl(tran, p_id, msg):
+def posix_fcntl(storage_iface, proc_node, msg):
     '''Implementation of fnctl in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
-    i_id = utils.proc_get_local(tran, p_id, args['filedes'])
+    loc_node = utils.proc_get_local(storage_iface, proc_node, args['filedes'])
+
     if int(args['cmd']) == fcntl.F_DUPFD:
-        utils.proc_dup_fd(tran, p_id, args['filedes'], str(msg.ret_val))
+        utils.proc_dup_fd(storage_iface, proc_node, args['filedes'],
+                            str(msg.ret_val))
     if int(args['cmd']) == fcntl.F_SETFD:
         if int(args['arg']) == fcntl.FD_CLOEXEC:
-            utils.set_link(tran, i_id, prov_db.CLOEXEC)
+            utils.set_link(storage_iface, loc_node, storage.LinkState.CLOEXEC)
         else:
-            utils.set_link(tran, i_id, prov_db.NONE)
+            utils.set_link(storage_iface, loc_node, storage.LinkState.NONE)
 
-    return i_id
+    return loc_node

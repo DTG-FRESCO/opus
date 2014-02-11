@@ -15,7 +15,6 @@ import logging
 from opus import prov_db_pb2 as prov_db
 from opus import pvm, storage, common_utils
 
-
 class PVMException(common_utils.OPUSException):
     '''Base exception for PVM related failures.'''
     def __init__(self, msg):
@@ -24,9 +23,9 @@ class PVMException(common_utils.OPUSException):
 
 class NoMatchingLocalError(PVMException):
     '''Failed to find a local object matching the supplied name.'''
-    def __init__(self, p_id, name):
+    def __init__(self, proc_node, name):
         super(NoMatchingLocalError, self).__init__(
-            "Error: Failed to find local %s in process %d" % (name, p_id)
+            "Error: Failed to find local %s in process %d" % (name, proc_node.id)
         )
 
 
@@ -39,292 +38,323 @@ def check_message_error_num(func):
     '''Check the error_num of the message passed and if it is a fail add an
     event to the process object then abort. Otherwise process as ususal.'''
     @functools.wraps(func)
-    def wrapper(tran, p_id, msg, *args, **kwargs):
+    def wrapper(storage_iface, proc_node, msg, *args, **kwargs):
         '''Should never be seen.'''
         if msg.error_num > 0:
-            return p_id
-        return func(tran, p_id, msg, *args, **kwargs)
+            return proc_node
+        return func(storage_iface, proc_node, msg, *args, **kwargs)
     return wrapper
 
 
-def process_from_startup(tran, (hdr, pay)):
-    '''Given a hdr, pay pair for a startup message create a process object.'''
-    (p_id, p_obj) = tran.create(prov_db.PROCESS)
-    p_obj.pid = hdr.pid
+def add_meta_to_proc(storage_iface, proc_node, name, val, time_stamp, rel_type):
+    '''Creates a meta node and links it to a process node'''
+    meta_node = new_meta(storage_iface, name, val, time_stamp)
+    storage_iface.create_relationship(proc_node, meta_node, rel_type)
+
+
+def process_from_startup(storage_iface, (hdr, pay)):
+    '''Given a hdr, pay pair for a startup message create a process node,
+    meta nodes and link the process node to the meta nodes.'''
+
+    proc_node = storage_iface.create_node(storage.NodeType.PROCESS)
+
+    # Set properties on the process node
     time_stamp = hdr.timestamp
+    proc_node['pid'] = hdr.pid
+
+    proc_node['timestamp'] = time_stamp
 
     if pay.HasField('cwd'):
-        cwd_id = new_meta(tran, "cwd", pay.cwd, time_stamp)
-        p_obj.other_meta.add().id = cwd_id
+        add_meta_to_proc(storage_iface, proc_node, "cwd", pay.cwd, time_stamp,
+                    storage.RelType.OTHER_META)
 
     if pay.HasField('cmd_line_args'):
-        cmd_id = new_meta(tran, "cmd_args", pay.cmd_line_args, time_stamp)
-        p_obj.other_meta.add().id = cmd_id
+        add_meta_to_proc(storage_iface, proc_node, "cmd_args",
+                    pay.cmd_line_args, time_stamp,
+                    storage.RelType.OTHER_META)
 
     if pay.HasField('user_name'):
-        uid_id = new_meta(tran, "uid", pay.user_name, time_stamp)
-        p_obj.other_meta.add().id = uid_id
+        add_meta_to_proc(storage_iface, proc_node, "uid", pay.user_name,
+                    time_stamp, storage.RelType.OTHER_META)
 
     if pay.HasField('group_name'):
-        gid_id = new_meta(tran, "gid", pay.group_name, time_stamp)
-        p_obj.other_meta.add().id = gid_id
+        add_meta_to_proc(storage_iface, proc_node, "gid", pay.group_name,
+                    time_stamp, storage.RelType.OTHER_META)
 
     for pair in pay.environment:
-        env_id = new_meta(tran, pair.key, pair.value, time_stamp)
-        p_obj.env.add().id = env_id
+        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
+                    time_stamp, storage.RelType.ENV_META)
 
     for pair in pay.system_info:
-        sys_id = new_meta(tran, pair.key, pair.value, time_stamp)
-        p_obj.other_meta.add().id = sys_id
+        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
+                    time_stamp, storage.RelType.OTHER_META)
 
     for pair in pay.resource_limit:
-        res_id = new_meta(tran, pair.key, pair.value, time_stamp)
-        p_obj.other_meta.add().id = res_id
+        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
+                    time_stamp, storage.RelType.OTHER_META)
 
-    return p_id
+    return proc_node
 
 
-def clone_file_des(tran, old_p_id, new_p_id):
-    '''Clones the file descriptors of old_p_id to new_p_id using the CoT
-    mechanism.'''
-    new_p_obj = tran.get(new_p_id)
-    old_p_obj = tran.get(old_p_id)
-    for lnk in old_p_obj.local_object:
-        if lnk.state in [prov_db.CLOSED, prov_db.CLOEXEC]:
+def clone_file_des(storage_iface, old_proc_node, new_proc_node):
+    '''Clones the file descriptors of old_proc_node to new_proc_node
+    using the CoT mechanism.'''
+    loc_node_link_list = storage_iface.get_locals_from_process(old_proc_node)
+    for (loc_node, rel_link) in loc_node_link_list:
+        if rel_link['state'] in [storage.LinkState.CLOSED,
+                                storage.LinkState.CLOEXEC]:
             continue
-        new_lnk = new_p_obj.local_object.add()
-        new_lnk.id = lnk.id
-        new_lnk.state = prov_db.CoT
+        # Create a new link from the local node to the new process node
+        new_rel_link = storage_iface.create_relationship(loc_node,
+                                new_proc_node, storage.RelType.PROC_OBJ)
+        new_rel_link['state'] = storage.LinkState.CoT
 
 
-def new_meta(tran, name, val, time_stamp):
-    '''Create a new meta object with the given name, value and timestamp.'''
-    (m_id, m_obj) = tran.create(prov_db.META)
-    m_obj.name = name
+def new_meta(storage_iface, name, val, time_stamp):
+    '''Create a new meta object node with the given name, value and timestamp.'''
+    meta_node = storage_iface.create_node(storage.NodeType.META)
+    meta_node['name'] = name
     if val is not None:
-        m_obj.value = val
-    m_obj.timestamp = time_stamp
-    return m_id
+        meta_node['value'] = val
+    meta_node['timestamp'] = time_stamp
+    return meta_node
 
 
-def event_from_msg(tran, msg):
-    '''Create an event object from the given function info message.'''
-    (eo_id, eo_obj) = tran.create(prov_db.EVENT)
-    eo_obj.fn = msg.func_name
-    eo_obj.ret = msg.ret_val
+def event_from_msg(storage_iface, msg):
+    '''Create an event object node from the given function info message.'''
+    event_node = storage_iface.create_node(storage.NodeType.EVENT)
+    event_node['fn'] = msg.func_name
+    event_node['ret'] = msg.ret_val
+
+    arg_keys = []
+    arg_values = []
     for obj in msg.args:
-        add = eo_obj.additional.add()
-        add.key = obj.key
-        add.value = obj.value
-    eo_obj.before_time = msg.begin_time
-    eo_obj.after_time = msg.end_time
-    return eo_id
+        arg_keys.append(obj.key)
+        arg_values.append(obj.value)
+
+    if len(arg_keys) > 0:
+        event_node['arg_keys'] = arg_keys
+
+    if len(arg_values) > 0:
+        event_node['arg_values'] = arg_values
+
+    event_node['before_time'] = msg.begin_time
+    event_node['after_time'] = msg.end_time
+    return event_node
 
 
-def trace_latest_global_version(tran, g_id):
-    '''From the object g_id trace through decendant relations avoiding
-    deletions to find the newest version of the object that has not been
-    deleted. Assumes that all global objects have either a single child that
-    may be deleted or two children only one of which can be deleted.'''
-    g_obj = tran.get(g_id)
-    # If a g_id has no children then it must be the last.
-    while len(g_obj.next_version) != 0:
-        if len(g_obj.next_version) == 1:  # Single Child Case
-            if g_obj.next_version[0].state == prov_db.DELETED:
-                # If the child is deleted then the current g_id is the last.
-                break
-            else:
-                # Otherwise make the child the current g_id and repeat.
-                g_id = g_obj.next_version[0].id
-                g_obj = tran.get(g_id)
-        else:  # Double Child Case
-            for lnk in g_obj.next_version:
-                if lnk.state != prov_db.DELETED:
-                    g_id = lnk.id
-                    g_obj = tran.get(g_id)
-                    break
-    return g_id
+
+def proc_get_local(storage_iface, proc_node, loc_name):
+    '''Retrieves the local object node that corresponds with
+    a given name from a process node.'''
+
+    loc_node, loc_proc_rel = storage_iface.get_valid_local(proc_node, loc_name)
+    if loc_node is None:
+        raise NoMatchingLocalError(proc_node, loc_name)
+
+    if loc_proc_rel['state'] != storage.LinkState.CoT:
+        return loc_node
+
+    #### Handle Copy on Touch ####
+
+    # Delete the CoT link to local
+    storage_iface.delete_relationship(loc_proc_rel)
+
+    # Create a new local object node
+    new_loc_node = pvm.get_l(storage_iface, proc_node, loc_name)
+
+    # Find the newest valid version of the global object
+    glob_node = storage_iface.get_glob_latest_version(loc_node)
+    if glob_node is None:
+        return new_loc_node
+
+    new_glob_node = pvm.version_global(storage_iface, glob_node)
+    pvm.bind(storage_iface, new_loc_node, new_glob_node)
+    return new_loc_node
 
 
-def proc_get_local(tran, p_id, loc_name):
-    '''Retrieves the local object that corrisponds with a given name from a
-    process.'''
-    p_obj = tran.get(p_id)
-    for i in range(len(p_obj.local_object)):
-        if p_obj.local_object[i].state == prov_db.CLOSED:
-            # Ignore closed local objects.
-            continue
-        l_id = p_obj.local_object[i].id
-        l_obj = tran.get(l_id)
-        if l_obj.name == loc_name:  # Found local object with matching name.
-            if p_obj.local_object[i].state == prov_db.CoT:
-                # If the object is Copy on Touch
-                del p_obj.local_object[i]
-                new_l_id = pvm.get_l(tran, p_id, l_obj.name)
-                if len(l_obj.file_object) > 0:
-                    if len(l_obj.file_object) == 1:
-                        g_id = trace_latest_global_version(tran,
-                                                        l_obj.file_object[0].id
-                                                           )
-                        new_g_id = pvm.version_global(tran, g_id)
-                        pvm.bind(tran, new_l_id, new_g_id)
-                    else:
-                        logging.error(
-                            "Tracing latest global of invalid local."
-                        )
-                return new_l_id
-            else:
-                return l_id
-    raise NoMatchingLocalError(p_id, loc_name)
+
+def ins_local(storage_iface, event_node, loc_node):
+    '''Inserts an event into local object.'''
+
+    # Get the last IO event and the connecting link
+    last_io_event_node, event_rel = storage_iface.get_last_event(loc_node,
+                                                storage.RelType.IO_EVENTS)
+
+    if last_io_event_node is not None:
+        # Link the new event with the last IO event as previous
+        storage_iface.create_relationship(event_node, last_io_event_node,
+                                        storage.RelType.PREV_EVENT)
+
+    # Create a new link between local object and new event object
+    storage_iface.create_relationship(loc_node, event_node,
+                                        storage.RelType.IO_EVENTS)
+
+    if event_rel is not None:
+        # Delete the old link between local object and old event object
+        storage_iface.delete_relationship(event_rel)
 
 
-def ins_local(tran, ev_id, l_id):
-    '''Inserts an event ev_id into local object l_id.'''
-    ev_obj = tran.get(ev_id)
-    l_obj = tran.get(l_id)
-    ev_obj.prev.id = l_obj.io_events.id
-    l_obj.io_events.id = ev_id
+def ins_proc(storage_iface, event_node, proc_node):
+    '''Inserts an event into process object.'''
+
+    # Get the last process event and the connecting link
+    last_proc_event_node, event_rel = storage_iface.get_last_event(proc_node,
+                                                storage.RelType.PROC_EVENTS)
+
+    if last_proc_event_node is not None:
+        # Link the new event with the last process event as previous
+        storage_iface.create_relationship(event_node, last_proc_event_node,
+                                        storage.RelType.PREV_EVENT)
+
+    # Create a new link between process object and new event object
+    storage_iface.create_relationship(proc_node, event_node,
+                                        storage.RelType.PROC_EVENTS)
+
+    if event_rel is not None:
+        # Delete the old link between process object and old event object
+        storage_iface.delete_relationship(event_rel)
 
 
-def ins_proc(tran, ev_id, p_id):
-    '''Inserts an event ev_id into process object p_id.'''
-    ev_obj = tran.get(ev_id)
-    p_obj = tran.get(p_id)
-    ev_obj.prev.id = p_obj.process_events.id
-    p_obj.process_events.id = ev_id
-
-
-def update_proc_meta(tran, p_id, meta_name, new_val, timestamp):
-    '''Updates the meta object meta_name for the process p_id with a new value
+def update_proc_meta(storage_iface, proc_node, meta_name, new_val, timestamp):
+    '''Updates the meta object meta_name for the process with a new value
     and timestamp. Adds a new object if an existing one cannot be found.'''
-    m_id = new_meta(tran, meta_name, new_val, timestamp)
-    m_obj = tran.get(m_id)
-    p_obj = tran.get(p_id)
-    for meta in p_obj.other_meta:
-        old_m_id = meta.id
-        old_m_obj = tran.get(old_m_id)
-        if old_m_obj.name == meta_name:
-            # Object found and link updated.
-            m_obj.prev_version.id = old_m_id
-            meta.id = m_id
-            return
-    # Object not found, adding new object.
-    p_obj.other_meta.add().id = m_id
+    meta_node = new_meta(storage_iface, meta_name, new_val, timestamp)
+
+    other_meta_list = storage_iface.get_proc_meta(proc_node,
+                                        storage.RelType.OTHER_META)
+
+    # Version the meta object if it exists
+    for old_meta, meta_rel in other_meta_list:
+        if old_meta['name'] == meta_name:
+            storage_iface.create_relationship(meta_node, old_meta,
+                                        storage.RelType.META_PREV)
+            # Delete existing link from process to the meta object node
+            storage_iface.delete_relationship(meta_rel)
+            break
+
+    # Add link from process node to newly added meta node
+    storage_iface.create_relationship(proc_node, meta_node,
+                                        storage.RelType.OTHER_META)
 
 
-def add_event(tran, o_id, msg):
-    '''Adds an event to an object identified by o_id, automatically deriving
-    the object type.'''
-    ev_id = event_from_msg(tran, msg)
-    o_type = storage.derv_type(o_id)
-    if o_type == prov_db.LOCAL:
-        ins_local(tran, ev_id, o_id)
-    elif o_type == prov_db.PROCESS:
-        ins_proc(tran, ev_id, o_id)
+def add_event(storage_iface, node, msg):
+    '''Adds an event to node, automatically deriving the object type.'''
+    event_node = event_from_msg(storage_iface, msg)
+    node_type = node['type']
+    if node_type == storage.NodeType.LOCAL:
+        ins_local(storage_iface, event_node, node)
+    elif node_type == storage.NodeType.PROCESS:
+        ins_proc(storage_iface, event_node, node)
 
 
-def proc_dup_fd(tran, p_id, fd_i, fd_o):
+def proc_dup_fd(storage_iface, proc_node, fd_i, fd_o):
     '''Helper for duplicating file descriptors. Handles closing the old
     descriptor if needed and binding it to the new identifier.'''
     if fd_i == fd_o:
         return
-    i_id = proc_get_local(tran, p_id, fd_i)
-    i_obj = tran.get(i_id)
+
+    i_loc_node = proc_get_local(storage_iface, proc_node, fd_i)
     try:
-        o_id = proc_get_local(tran, p_id, fd_o)
+        o_loc_node = proc_get_local(storage_iface, proc_node, fd_o)
     except NoMatchingLocalError:
         pass
     else:
-        o_obj = tran.get(o_id)
-        if len(o_obj.file_object) > 0:
-            if len(o_obj.file_object) > 1:
-                logging.error("Duping invalid local.")
-            else:
-                g_id = o_obj.file_object[0].id
-                pvm.drop_g(tran, o_id, g_id)
-                new_o_id = o_obj.next_version.id
-                pvm.drop_l(tran, new_o_id)
+        glob_node_link_list = storage_iface.get_globals_from_local(o_loc_node)
+        if len(glob_node_link_list) > 0:
+            glob_node, glob_loc_rel = glob_node_link_list[0]
+            new_glob_node, new_o_loc_node = pvm.drop_g(storage_iface,
+                                            o_loc_node, glob_node)
+            pvm.drop_l(storage_iface, new_o_loc_node)
         else:
-            pvm.drop_l(tran, o_id)
-    o_id = pvm.get_l(tran, p_id, fd_o)
-    o_obj = tran.get(o_id)
-    if len(i_obj.file_object) == 1:
-        new_g_id = pvm.version_global(tran, i_obj.file_object[0].id)
-        pvm.bind(tran, o_id, new_g_id)
+            pvm.drop_l(storage_iface, o_loc_node)
+
+    o_loc_node = pvm.get_l(storage_iface, proc_node, fd_o)
+    i_glob_node_link_list = storage_iface.get_globals_from_local(i_loc_node)
+    if len(i_glob_node_link_list) == 1:
+        i_glob_node, i_glob_rel = i_glob_node_link_list[0]
+        new_glob_node = pvm.version_global(storage_iface, i_glob_node)
+        pvm.bind(storage_iface, o_loc_node, new_glob_node)
 
 
-def process_put_env(tran, p_id, env, overwrite):
+def process_put_env(storage_iface, proc_node, env, overwrite):
     '''Helper for edit processes environment, attempts to put name, val, ts
     into the processes environment. Clears keys if val is None, only overwrites
     existing keys if overwrite is set and inserts if the key is not found and
     val is not None.'''
-    p_obj = tran.get(p_id)
     found = False
     (name, val, time_stamp) = env
-    for meta in p_obj.env:
-        old_m_id = meta.id
-        old_m_obj = tran.get(old_m_id)
-        if old_m_obj.name == name:
+
+    env_meta_list = storage_iface.get_proc_meta(proc_node,
+                                storage.RelType.ENV_META)
+
+    for meta_node, meta_rel in env_meta_list:
+        if meta_node['name'] == name:
             found = True
             if not overwrite:
                 break
-            m_id = new_meta(tran, name, val, time_stamp)
-            m_obj = tran.get(m_id)
-            m_obj.prev_version.id = old_m_id
-            meta.id = m_id
+            new_meta_node = new_meta(storage_iface, name, val, time_stamp)
+            storage_iface.create_relationship(new_meta_node, meta_node,
+                                        storage.RelType.META_PREV)
+            storage_iface.create_relationship(proc_node, new_meta_node,
+                                        storage.RelType.ENV_META)
+            storage_iface.delete_relationship(meta_rel)
+
     if not found and val is not None:
-        m_id = new_meta(tran, name, val, time_stamp)
-        m_obj = tran.get(m_id)
-        p_obj.env.add().id = m_id
+        new_meta_node = new_meta(storage_iface, name, val, time_stamp)
+        storage_iface.create_relationship(proc_node, new_meta_node,
+                                        storage.RelType.ENV_META)
 
 
-def set_rw_lnk(tran, l_id, state):
-    '''Sets the link between l_id and the global it is connected to. The link
+def set_rw_lnk(storage_iface, loc_node, state):
+    '''Sets the link between local and the global it is connected to. The link
     is set to either state or the appropriate combination(if the link is
     already READ trying to set it to WRITE will result in RaW).'''
-    l_obj = tran.get(l_id)
-    if len(l_obj.file_object) == 1:
-        g_id = l_obj.file_object[0].id
-        g_obj = tran.get(g_id)
-        if((state == prov_db.READ and
-            l_obj.file_object[0].state == prov_db.WRITE) or
-           (state == prov_db.WRITE and
-            l_obj.file_object[0].state == prov_db.READ) or
-           l_obj.file_object[0].state == prov_db.RaW):
-            new_state = prov_db.RaW
+    glob_node_list = storage_iface.get_globals_from_local(loc_node)
+
+    if len(glob_node_list) == 1:
+        glob_node, glob_loc_rel = glob_node_list[0]
+        if ((state == storage.LinkState.READ and
+            glob_loc_rel['state'] == storage.LinkState.WRITE) or
+            (state == storage.LinkState.WRITE and 
+            glob_loc_rel['state'] == storage.LinkState.READ) or
+            glob_loc_rel['state'] == storage.LinkState.RaW):
+            new_state = storage.LinkState.Raw
         else:
             new_state = state
 
-        set_link(tran, l_id, new_state)
-
-def set_link(tran, l_id, state):
-    '''Sets the link between l_id and the global it is connected to.'''
-    l_obj = tran.get(l_id)
-    if len(l_obj.file_object) == 1:
-        g_obj = tran.get(l_obj.file_object[0].id)
-
-        l_obj.file_object[0].state = state
-        for lnk in g_obj.process_object:
-            if lnk.id == l_id:
-                lnk.state = state
-                break
+        set_link(storage_iface, loc_node, new_state)
 
 
-def process_rw_pair(tran, p_id, msg):
+
+def set_link(storage_iface, loc_node, state):
+    '''Sets the link between loc_node and the global it is connected to.'''
+    glob_node_link_list = storage_iface.get_globals_from_local(loc_node)
+    if len(glob_node_link_list) == 1:
+        glob_node, rel_link = glob_node_link_list[0]
+        rel_link['state'] = state
+        if state == storage.LinkState.BIN:
+            for name in glob_node['name']:
+                storage_iface.update_index(storage.Neo4JInterface.PROC_INDEX,
+                                            'name', name, glob_node)
+
+
+
+def process_rw_pair(storage_iface, proc_node, msg):
     '''Helper function to implement PVM operations for a pair of file
     descriptors typically created by calls to pipe and socketpair'''
     args = parse_kvpair_list(msg.args)
 
     # Create local objects for read and write fds
     read_fd = args['read_fd']
-    l_id1 = pvm.get_l(tran, p_id, read_fd)
+    loc_node1 = pvm.get_l(storage_iface, proc_node, read_fd)
     write_fd = args['write_fd']
-    l_id2 = pvm.get_l(tran, p_id, write_fd)
+    loc_node2 = pvm.get_l(storage_iface, proc_node, write_fd)
 
     # Get a global object ID and bind both read and write fds
-    (new_g_id, _) = tran.create(prov_db.GLOBAL)
-    pvm.bind(tran, l_id1, new_g_id)
-    add_event(tran, l_id1, msg)
-    pvm.bind(tran, l_id2, new_g_id)
-    return l_id2
+    new_glob_node = storage_iface.create_node(storage.NodeType.GLOBAL)
 
+    pvm.bind(storage_iface, loc_node1, new_glob_node)
+    add_event(storage_iface, loc_node1, msg)
+    pvm.bind(storage_iface, loc_node2, new_glob_node)
+    return loc_node2

@@ -40,7 +40,7 @@ message GlobalObj {
 
     repeated Link prev_version = 2; //List of pointers to previous versions
     repeated Link next_version = 3; //List of pointers to next versions
-    repeated Link process_object = 4; //List of pointers to process objects
+    repeated Link process_object = 4; //List of pointers to local objects
     repeated Link file_meta = 5;
 }
 

@@ -712,3 +712,7 @@ __wprintf_chk:
 _exit:
   action: event
   arg_map: {}
+
+pthread_create:
+  action: event
+  arg_map: {}
