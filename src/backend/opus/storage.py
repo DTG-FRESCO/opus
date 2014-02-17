@@ -12,6 +12,7 @@ import hashlib
 import leveldb
 import struct
 import logging
+import time
 
 from opus import common_utils
 from opus import prov_db_pb2 as prov_db
@@ -386,6 +387,7 @@ class Neo4JInterface(StorageIFace):
     PROC_INDEX = "PROC_INDEX"
     UNIQ_ID_IDX = "UNIQ_ID_IDX"
     NODE_ID_IDX = "NODE_ID_IDX"
+    TIME_INDEX = "TIME_INDEX"
 
     def __init__(self, filename):
         super(Neo4JInterface, self).__init__()
@@ -395,6 +397,7 @@ class Neo4JInterface(StorageIFace):
             self.proc_index = None
             self.node_id_idx = None
             self.id_node = None
+            self.sys_time = int(time.time())
 
             with self.db.transaction:
                 # Unique ID index
@@ -443,12 +446,19 @@ class Neo4JInterface(StorageIFace):
         return self.db.transaction
 
 
+    def set_sys_time_for_msg(self, sys_time):
+        '''Stores the system time passed in the header
+        for each message being processed'''
+        self.sys_time = sys_time
+
+
     def create_node(self, node_type):
         '''Creates a node and sets the node type'''
         node = self.db.node()
         node_id = self.get_next_id()
         node['node_id'] = node_id
         node['type'] = node_type
+        node['sys_time'] = self.sys_time
 
         self.update_index(Neo4JInterface.NODE_ID_IDX, 'node', node_id, node)
         return node
@@ -472,6 +482,18 @@ class Neo4JInterface(StorageIFace):
         return node[p_name]
 
 
+    def update_time_index(self, idx_type, sys_time_val, glob_node):
+        '''Updates the file or process time index entry for the hourly
+        bucket depending on the index type passed'''
+        idx = None
+        if idx_type == Neo4JInterface.FILE_INDEX:
+            idx = self.file_index
+        elif idx_type == Neo4JInterface.PROC_INDEX:
+            idx = self.proc_index
+        hourly_bucket =  sys_time_val - (sys_time_val % 3600)
+        idx['time'][hourly_bucket] = glob_node
+
+
     def update_index(self, idx_type, idx_name, idx_key, idx_val):
         '''Adds value to a given index type with the name and key'''
         if idx_type == Neo4JInterface.FILE_INDEX:
@@ -484,7 +506,7 @@ class Neo4JInterface(StorageIFace):
 
     def get_next_id(self):
         '''Returns a unique node ID'''
-        node_id = 0
+        node_id = None
         if self.id_node is not None:
             node_id = self.id_node['serial_id']
             self.id_node['serial_id'] = node_id + 1
@@ -523,8 +545,10 @@ class Neo4JInterface(StorageIFace):
     def get_latest_glob_version(self, name):
         '''Gets the latest global version for the given name'''
         node = None
+
         qry = "START n=node:FILE_INDEX('name:" + name + "') "
         qry += "RETURN n ORDER BY n.node_id DESC LIMIT 1"
+
         result = self.db.query(qry)
         for row in result:
             node = row['n']
@@ -545,11 +569,10 @@ class Neo4JInterface(StorageIFace):
         associated with the local object node'''
         glob_node_link_list = []
 
-        qry = "START loc_node=node(" + str(loc_node.id) + ") "
-        qry += "MATCH loc_node<-[rel:LOC_OBJ]-glob_node "
-        qry += "RETURN glob_node, rel"
 
-        rows = self.db.query(qry)
+        rows = self.db.query("START loc_node=node({id}) \
+                            MATCH loc_node<-[rel:LOC_OBJ]-glob_node \
+                            RETURN glob_node, rel", id=loc_node.id)
         for row in rows:
             glob_node = row['glob_node']
             rel = row['rel']
@@ -628,14 +651,13 @@ class Neo4JInterface(StorageIFace):
         loc_node = None
         loc_proc_rel = None
 
-        qry = "START proc_node=node(" + str(proc_node.id) + ") "
-        qry += "MATCH proc_node<-[lp_rel:PROC_OBJ]-loc_node "
-        qry += "WHERE lp_rel.state <> " + str(LinkState.CLOSED)
-        qry += " AND loc_node.name = '" + loc_name + "' "
-        qry += "RETURN loc_node, lp_rel "
-        qry += "ORDER by loc_node.node_id DESC limit 1"
-
-        rows = self.db.query(qry)
+        rows = self.db.query("START proc_node=node({id}) \
+                            MATCH proc_node<-[lp_rel:PROC_OBJ]-loc_node \
+                            WHERE lp_rel.state <> {state} \
+                            AND loc_node.name = {name} \
+                            RETURN loc_node, lp_rel ",
+                            id=proc_node.id, state=LinkState.CLOSED,
+                            name=loc_name)
         for row in rows:
             loc_node = row['loc_node']
             loc_proc_rel = row['lp_rel']

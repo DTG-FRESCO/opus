@@ -14,3 +14,6 @@
 
     - name: tid
       type: uint64_t
+
+    - name: sys_time
+      type: uint64_t

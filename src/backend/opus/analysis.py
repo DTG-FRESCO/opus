@@ -138,9 +138,7 @@ class OrderingAnalyser(Analyser):
             hdr_obj = messaging.Header()
             hdr_obj.loads(hdr)
 
-            pay_obj = common_utils.get_payload_type(hdr_obj)
-            pay_obj.ParseFromString(pay)
-            msg_chunk += [(hdr_obj.timestamp, (hdr_obj, pay_obj))]
+            msg_chunk += [(hdr_obj.timestamp, (hdr, pay))]
 
             if hdr_obj.payload_type == uds_msg.TERM_MSG:
                 if __debug__:
@@ -198,15 +196,23 @@ class PVMAnalyser(OrderingAnalyser):
     def process(self, (hdr, pay)):
         '''Process a single front end message, applying it's effects to the
         database.'''
+        hdr_obj = messaging.Header()
+        hdr_obj.loads(hdr)
+        pay_obj = common_utils.get_payload_type(hdr_obj)
+        pay_obj.ParseFromString(pay)
+
+        # Set system time for current message
+        self.storage_iface.set_sys_time_for_msg(hdr_obj.sys_time)
+
         with self.storage_iface.start_transaction():
-            if hdr.payload_type == uds_msg.FUNCINFO_MSG:
-                posix.handle_function(self.storage_iface, hdr.pid, pay)
-            elif hdr.payload_type == uds_msg.STARTUP_MSG:
-                posix.handle_process(self.storage_iface, hdr, pay)
-            elif hdr.payload_type == uds_msg.GENERIC_MSG:
-                if pay.msg_type == uds_msg.DISCON:
-                    posix.handle_disconnect(hdr.pid)
-                elif pay.msg_type == uds_msg.PRE_FUNC_CALL:
-                    posix.handle_prefunc(hdr.pid, pay)
-                elif hdr.payload_type == uds_msg.TERM_MSG:
-                    posix.handle_startup(self.storage_iface, pay)
+            if hdr_obj.payload_type == uds_msg.FUNCINFO_MSG:
+                posix.handle_function(self.storage_iface, hdr_obj.pid, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
+                posix.handle_process(self.storage_iface, hdr_obj, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
+                if pay_obj.msg_type == uds_msg.DISCON:
+                    posix.handle_disconnect(hdr_obj.pid)
+                elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
+                    posix.handle_prefunc(hdr_obj.pid, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.TERM_MSG:
+                    posix.handle_startup(self.storage_iface, pay_obj)

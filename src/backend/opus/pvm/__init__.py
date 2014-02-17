@@ -49,8 +49,13 @@ def version_global(storage_iface, old_glob_node):
     name_list = old_glob_node['name']
     new_glob_node['name'] = list(name_list)
     for name in name_list:
+        # Update file index
         storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
                                     'name', name, new_glob_node)
+        # Update time index
+        storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
+                                        new_glob_node['sys_time'],
+                                        new_glob_node)
 
     storage_iface.create_relationship(new_glob_node, old_glob_node,
                                     storage.RelType.GLOB_OBJ_PREV)
@@ -88,8 +93,15 @@ def get_g(storage_iface, loc_node, glob_name):
 
         # Add name as type array property
         new_glob_node['name'] = [glob_name]
+
+        # Update file index
         storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
                                     'name', glob_name, new_glob_node)
+
+        # Update time index
+        storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
+                                        new_glob_node['sys_time'],
+                                        new_glob_node)
     else:
         new_glob_node = version_global(storage_iface, old_glob_node)
 

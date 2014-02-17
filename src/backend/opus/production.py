@@ -58,12 +58,10 @@ def create_close_conn_obj(sock_fd, pid):
     '''Returns objects to mark a client connection close'''
     if __debug__:
         logging.debug("Creating close message for %d", sock_fd.fileno())
-#   pid, _, _ = get_credentials(sock_fd)
 
     gen_msg = uds_msg_pb2.GenericMessage()
     gen_msg.msg_type = uds_msg_pb2.DISCON
     gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
-    gen_msg.sys_time = int(time.time())
 
     header = messaging.Header()
     header.timestamp = mono_time_in_nanosecs()
@@ -71,6 +69,7 @@ def create_close_conn_obj(sock_fd, pid):
     header.tid = pid  # We dont have the tid
     header.payload_type = uds_msg_pb2.GENERIC_MSG
     header.payload_len = gen_msg.ByteSize()
+    header.sys_time = int(time.time())
 
     return header.dumps(), gen_msg.SerializeToString()
 
@@ -201,7 +200,6 @@ class UDSCommunicationManager(CommunicationManager):
     def __handle_close_connection(self, sock_fd, ret_list):
         '''Handles close event or hang up event on the client socket'''
         self.epoll.unregister(sock_fd.fileno())
-#        ret_list.append(tuple(create_close_conn_obj(sock_fd)))
         if sock_fd in self.input_client_map:
             del self.input_client_map[sock_fd.fileno()]
 
@@ -213,18 +211,6 @@ class UDSCommunicationManager(CommunicationManager):
                 del self.pid_map[pid]
                 ret_list.append(tuple(create_close_conn_obj(sock_fd, pid)))
 
-        # TODO: Check if the pid exists in the map
-        # remove the sock_fd from the list
-        # if list size is 0 remove the entry from dict and
-        # create close_conn_obj(sock_fd, pid)
-
-
-
-#        self.pid_map = {pid: [sock
-#                              for sock in sock_list
-#                              if sock is not sock_fd]
-#                        for pid, sock_list in self.pid_map.items()
-#                        if sock_fd not in sock_list or len(sock_list) > 1}
         if __debug__:
             logging.debug('closing socket: %d', sock_fd.fileno())
         sock_fd.close()

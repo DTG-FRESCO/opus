@@ -337,6 +337,8 @@ def set_link(storage_iface, loc_node, state):
             for name in glob_node['name']:
                 storage_iface.update_index(storage.Neo4JInterface.PROC_INDEX,
                                             'name', name, glob_node)
+                storage_iface.update_time_index(storage.Neo4JInterface.PROC_INDEX,
+                                                glob_node['sys_time'], glob_node)
 
 
 
