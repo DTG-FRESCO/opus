@@ -90,6 +90,13 @@ class UniqueIDException(common_utils.OPUSException):
             "Error: Unique ID generation error"
         )
 
+class InvalidQueryException(common_utils.OPUSException):
+    '''Exception when unique ID cannot be generated'''
+    def __init__(self):
+        super(InvalidQueryException, self).__init__(
+            "Error: Invalid Query"
+        )
+
 
 OBJ_TYPE_MAP = {
     prov_db.ANNOT: prov_db.AnnotationObj,
@@ -100,6 +107,47 @@ OBJ_TYPE_MAP = {
     prov_db.PROCESS: prov_db.ProcObj,
     prov_db.TERM: prov_db.TermMarkerObj
 }
+
+
+class FSTree(object):
+    '''Constructs a tree given a list of paths'''
+    def __init__(self):
+        super(FSTree, self).__init__()
+        self.tree_map = {}
+        self.tree_map['/'] = {}
+
+    def get_tree_map(self):
+        '''Returns the tree map'''
+        return self.tree_map
+
+    def build(self, line):
+        '''Starts building the tree'''
+        parts = line.split('/', 1)
+        root, branch = parts
+        self.treefy(branch, self.tree_map['/'])
+
+    def treefy(self, branch, submap):
+        '''Recursively builds a tree with the given path'''
+        parts = branch.split('/', 1)
+
+        if len(parts) == 1:
+            if parts[0] not in submap:
+                submap[parts[0]] = {}
+        else:
+            node_key, others = parts
+            # If not present add the subdir
+            if node_key not in submap:
+                submap[node_key] = {}
+            self.treefy(others, submap[node_key])
+
+    def pretty_print(self, tmp_map, indent = 0):
+        '''Recursively prints the tree'''
+        for key, val in tmp_map.items():
+            print("  " * indent + key)
+            self.pretty_print(tmp_map[key], indent + 1)
+
+    def print_tree(self):
+        self.pretty_print(self.tree_map['/'])
 
 
 def get_db_obj_class(obj_type):
@@ -434,6 +482,7 @@ class Neo4JInterface(StorageIFace):
 
         except Exception as e:
             logging.error("Error: %s", str(e))
+            raise e
 
 
     def close(self):
@@ -453,7 +502,7 @@ class Neo4JInterface(StorageIFace):
 
 
     def create_node(self, node_type):
-        '''Creates a node and sets the node type'''
+        '''Creates a node and sets the node ID, type and timestamp'''
         node = self.db.node()
         node_id = self.get_next_id()
         node['node_id'] = node_id
@@ -768,4 +817,188 @@ class Neo4JInterface(StorageIFace):
             rel_list.append(rel)
         return rel_list
 
+    ######## The following functions are used for the GUI ########
 
+    def __construct_name_idx_qry(self, idx_type, idx_key):
+        '''Returns sub query string to lookup name index'''
+        idx_name_qry = idx_type + "('name:" + idx_key
+        return idx_name_qry
+
+    def __construct_time_idx_qry(self, start_date, end_date):
+        '''Returns sub query string to lookup time index'''
+        time_idx_qry = None
+        if (start_date is not None) and (end_date is not None):
+            time_idx_qry = "time:[" + str(start_date)
+            time_idx_qry += " TO " + str(end_date) + "]"
+        return time_idx_qry
+
+
+    def __add_deleted_node(self, bin_glob_node, proc_node,
+                                file_glob_node, result_list):
+        '''Checks incoming relations with deleted state to a global node
+        and adds the deleted global to the result list'''
+        for link in file_glob_node.GLOB_OBJ_PREV.incoming:
+            if link['state'] == LinkState.DELETED:
+                start_node = link.start
+                result_list.append((bin_glob_node['name'], proc_node['pid'],
+                                    start_node['name'], LinkState.DELETED,
+                                    start_node['sys_time'],
+                                    start_node['node_id']))
+
+
+    def __query_get_proc(self, qry, file_states, proc_states):
+        '''Builds and executes a query to to get the
+        processes and binares influencing a given file'''
+        result_list = []
+
+        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
+        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
+        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[PROC_OBJ]-bin_loc_node, "
+        tmp_qry += " bin_loc_node-[LOC_OBJ_PREV*]->bin_loc_node_prev, "
+        tmp_qry += " bin_loc_node_prev<-[rel2:LOC_OBJ]-bin_glob_node "
+        tmp_qry += " WHERE rel1.state in [" + file_states + "]"
+        tmp_qry += " AND rel2.state in [" + proc_states + "] "
+        tmp_qry += " RETURN bin_glob_node, proc_node, glob_node, rel1"
+        tmp_qry += " ORDER by glob_node.node_id DESC"
+        qry += tmp_qry
+
+        result = self.db.query(qry)
+        for row in result:
+            bin_glob_node = row['bin_glob_node']
+            proc_node = row['proc_node']
+            file_glob_node = row['glob_node']
+            glob_loc_rel = row['rel1']
+
+            if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
+                self.__add_deleted_node(bin_glob_node, proc_node,
+                                            file_glob_node, result_list)
+
+            result_list.append((bin_glob_node['name'], proc_node['pid'],
+                                file_glob_node['name'], glob_loc_rel['state'],
+                                file_glob_node['sys_time'],
+                                file_glob_node['node_id']))
+        return result_list
+
+
+    def __query_get_files(self, qry, file_states, proc_states):
+        '''Builds and executes a query to to get the
+        files influenced by a given process'''
+        result_list = []
+
+        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
+        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
+        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[PROC_OBJ]-file_loc_node, "
+        tmp_qry += " file_loc_node-[LOC_OBJ_PREV*]->file_loc_node_prev, "
+        tmp_qry += " file_loc_node_prev<-[rel2:LOC_OBJ]-file_glob_node "
+        tmp_qry += " WHERE rel1.state in [" + proc_states + "]"
+        tmp_qry += " AND rel2.state in [" + file_states + "] "
+        tmp_qry += " RETURN glob_node, proc_node, file_glob_node, rel2"
+        tmp_qry += " ORDER by file_glob_node.node_id DESC"
+        qry += tmp_qry
+
+        result = self.db.query(qry)
+        for row in result:
+            bin_glob_node = row['glob_node']
+            proc_node = row['proc_node']
+            file_glob_node = row['file_glob_node']
+            glob_loc_rel = row['rel2']
+
+            if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
+                self.__add_deleted_node(bin_glob_node, proc_node,
+                                            file_glob_node, result_list)
+
+            result_list.append((bin_glob_node['name'], proc_node['pid'],
+                                file_glob_node['name'], glob_loc_rel['state'],
+                                file_glob_node['sys_time'],
+                                file_glob_node['node_id']))
+        return result_list
+
+
+    def __get_file_proc_tree(self, search_str, start_date, end_date, idx_type):
+        '''Retrieves file/process tree given time range and index type'''
+
+        if search_str is None:
+            search_str = "*"
+
+        qry = "START glob_node=node:"
+
+        time_idx_qry = self.__construct_time_idx_qry(start_date, end_date)
+        tmp_qry_str = self.__construct_name_idx_qry(idx_type, search_str)
+        if time_idx_qry is not None:
+            tmp_qry_str += " AND " + time_idx_qry
+
+        tmp_qry_str += "')"
+        qry += tmp_qry_str
+        qry += " WITH DISTINCT glob_node.name as names"
+        qry += " RETURN names"
+
+        tree_obj = FSTree()
+        result = self.db.query(qry)
+        for row in result:
+            name_list = row['names']
+            for name in name_list:
+                tree_obj.build(name)
+        return tree_obj
+
+
+    # Query for the main panel
+    def get_programs(self, prog_name, start_date, end_date, user_name):
+        '''Returns file tree matching the program name string within the
+        given start and end date range'''
+        return self.__get_file_proc_tree(prog_name, start_date, end_date,
+                                        Neo4JInterface.PROC_INDEX)
+
+
+    # Query for the main panel
+    def get_files(self, file_name, start_date, end_date, user_name):
+        '''Returns file tree matching the filename string within the
+        given start and end date range'''
+        return self.__get_file_proc_tree(file_name, start_date, end_date,
+                                        Neo4JInterface.FILE_INDEX)
+
+
+    # Query for the right panel
+    def get_file_proc_history(self, file_name, proc_name, user_name,
+                                start_date, end_date):
+        '''Returns the history of a file/process after applying filters
+        passed as input args. Returned data format is a list of tupes 
+        of format (Binary name, PID, File name, Action, Time, node_id)'''
+
+        result_list = []
+
+        file_states = str(LinkState.READ)
+        file_states += ", " + str(LinkState.WRITE)
+        file_states += ", " + str(LinkState.RaW)
+
+        proc_states = str(LinkState.BIN)
+
+        qry = "START glob_node=node:"
+
+        # Build time index range query
+        time_idx_qry = self.__construct_time_idx_qry(start_date, end_date)
+
+        idx_type = None
+        search_str = None
+        qry_func = None
+
+        if file_name is not None:
+            idx_type = Neo4JInterface.FILE_INDEX
+            search_str = file_name
+            qry_func = self.__query_get_proc
+        elif proc_name is not None:
+            idx_type = Neo4JInterface.PROC_INDEX
+            search_str = proc_name
+            qry_func = self.__query_get_files
+        else:
+            raise InvalidQueryException()
+
+        tmp_qry_str = self.__construct_name_idx_qry(idx_type, search_str)
+
+        if time_idx_qry is not None:
+            tmp_qry_str += " AND " + time_idx_qry
+
+        tmp_qry_str += "')"
+        qry += tmp_qry_str
+        return qry_func(qry, file_states, proc_states)
