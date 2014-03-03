@@ -12,7 +12,6 @@ import logging
 
 from opus import pvm, storage
 from opus.pvm.posix import utils
-from opus import prov_db_pb2 as prov_db
 
 
 class ActionMap(object):

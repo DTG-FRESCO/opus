@@ -6,8 +6,6 @@ PVM core operations implementations.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-
-from opus import prov_db_pb2 as prov_db
 from opus import storage
 
 

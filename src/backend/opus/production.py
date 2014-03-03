@@ -200,7 +200,7 @@ class UDSCommunicationManager(CommunicationManager):
     def __handle_close_connection(self, sock_fd, ret_list):
         '''Handles close event or hang up event on the client socket'''
         self.epoll.unregister(sock_fd.fileno())
-        if sock_fd in self.input_client_map:
+        if sock_fd.fileno() in self.input_client_map:
             del self.input_client_map[sock_fd.fileno()]
 
         pid, _, _ = get_credentials(sock_fd)

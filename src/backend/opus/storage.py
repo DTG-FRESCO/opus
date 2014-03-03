@@ -13,9 +13,9 @@ import leveldb
 import struct
 import logging
 import time
+import os
 
 from opus import common_utils
-from opus import prov_db_pb2 as prov_db
 from neo4j import GraphDatabase, INCOMING, OUTGOING
 from opus import cc_utils
 
@@ -58,31 +58,6 @@ LinkState = common_utils.enum(NONE = 0,
 
 
 
-class AlreadyCommittedException(common_utils.OPUSException):
-    '''Exception indicating that an operation is being attempted on a
-    transaction that has already been committed.'''
-    def __init__(self):
-        super(AlreadyCommittedException, self).__init__(
-            "Error: Transaction already committed."
-        )
-
-
-class UnknownObjectTypeException(common_utils.OPUSException):
-    '''Exception indicating that a object type lookup failed to be matched.'''
-    def __init__(self):
-        super(UnknownObjectTypeException, self).__init__(
-            "Error: Unknown db object type referefence."
-        )
-
-
-class ReadOnlyException(common_utils.OPUSException):
-    '''Exception indicating that an invalid operation was invoked on a
-    read-only transaction.'''
-    def __init__(self):
-        super(ReadOnlyException, self).__init__(
-            "Error: Invalid access of read-only transaction."
-        )
-
 class UniqueIDException(common_utils.OPUSException):
     '''Exception when unique ID cannot be generated'''
     def __init__(self):
@@ -98,15 +73,11 @@ class InvalidQueryException(common_utils.OPUSException):
         )
 
 
-OBJ_TYPE_MAP = {
-    prov_db.ANNOT: prov_db.AnnotationObj,
-    prov_db.EVENT: prov_db.EventObj,
-    prov_db.GLOBAL: prov_db.GlobalObj,
-    prov_db.LOCAL: prov_db.LocalObj,
-    prov_db.META: prov_db.MetaObj,
-    prov_db.PROCESS: prov_db.ProcObj,
-    prov_db.TERM: prov_db.TermMarkerObj
-}
+def splitpath(path, maxdepth=50):
+    (head, tail) = os.path.split(path)
+    return [tail] + splitpath(head, maxdepth - 1) \
+        if maxdepth and head and head != path \
+        else [head or tail]
 
 
 class FSTree(object):
@@ -114,288 +85,51 @@ class FSTree(object):
     def __init__(self):
         super(FSTree, self).__init__()
         self.tree_map = {}
-        self.tree_map['/'] = {}
+
 
     def get_tree_map(self):
         '''Returns the tree map'''
         return self.tree_map
 
+
     def build(self, line):
         '''Starts building the tree'''
-        parts = line.split('/', 1)
-        root, branch = parts
-        self.treefy(branch, self.tree_map['/'])
+        if line == "":
+            return
 
-    def treefy(self, branch, submap):
+        path_list = splitpath(line)
+        self.treefy(path_list, self.tree_map)
+
+
+    def treefy(self, path_list, submap):
         '''Recursively builds a tree with the given path'''
-        parts = branch.split('/', 1)
 
-        if len(parts) == 1:
-            if parts[0] not in submap:
-                submap[parts[0]] = {}
-        else:
-            node_key, others = parts
-            # If not present add the subdir
+        if len(path_list) == 1:
+            node_key = path_list.pop()
             if node_key not in submap:
-                submap[node_key] = {}
-            self.treefy(others, submap[node_key])
+                submap[node_key] = { 'attr':{'hist':True}, 'subdirs':{} }
+            else:
+                submap[node_key]['attr']['hist'] = True
+        else:
+            node_key = path_list.pop()
+            if node_key not in submap:
+                submap[node_key] = { 'attr':{'hist':False}, 'subdirs':{} }
+            self.treefy(path_list, submap[node_key]['subdirs'])
+
 
     def pretty_print(self, tmp_map, indent = 0):
         '''Recursively prints the tree'''
         for key, val in tmp_map.items():
-            print("  " * indent + key)
-            self.pretty_print(tmp_map[key], indent + 1)
+            enable = ""
+            if val['attr']['hist']:
+                enable = "*"
+            print("  " * indent + enable + key)
+            self.pretty_print(tmp_map[key]['subdirs'], indent + 1)
+
 
     def print_tree(self):
-        self.pretty_print(self.tree_map['/'])
+        self.pretty_print(self.tree_map)
 
-
-def get_db_obj_class(obj_type):
-    '''Given an object type identifier return either the matching class or
-    raise UnknownObjectTypeException.'''
-    if obj_type in OBJ_TYPE_MAP:
-        return OBJ_TYPE_MAP[obj_type]
-    else:
-        raise UnknownObjectTypeException()
-
-
-class BatchWrapper(object):
-    '''Wrapper for a batch operation on a database.'''
-    def put(self, key, value):
-        '''Write the given value for the given key.'''
-        raise NotImplementedError()
-
-    def delete(self, key):
-        '''Remove the given key.'''
-        raise NotImplementedError()
-
-
-class LevelBatch(BatchWrapper):
-    '''Batch object for levelDB database interfaces.'''
-    def __init__(self):
-        super(LevelBatch, self).__init__()
-        self.batch = leveldb.WriteBatch()
-
-    def put(self, key, value):
-        self.batch.Put(key, value)
-
-    def delete(self, key):
-        self.batch.Delete(key)
-
-
-class DBWrapper(object):
-    '''Wrapper for a database interface object.'''
-    def put(self, key, value):
-        '''Write the given value to the given key in the database.'''
-        raise NotImplementedError()
-
-    def get(self, key):
-        '''Retrieve the value associated with the given key from the
-        database.'''
-        raise NotImplementedError()
-
-    def delete(self, key):
-        '''Remove the given key from the database.'''
-        raise NotImplementedError()
-
-    def write(self, batch):
-        '''Commit the given batch to the database.'''
-        raise NotImplementedError()
-
-    def iter(self, from_key, to_key):
-        '''Return an iterator over the range from_key->to_key.'''
-        raise NotImplementedError()
-
-    def start_batch(self):
-        '''Return a BatchWrapper object for the given database.'''
-        raise NotImplementedError()
-
-
-class LevelDBWrapper(DBWrapper):
-    '''Interface to a levelDB database.'''
-    def __init__(self, filename):
-        super(LevelDBWrapper, self).__init__()
-        try:
-            # Try to load existing DB
-            self.db_ref = leveldb.LevelDB(filename, create_if_missing=False)
-        except leveldb.LevelDBError:
-            # No existing DB, so create one.
-            self.db_ref = leveldb.LevelDB(filename)
-            for obj_type in OBJ_TYPE_MAP:
-                self.db_ref.Put(to_int64(comp_id(0xFF, obj_type)), to_int64(0))
-
-    def put(self, key, value):
-        self.db_ref.Put(key, value)
-
-    def get(self, key):
-        return self.db_ref.Get(key)
-
-    def delete(self, key):
-        self.db_ref.Delete(key)
-
-    def write(self, batch):
-        self.db_ref.Write(batch.batch)
-
-    def iter(self, from_key, to_key):
-        return self.db_ref.RangeIter(from_key, to_key)
-
-    def start_batch(self):
-        return LevelBatch()
-
-
-def to_int64(val):
-    '''Pack a python int into a big-endian int64.'''
-    return struct.pack(str(">Q"), val)
-
-
-def from_int64(data):
-    '''Unpack a big-endian int64 into a python int.'''
-    return struct.unpack(str(">Q"), data)[0]
-
-
-def comp_id(obj_type, obj_id):
-    '''Given a type identifier and id comput the full id.'''
-    return (obj_type << 56) + obj_id
-
-
-def derv_type(obj_id):
-    '''Given an object ID return the type identifier.'''
-    return (obj_id >> 56)
-
-
-def commit_wrapper(func):
-    '''Decorator to add already committed checking to a function.'''
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        '''commit_wrapper internal.'''
-        if self.db_ref is None or self.batch is None:
-            raise AlreadyCommittedException()
-        return func(self, *args, **kwargs)
-    wrapper.internal_fn = func
-    return wrapper
-
-
-class DBTransaction(object):
-    '''Database transaction manager.'''
-    def __init__(self, db_ref):
-        super(DBTransaction, self).__init__()
-        self.db_ref = db_ref
-        self.batch = db_ref.start_batch()
-        self.id_map = {}
-        self.name_map = {}
-        self.obj_map = {}
-        for obj_type in OBJ_TYPE_MAP:
-            obj_type_key = to_int64(comp_id(0xFF, obj_type))
-            self.id_map[obj_type] = from_int64(self.db_ref.get(obj_type_key))
-
-    @commit_wrapper
-    def get(self, db_id, cache=True):
-        '''Return the object matching the given db_id.'''
-        if db_id in self.obj_map:
-            return self.obj_map[db_id]
-        obj = self.db_ref.get(to_int64(db_id))
-        obj_type = derv_type(db_id)
-        try:
-            obj_cls = get_db_obj_class(obj_type)
-            obj_real = obj_cls.FromString(obj)
-            if cache:
-                self.obj_map[db_id] = obj_real
-            return obj_real
-        except UnknownObjectTypeException:
-            return obj
-
-    @commit_wrapper
-    def put(self, db_id, obj):
-        '''Insert obj into the database with key db_id.'''
-        self.batch.put(to_int64(db_id), obj.SerializeToString())
-
-    @commit_wrapper
-    def create(self, obj_type):
-        '''Create an object of type obj_type in the database, return a tuple
-        of the object and its id.'''
-        obj = get_db_obj_class(obj_type)()
-
-        new_obj_id = self.id_map[obj_type] + 1
-        self.id_map[obj_type] = new_obj_id
-
-        new_real_id = comp_id(obj_type, new_obj_id)
-
-        self.obj_map[new_real_id] = obj
-
-        packed_real = to_int64(new_real_id)
-        self.batch.put(packed_real, obj.SerializeToString())
-        return (new_real_id, obj)
-
-    @commit_wrapper
-    def name_get(self, name):
-        '''Retrieve the ID mapping for the given entity name.'''
-        if name in self.name_map:
-            return self.name_map[name]
-        sha = hashlib.new('sha256')
-        sha.update(name)
-        db_id = struct.pack(str(">B"), 0xFE) + sha.digest()
-        try:
-            return from_int64(self.db_ref.get(db_id))
-        except KeyError:
-            return None
-
-    @commit_wrapper
-    def name_put(self, name, obj_id):
-        '''Update the ID mapping for the given entity name.'''
-        sha = hashlib.new('sha256')
-        sha.update(name)
-        db_id = struct.pack(str(">B"), 0xFE) + sha.digest()
-        packed_id = to_int64(obj_id)
-        self.batch.put(db_id, packed_id)
-        self.name_map[name] = obj_id
-
-    @commit_wrapper
-    def id_state(self):
-        '''Displays the current state of the ID mappings for the database.'''
-        return self.id_map
-
-    @commit_wrapper
-    def commit(self):
-        '''Commit the transaction to the database.'''
-        for obj_type in OBJ_TYPE_MAP:
-            id_key = comp_id(0xFF, obj_type)
-            id_val = self.id_map[obj_type]
-            self.batch.put(to_int64(id_key), to_int64(id_val))
-
-        for o_id in self.obj_map:
-            self.put(o_id, self.obj_map[o_id])
-
-        self.db_ref.write(self.batch)
-        self.db_ref = None
-        self.batch = None
-
-
-class ReadOnlyTransaction(DBTransaction):
-    '''Implemenets a read-only transaction that forbids any mutating
-    operation.'''
-    def __init__(self, db_ref):
-        self.db_ref = db_ref
-        self.obj_map = []
-        self.name_map = []
-
-    def get(self, db_id):
-        '''Forwards read actions to it's base class after ensuring the cache
-        flag to be false.'''
-        return super(ReadOnlyTransaction, self).get.internal_fn(self,
-                                                                db_id,
-                                                                False)
-
-    def put(self, db_id, obj):
-        raise ReadOnlyException()
-
-    def create(self, obj_type):
-        raise ReadOnlyException()
-
-    def name_put(self, name, obj_id):
-        raise ReadOnlyException()
-
-    def commit(self):
-        raise ReadOnlyException()
 
 
 class StorageIFace(object):
@@ -819,18 +553,50 @@ class Neo4JInterface(StorageIFace):
 
     ######## The following functions are used for the GUI ########
 
-    def __construct_name_idx_qry(self, idx_type, idx_key):
+    def __construct_name_idx_qry(self, idx_key):
         '''Returns sub query string to lookup name index'''
-        idx_name_qry = idx_type + "('name:" + idx_key
+        idx_name_qry = "name:" + idx_key
         return idx_name_qry
+
 
     def __construct_time_idx_qry(self, start_date, end_date):
         '''Returns sub query string to lookup time index'''
         time_idx_qry = None
         if (start_date is not None) and (end_date is not None):
-            time_idx_qry = "time:[" + str(start_date)
-            time_idx_qry += " TO " + str(end_date) + "]"
+            start_bucket = start_date - (start_date % 3600)
+            end_bucket = end_date - (end_date % 3600)
+            time_idx_qry = "time:[" + str(start_bucket)
+            time_idx_qry += " TO " + str(end_bucket) + "]"
         return time_idx_qry
+
+
+    def __construct_prog_qry(self, file_states, proc_states):
+        '''Constructs and returns a query string to get programs
+        from a given file'''
+        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
+        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
+        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[PROC_OBJ]-bin_loc_node, "
+        tmp_qry += " bin_loc_node-[LOC_OBJ_PREV*]->bin_loc_node_prev, "
+        tmp_qry += " bin_loc_node_prev<-[rel2:LOC_OBJ]-bin_glob_node "
+        tmp_qry += " WHERE rel1.state in [" + file_states + "]"
+        tmp_qry += " AND rel2.state in [" + proc_states + "] "
+        return tmp_qry
+
+
+    def __construct_file_qry(self, file_states, proc_states):
+        '''Constructs and returns a query string to get files
+        from a given program'''
+        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
+        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
+        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[PROC_OBJ]-file_loc_node, "
+        tmp_qry += " file_loc_node-[LOC_OBJ_PREV*]->file_loc_node_prev, "
+        tmp_qry += " file_loc_node_prev<-[rel2:LOC_OBJ]-file_glob_node "
+        tmp_qry += " WHERE rel1.state in [" + proc_states + "]"
+        tmp_qry += " AND rel2.state in [" + file_states + "] "
+        return tmp_qry
+
 
 
     def __add_deleted_node(self, bin_glob_node, proc_node,
@@ -851,14 +617,7 @@ class Neo4JInterface(StorageIFace):
         processes and binares influencing a given file'''
         result_list = []
 
-        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
-        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
-        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
-        tmp_qry += " proc_node<-[PROC_OBJ]-bin_loc_node, "
-        tmp_qry += " bin_loc_node-[LOC_OBJ_PREV*]->bin_loc_node_prev, "
-        tmp_qry += " bin_loc_node_prev<-[rel2:LOC_OBJ]-bin_glob_node "
-        tmp_qry += " WHERE rel1.state in [" + file_states + "]"
-        tmp_qry += " AND rel2.state in [" + proc_states + "] "
+        tmp_qry = self.__construct_prog_qry(file_states, proc_states)
         tmp_qry += " RETURN bin_glob_node, proc_node, glob_node, rel1"
         tmp_qry += " ORDER by glob_node.node_id DESC"
         qry += tmp_qry
@@ -886,14 +645,7 @@ class Neo4JInterface(StorageIFace):
         files influenced by a given process'''
         result_list = []
 
-        tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
-        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
-        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
-        tmp_qry += " proc_node<-[PROC_OBJ]-file_loc_node, "
-        tmp_qry += " file_loc_node-[LOC_OBJ_PREV*]->file_loc_node_prev, "
-        tmp_qry += " file_loc_node_prev<-[rel2:LOC_OBJ]-file_glob_node "
-        tmp_qry += " WHERE rel1.state in [" + proc_states + "]"
-        tmp_qry += " AND rel2.state in [" + file_states + "] "
+        tmp_qry = self.__construct_file_qry(file_states, proc_states)
         tmp_qry += " RETURN glob_node, proc_node, file_glob_node, rel2"
         tmp_qry += " ORDER by file_glob_node.node_id DESC"
         qry += tmp_qry
@@ -919,28 +671,59 @@ class Neo4JInterface(StorageIFace):
     def __get_file_proc_tree(self, search_str, start_date, end_date, idx_type):
         '''Retrieves file/process tree given time range and index type'''
 
+        file_states = str(LinkState.READ)
+        file_states += ", " + str(LinkState.WRITE)
+        file_states += ", " + str(LinkState.RaW)
+        file_states += ", " + str(LinkState.NONE)
+
+        proc_states = str(LinkState.BIN)
+
         if search_str is None:
             search_str = "*"
 
-        qry = "START glob_node=node:"
+        qry = "START glob_node=node:%s('%s %s')"
 
         time_idx_qry = self.__construct_time_idx_qry(start_date, end_date)
-        tmp_qry_str = self.__construct_name_idx_qry(idx_type, search_str)
         if time_idx_qry is not None:
-            tmp_qry_str += " AND " + time_idx_qry
+            time_idx_qry += " AND "
+        else:
+            time_idx_qry = ""
 
-        tmp_qry_str += "')"
-        qry += tmp_qry_str
-        qry += " WITH DISTINCT glob_node.name as names"
-        qry += " RETURN names"
+        name_idx_qry = self.__construct_name_idx_qry(search_str)
+        qry = qry % (idx_type, time_idx_qry, name_idx_qry)
 
-        tree_obj = FSTree()
+        if idx_type == Neo4JInterface.FILE_INDEX:
+            prog_qry = self.__construct_prog_qry(file_states, proc_states)
+            prog_qry += " WITH DISTINCT glob_node"
+            prog_qry += " as file_glob_node"
+            prog_qry += ", bin_glob_node "
+            qry += prog_qry
+        elif idx_type == Neo4JInterface.PROC_INDEX:
+            file_qry = self.__construct_file_qry(file_states, proc_states)
+            file_qry += " WITH DISTINCT glob_node"
+            file_qry += " as bin_glob_node"
+            file_qry += ", file_glob_node "
+            qry += file_qry
+
+        qry += " RETURN bin_glob_node, file_glob_node" 
+
+        bin_tree_obj = FSTree()
+        file_tree_obj = FSTree()
+
         result = self.db.query(qry)
         for row in result:
-            name_list = row['names']
-            for name in name_list:
-                tree_obj.build(name)
-        return tree_obj
+            bin_glob_node = row['bin_glob_node']
+            file_glob_node = row['file_glob_node']
+
+            # Build a tree object for the binaries
+            for name in bin_glob_node['name']:
+                bin_tree_obj.build(name)
+
+            # Build a tree object for the files
+            for name in file_glob_node['name']:
+                file_tree_obj.build(name)
+
+        return bin_tree_obj, file_tree_obj
 
 
     # Query for the main panel
@@ -974,10 +757,14 @@ class Neo4JInterface(StorageIFace):
 
         proc_states = str(LinkState.BIN)
 
-        qry = "START glob_node=node:"
+        qry = "START glob_node=node:%s('%s %s')"
 
         # Build time index range query
         time_idx_qry = self.__construct_time_idx_qry(start_date, end_date)
+        if time_idx_qry is not None:
+            time_idx_qry += " AND "
+        else:
+            time_idx_qry = ""
 
         idx_type = None
         search_str = None
@@ -994,11 +781,7 @@ class Neo4JInterface(StorageIFace):
         else:
             raise InvalidQueryException()
 
-        tmp_qry_str = self.__construct_name_idx_qry(idx_type, search_str)
+        name_idx_qry = self.__construct_name_idx_qry(search_str)
+        qry = qry % (idx_type, time_idx_qry, name_idx_qry)
 
-        if time_idx_qry is not None:
-            tmp_qry_str += " AND " + time_idx_qry
-
-        tmp_qry_str += "')"
-        qry += tmp_qry_str
         return qry_func(qry, file_states, proc_states)

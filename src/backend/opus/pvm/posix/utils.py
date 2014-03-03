@@ -11,8 +11,6 @@ from __future__ import (absolute_import, division,
 import functools
 import logging
 
-
-from opus import prov_db_pb2 as prov_db
 from opus import pvm, storage, common_utils
 
 class PVMException(common_utils.OPUSException):

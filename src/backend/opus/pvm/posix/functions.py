@@ -24,7 +24,6 @@ except ImportError:
 
 from opus import pvm
 from opus.pvm.posix import actions, utils
-from opus import prov_db_pb2 as prov_db
 from opus import storage
 
 
