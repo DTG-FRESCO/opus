@@ -28,13 +28,15 @@ def version_local(storage_iface, old_loc_node, glob_node):
     storage_iface.create_relationship(new_loc_node, old_loc_node,
                                     storage.RelType.LOC_OBJ_PREV)
 
-    # Create link from local object to process object
+    # Get process and link from old local
     proc_node, rel_link = storage_iface.get_process_from_local(old_loc_node)
+
+    # Create link from local to process
     storage_iface.create_relationship(new_loc_node, proc_node,
                                     storage.RelType.PROC_OBJ)
 
-    # Delete the previous link from local to process
-    storage_iface.delete_relationship(rel_link)
+    # Change local->process link status to INACTIVE
+    rel_link['state'] = storage.LinkState.INACTIVE
 
     return new_loc_node
 

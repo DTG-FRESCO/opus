@@ -54,7 +54,8 @@ LinkState = common_utils.enum(NONE = 0,
                                 DELETED = 6,
                                 BIN = 7,
                                 CoE = 8,
-                                CLOEXEC = 9)
+                                CLOEXEC = 9,
+                                INACTIVE = 10)
 
 
 
@@ -98,6 +99,9 @@ class FSTree(object):
             return
 
         path_list = splitpath(line)
+        if path_list[-1].count('/') > 1:
+            path_list[-1] = '/'
+
         self.treefy(path_list, self.tree_map)
 
 
@@ -388,6 +392,7 @@ class Neo4JInterface(StorageIFace):
 
         qry = "START loc_node=node(" + str(loc_node.id) + ") "
         qry += "MATCH loc_node-[rel:PROC_OBJ]->proc_node "
+        qry += "WHERE rel.state <> " + str(LinkState.CoT)
         qry += "RETURN proc_node, rel"
 
         rows = self.db.query(qry)
@@ -404,6 +409,7 @@ class Neo4JInterface(StorageIFace):
 
         qry = "START proc_node=node(" + str(proc_node.id) + ") "
         qry += "MATCH proc_node<-[rel:PROC_OBJ]-loc_node "
+        qry += "WHERE rel.state <> " + str(LinkState.INACTIVE)
         qry += "RETURN loc_node, rel"
 
         rows = self.db.query(qry)
@@ -434,13 +440,16 @@ class Neo4JInterface(StorageIFace):
         loc_node = None
         loc_proc_rel = None
 
+        print("Inside get_valid_local")
+
         rows = self.db.query("START proc_node=node({id}) \
                             MATCH proc_node<-[lp_rel:PROC_OBJ]-loc_node \
-                            WHERE lp_rel.state <> {state} \
+                            WHERE lp_rel.state <> {state1} \
+                            AND lp_rel.state <> {state2} \
                             AND loc_node.name = {name} \
                             RETURN loc_node, lp_rel ",
-                            id=proc_node.id, state=LinkState.CLOSED,
-                            name=loc_name)
+                            id=proc_node.id, state1=LinkState.CLOSED,
+                            state2=LinkState.INACTIVE, name=loc_name)
         for row in rows:
             loc_node = row['loc_node']
             loc_proc_rel = row['lp_rel']
@@ -574,11 +583,9 @@ class Neo4JInterface(StorageIFace):
         '''Constructs and returns a query string to get programs
         from a given file'''
         tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
-        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
-        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
-        tmp_qry += " proc_node<-[PROC_OBJ]-bin_loc_node, "
-        tmp_qry += " bin_loc_node-[LOC_OBJ_PREV*]->bin_loc_node_prev, "
-        tmp_qry += " bin_loc_node_prev<-[rel2:LOC_OBJ]-bin_glob_node "
+        tmp_qry += " loc_node-[:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[:PROC_OBJ]-bin_loc_node, "
+        tmp_qry += " bin_loc_node<-[rel2:LOC_OBJ]-bin_glob_node "
         tmp_qry += " WHERE rel1.state in [" + file_states + "]"
         tmp_qry += " AND rel2.state in [" + proc_states + "] "
         return tmp_qry
@@ -588,11 +595,9 @@ class Neo4JInterface(StorageIFace):
         '''Constructs and returns a query string to get files
         from a given program'''
         tmp_qry = " MATCH glob_node-[rel1:LOC_OBJ]->loc_node, "
-        tmp_qry += " loc_node<-[LOC_OBJ_PREV*]-end_loc_node, "
-        tmp_qry += " end_loc_node-[lp_rel:PROC_OBJ]->proc_node, "
-        tmp_qry += " proc_node<-[PROC_OBJ]-file_loc_node, "
-        tmp_qry += " file_loc_node-[LOC_OBJ_PREV*]->file_loc_node_prev, "
-        tmp_qry += " file_loc_node_prev<-[rel2:LOC_OBJ]-file_glob_node "
+        tmp_qry += " loc_node-[:PROC_OBJ]->proc_node, "
+        tmp_qry += " proc_node<-[:PROC_OBJ]-file_loc_node, "
+        tmp_qry += " file_loc_node<-[rel2:LOC_OBJ]-file_glob_node "
         tmp_qry += " WHERE rel1.state in [" + proc_states + "]"
         tmp_qry += " AND rel2.state in [" + file_states + "] "
         return tmp_qry
@@ -694,33 +699,31 @@ class Neo4JInterface(StorageIFace):
 
         if idx_type == Neo4JInterface.FILE_INDEX:
             prog_qry = self.__construct_prog_qry(file_states, proc_states)
-            prog_qry += " WITH DISTINCT glob_node"
-            prog_qry += " as file_glob_node"
-            prog_qry += ", bin_glob_node "
+            prog_qry += " WITH DISTINCT glob_node.name as file_name"
+            prog_qry += ", bin_glob_node.name as bin_name "
             qry += prog_qry
         elif idx_type == Neo4JInterface.PROC_INDEX:
             file_qry = self.__construct_file_qry(file_states, proc_states)
-            file_qry += " WITH DISTINCT glob_node"
-            file_qry += " as bin_glob_node"
-            file_qry += ", file_glob_node "
+            file_qry += " WITH DISTINCT glob_node.name as bin_name"
+            file_qry += ", file_glob_node.name as file_name "
             qry += file_qry
 
-        qry += " RETURN bin_glob_node, file_glob_node" 
+        qry += " RETURN bin_name, file_name" 
 
         bin_tree_obj = FSTree()
         file_tree_obj = FSTree()
 
         result = self.db.query(qry)
         for row in result:
-            bin_glob_node = row['bin_glob_node']
-            file_glob_node = row['file_glob_node']
+            bin_name = row['bin_name']
+            file_name = row['file_name']
 
             # Build a tree object for the binaries
-            for name in bin_glob_node['name']:
+            for name in bin_name:
                 bin_tree_obj.build(name)
 
             # Build a tree object for the files
-            for name in file_glob_node['name']:
+            for name in file_name:
                 file_tree_obj.build(name)
 
         return bin_tree_obj, file_tree_obj
@@ -754,6 +757,7 @@ class Neo4JInterface(StorageIFace):
         file_states = str(LinkState.READ)
         file_states += ", " + str(LinkState.WRITE)
         file_states += ", " + str(LinkState.RaW)
+        file_states += ", " + str(LinkState.NONE)
 
         proc_states = str(LinkState.BIN)
 
