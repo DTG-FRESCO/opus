@@ -47,18 +47,6 @@
   flags: []
   args: []
 
-- name: fdopen
-  ret: "FILE *"
-  flags: []
-  args:
-  - flags: [read]
-    name: fd
-    type: "int"
-
-  - flags: [read]
-    name: mode
-    type: "const char *"
-
 
 - name: fgetc
   ret: "int"

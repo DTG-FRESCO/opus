@@ -440,8 +440,6 @@ class Neo4JInterface(StorageIFace):
         loc_node = None
         loc_proc_rel = None
 
-        print("Inside get_valid_local")
-
         rows = self.db.query("START proc_node=node({id}) \
                             MATCH proc_node<-[lp_rel:PROC_OBJ]-loc_node \
                             WHERE lp_rel.state <> {state1} \

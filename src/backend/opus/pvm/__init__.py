@@ -45,15 +45,16 @@ def version_global(storage_iface, old_glob_node):
     '''Versions the global object identified by old_glob_node.'''
     new_glob_node = storage_iface.create_node(storage.NodeType.GLOBAL)
 
-    # Copy over name list from previous old global object
-    name_list = old_glob_node['name']
-    new_glob_node['name'] = list(name_list)
-    for name in name_list:
-        # Update file index
-        storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
+    if old_glob_node.has_key('name'):
+        # Copy over name list from previous old global object
+        name_list = old_glob_node['name']
+        new_glob_node['name'] = list(name_list)
+        for name in name_list:
+            # Update file index
+            storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
                                     'name', name, new_glob_node)
-        # Update time index
-        storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
+            # Update time index
+            storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
                                         new_glob_node['sys_time'],
                                         new_glob_node)
 
@@ -129,8 +130,10 @@ def bind(storage_iface, loc_node, glob_node):
     '''PVM bind between loc_node and glob_node.'''
     storage_iface.create_relationship(glob_node, loc_node,
                                 storage.RelType.LOC_OBJ)
-    name_list = glob_node['name']
-    loc_node['ref_count'] = len(name_list)
+    ref_count = 0
+    if glob_node.has_key('name'):
+        ref_count = len(glob_node['name'])
+    loc_node['ref_count'] = ref_count
 
 
 def unbind(storage_iface, loc_node, glob_node):

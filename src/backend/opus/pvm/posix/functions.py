@@ -309,11 +309,11 @@ def posix_fchdir(storage_iface, proc_node, msg):
         return loc_node
 
     glob_node_rel_list = storage_iface.get_globals_from_local(loc_node)
-    if len(glob_node_link_list) == 0 or len(glob_node_link_list) > 1:
+    if len(glob_node_rel_list) == 0 or len(glob_node_rel_list) > 1:
         return loc_node
 
-    glob_node = glob_node_rel_list[0]
-    name_list = storage_iface.get_property(glob_node, 'name')
+    glob_node, rel = glob_node_rel_list[0]
+    name_list = glob_node['name']
     dir_name = name_list[0]
 
     utils.update_proc_meta(storage_iface, proc_node, "cwd",
