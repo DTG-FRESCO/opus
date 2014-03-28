@@ -218,6 +218,11 @@ class Neo4JInterface(StorageIFace):
                 else:
                     self.node_id_idx = self.db.node.indexes.create(Neo4JInterface.NODE_ID_IDX)
 
+            # Fix for the class load error when using multiple threads
+            rows = self.db.query("START n=node(1) RETURN n")
+            for row in rows:
+                n = row['n']
+
         except Exception as e:
             logging.error("Error: %s", str(e))
             raise e
@@ -333,7 +338,7 @@ class Neo4JInterface(StorageIFace):
         '''Gets the latest global version for the given name'''
         node = None
 
-        qry = "START n=node:FILE_INDEX('name:" + name + "') "
+        qry = "START n=node:FILE_INDEX('name:\"" + name + "\"') "
         qry += "RETURN n ORDER BY n.node_id DESC LIMIT 1"
 
         result = self.db.query(qry)
@@ -569,9 +574,9 @@ class Neo4JInterface(StorageIFace):
     def __construct_time_idx_qry(self, start_date, end_date):
         '''Returns sub query string to lookup time index'''
         time_idx_qry = None
-        if (start_date is not None) and (end_date is not None):
-            start_bucket = start_date - (start_date % 3600)
-            end_bucket = end_date - (end_date % 3600)
+        if start_date and end_date:
+            start_bucket = int(start_date) - (int(start_date) % 3600)
+            end_bucket = int(end_date) - (int(end_date) % 3600)
             time_idx_qry = "time:[" + str(start_bucket)
             time_idx_qry += " TO " + str(end_bucket) + "]"
         return time_idx_qry
@@ -609,10 +614,32 @@ class Neo4JInterface(StorageIFace):
         for link in file_glob_node.GLOB_OBJ_PREV.incoming:
             if link['state'] == LinkState.DELETED:
                 start_node = link.start
+                file_name = ""
+
+                if start_node.has_key('name'):
+                    file_name = start_node['name']
+
                 result_list.append((bin_glob_node['name'], proc_node['pid'],
-                                    start_node['name'], LinkState.DELETED,
+                                    file_name, LinkState.DELETED,
                                     start_node['sys_time'],
                                     start_node['node_id']))
+
+
+    def __add_result(self, result_list, bin_glob_node, proc_node,
+                        file_glob_node, glob_loc_rel):
+        '''Common function that populates result list'''
+        file_name = ""
+        if file_glob_node.has_key('name'):
+            file_name = file_glob_node['name']
+
+        if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
+            self.__add_deleted_node(bin_glob_node, proc_node,
+                                file_glob_node, result_list)
+
+        result_list.append((bin_glob_node['name'], proc_node['pid'],
+                            file_name, glob_loc_rel['state'],
+                            file_glob_node['sys_time'],
+                            file_glob_node['node_id']))
 
 
     def __query_get_proc(self, qry, file_states, proc_states):
@@ -632,14 +659,8 @@ class Neo4JInterface(StorageIFace):
             file_glob_node = row['glob_node']
             glob_loc_rel = row['rel1']
 
-            if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
-                self.__add_deleted_node(bin_glob_node, proc_node,
-                                            file_glob_node, result_list)
-
-            result_list.append((bin_glob_node['name'], proc_node['pid'],
-                                file_glob_node['name'], glob_loc_rel['state'],
-                                file_glob_node['sys_time'],
-                                file_glob_node['node_id']))
+            self.__add_result(result_list, bin_glob_node, proc_node,
+                                file_glob_node, glob_loc_rel)
         return result_list
 
 
@@ -660,14 +681,8 @@ class Neo4JInterface(StorageIFace):
             file_glob_node = row['file_glob_node']
             glob_loc_rel = row['rel2']
 
-            if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
-                self.__add_deleted_node(bin_glob_node, proc_node,
-                                            file_glob_node, result_list)
-
-            result_list.append((bin_glob_node['name'], proc_node['pid'],
-                                file_glob_node['name'], glob_loc_rel['state'],
-                                file_glob_node['sys_time'],
-                                file_glob_node['node_id']))
+            self.__add_result(result_list, bin_glob_node, proc_node,
+                                file_glob_node, glob_loc_rel)
         return result_list
 
 
@@ -683,6 +698,8 @@ class Neo4JInterface(StorageIFace):
 
         if search_str is None:
             search_str = "*"
+        else:
+            search_str = "\"" + search_str + "\""
 
         qry = "START glob_node=node:%s('%s %s')"
 
@@ -697,11 +714,13 @@ class Neo4JInterface(StorageIFace):
 
         if idx_type == Neo4JInterface.FILE_INDEX:
             prog_qry = self.__construct_prog_qry(file_states, proc_states)
+            prog_qry += " AND HAS (glob_node.name) "
             prog_qry += " WITH DISTINCT glob_node.name as file_name"
             prog_qry += ", bin_glob_node.name as bin_name "
             qry += prog_qry
         elif idx_type == Neo4JInterface.PROC_INDEX:
             file_qry = self.__construct_file_qry(file_states, proc_states)
+            file_qry += " AND HAS (file_glob_node.name) "
             file_qry += " WITH DISTINCT glob_node.name as bin_name"
             file_qry += ", file_glob_node.name as file_name "
             qry += file_qry
@@ -783,7 +802,10 @@ class Neo4JInterface(StorageIFace):
         else:
             raise InvalidQueryException()
 
+        search_str = "\"" + search_str + "\""
         name_idx_qry = self.__construct_name_idx_qry(search_str)
         qry = qry % (idx_type, time_idx_qry, name_idx_qry)
+
+        print(qry)
 
         return qry_func(qry, file_states, proc_states)
