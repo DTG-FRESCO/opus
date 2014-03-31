@@ -170,6 +170,9 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
 {
     void *prev_handler = NULL;
 
+    sigset_t old_set;
+    block_all_signals(&old_set);
+
     try
     {
         /* Obtain a lock */
@@ -184,9 +187,11 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
     }
     catch(const std::exception& e)
     {
+        restore_signal_mask(&old_set);
         throw e;
     }
 
+    restore_signal_mask(&old_set);
     return prev_handler;
 }
 
@@ -206,6 +211,9 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
 {
     void *prev_handler = NULL;
 
+    sigset_t old_set;
+    block_all_signals(&old_set);
+
     try
     {
         /* Obtain a lock */
@@ -219,9 +227,11 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
     }
     catch(const std::exception& e)
     {
+        restore_signal_mask(&old_set);
         throw e;
     }
 
+    restore_signal_mask(&old_set);
     return prev_handler;
 }
 
