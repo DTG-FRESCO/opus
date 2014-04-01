@@ -689,6 +689,7 @@ class Neo4JInterface(StorageIFace):
     def __get_file_proc_tree(self, search_str, start_date, end_date, idx_type):
         '''Retrieves file/process tree given time range and index type'''
 
+        key_str = ""
         file_states = str(LinkState.READ)
         file_states += ", " + str(LinkState.WRITE)
         file_states += ", " + str(LinkState.RaW)
@@ -715,51 +716,45 @@ class Neo4JInterface(StorageIFace):
         if idx_type == Neo4JInterface.FILE_INDEX:
             prog_qry = self.__construct_prog_qry(file_states, proc_states)
             prog_qry += " AND HAS (glob_node.name) "
-            prog_qry += " WITH DISTINCT glob_node.name as file_name"
-            prog_qry += ", bin_glob_node.name as bin_name "
+            prog_qry += " WITH DISTINCT bin_glob_node.name as bin_name "
             qry += prog_qry
+            qry += " RETURN bin_name"
+            key_str = "bin_name"
         elif idx_type == Neo4JInterface.PROC_INDEX:
             file_qry = self.__construct_file_qry(file_states, proc_states)
             file_qry += " AND HAS (file_glob_node.name) "
-            file_qry += " WITH DISTINCT glob_node.name as bin_name"
-            file_qry += ", file_glob_node.name as file_name "
+            file_qry += " WITH DISTINCT file_glob_node.name as file_name "
             qry += file_qry
+            qry += " RETURN file_name"
+            key_str = "file_name"
 
-        qry += " RETURN bin_name, file_name" 
-
-        bin_tree_obj = FSTree()
-        file_tree_obj = FSTree()
+        tree_obj = FSTree()
 
         result = self.db.query(qry)
         for row in result:
-            bin_name = row['bin_name']
-            file_name = row['file_name']
+            node_name = row[key_str]
 
-            # Build a tree object for the binaries
-            for name in bin_name:
-                bin_tree_obj.build(name)
+            # Build a tree object
+            for name in node_name:
+                tree_obj.build(name)
 
-            # Build a tree object for the files
-            for name in file_name:
-                file_tree_obj.build(name)
-
-        return bin_tree_obj, file_tree_obj
+        return tree_obj
 
 
     # Query for the main panel
-    def get_programs(self, prog_name, start_date, end_date, user_name):
+    def get_programs(self, file_name, start_date, end_date, user_name):
+        '''Returns program tree matching the file name string within the
+        given start and end date range'''
+        return self.__get_file_proc_tree(file_name, start_date, end_date,
+                                        Neo4JInterface.FILE_INDEX)
+
+
+    # Query for the main panel
+    def get_files(self, prog_name, start_date, end_date, user_name):
         '''Returns file tree matching the program name string within the
         given start and end date range'''
         return self.__get_file_proc_tree(prog_name, start_date, end_date,
                                         Neo4JInterface.PROC_INDEX)
-
-
-    # Query for the main panel
-    def get_files(self, file_name, start_date, end_date, user_name):
-        '''Returns file tree matching the filename string within the
-        given start and end date range'''
-        return self.__get_file_proc_tree(file_name, start_date, end_date,
-                                        Neo4JInterface.FILE_INDEX)
 
 
     # Query for the right panel
