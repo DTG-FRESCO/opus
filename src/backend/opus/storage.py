@@ -642,41 +642,24 @@ class Neo4JInterface(StorageIFace):
                             file_glob_node['node_id']))
 
 
-    def __query_get_proc(self, qry, file_states, proc_states):
-        '''Builds and executes a query to to get the
-        processes and binares influencing a given file'''
+    def __get_history(self, qry, file_states, proc_states):
+        '''Builds and executes a query to to get the process/file
+        history after applying filters'''
         result_list = []
 
-        tmp_qry = self.__construct_prog_qry(file_states, proc_states)
-        tmp_qry += " RETURN bin_glob_node, proc_node, glob_node, rel1"
-        tmp_qry += " ORDER by glob_node.node_id DESC"
+        tmp_qry = " MATCH bin_glob_node-[rel1:LOC_OBJ]->loc_node, "
+        tmp_qry += "loc_node-[:PROC_OBJ]->proc_node, "
+        tmp_qry += "proc_node<-[:PROC_OBJ]-file_loc_node, "
+        tmp_qry += "file_loc_node<-[rel2:LOC_OBJ]-file_glob_node "
+        tmp_qry += "WHERE rel1.state in [" + proc_states + "] "
+        tmp_qry += "AND rel2.state in [" + file_states + "] "
+        tmp_qry += "RETURN bin_glob_node, proc_node, file_glob_node, rel2 "
+        tmp_qry += "ORDER by file_glob_node.node_id DESC"
         qry += tmp_qry
 
         result = self.db.query(qry)
         for row in result:
             bin_glob_node = row['bin_glob_node']
-            proc_node = row['proc_node']
-            file_glob_node = row['glob_node']
-            glob_loc_rel = row['rel1']
-
-            self.__add_result(result_list, bin_glob_node, proc_node,
-                                file_glob_node, glob_loc_rel)
-        return result_list
-
-
-    def __query_get_files(self, qry, file_states, proc_states):
-        '''Builds and executes a query to to get the
-        files influenced by a given process'''
-        result_list = []
-
-        tmp_qry = self.__construct_file_qry(file_states, proc_states)
-        tmp_qry += " RETURN glob_node, proc_node, file_glob_node, rel2"
-        tmp_qry += " ORDER by file_glob_node.node_id DESC"
-        qry += tmp_qry
-
-        result = self.db.query(qry)
-        for row in result:
-            bin_glob_node = row['glob_node']
             proc_node = row['proc_node']
             file_glob_node = row['file_glob_node']
             glob_loc_rel = row['rel2']
@@ -756,6 +739,14 @@ class Neo4JInterface(StorageIFace):
         return self.__get_file_proc_tree(prog_name, start_date, end_date,
                                         Neo4JInterface.PROC_INDEX)
 
+    def __build_idx_qry(self, node_name, search_str, idx_type, time_idx_qry):
+        '''Builds a query string  using file/process name and time indexes'''
+        tmp_qry = "%s=node:%s('%s %s')"
+        search_str = "\"" + search_str + "\""
+        name_idx_qry = self.__construct_name_idx_qry(search_str)
+        tmp_qry = tmp_qry % (node_name, idx_type, time_idx_qry, name_idx_qry)
+        return tmp_qry
+
 
     # Query for the right panel
     def get_file_proc_history(self, file_name, proc_name, user_name,
@@ -764,7 +755,8 @@ class Neo4JInterface(StorageIFace):
         passed as input args. Returned data format is a list of tupes 
         of format (Binary name, PID, File name, Action, Time, node_id)'''
 
-        result_list = []
+        if (file_name is None) and (proc_name is None):
+            raise InvalidQueryException()
 
         file_states = str(LinkState.READ)
         file_states += ", " + str(LinkState.WRITE)
@@ -773,7 +765,11 @@ class Neo4JInterface(StorageIFace):
 
         proc_states = str(LinkState.BIN)
 
-        qry = "START glob_node=node:%s('%s %s')"
+        qry = "START %s %s %s"
+
+        file_idx_qry = ""
+        proc_idx_qry = ""
+        comma_char = ""
 
         # Build time index range query
         time_idx_qry = self.__construct_time_idx_qry(start_date, end_date)
@@ -782,25 +778,18 @@ class Neo4JInterface(StorageIFace):
         else:
             time_idx_qry = ""
 
-        idx_type = None
-        search_str = None
-        qry_func = None
 
         if file_name is not None:
-            idx_type = Neo4JInterface.FILE_INDEX
-            search_str = file_name
-            qry_func = self.__query_get_proc
-        elif proc_name is not None:
-            idx_type = Neo4JInterface.PROC_INDEX
-            search_str = proc_name
-            qry_func = self.__query_get_files
-        else:
-            raise InvalidQueryException()
+            file_idx_qry = self.__build_idx_qry("file_glob_node", file_name,
+                                    Neo4JInterface.FILE_INDEX, time_idx_qry)
 
-        search_str = "\"" + search_str + "\""
-        name_idx_qry = self.__construct_name_idx_qry(search_str)
-        qry = qry % (idx_type, time_idx_qry, name_idx_qry)
+        if proc_name is not None:
+            proc_idx_qry = self.__build_idx_qry("bin_glob_node", proc_name,
+                                    Neo4JInterface.PROC_INDEX, time_idx_qry)
 
-        print(qry)
+        if file_name and proc_name:
+            comma_char = ", "
 
-        return qry_func(qry, file_states, proc_states)
+        qry = qry % (file_idx_qry, comma_char, proc_idx_qry)
+
+        return self.__get_history(qry, file_states, proc_states)
