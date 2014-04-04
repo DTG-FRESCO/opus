@@ -20,29 +20,29 @@ from neo4j import GraphDatabase, INCOMING, OUTGOING
 from opus import cc_utils
 
 # Enum values for node types
-NodeType = common_utils.enum(META=1,
-                            GLOBAL=2,
-                            PROCESS=3,
-                            LOCAL=4,
-                            EVENT=5,
-                            ANNOT=6,
-                            TERM=7)
+NodeType = common_utils.enum(META = 1,
+                            GLOBAL = 2,
+                            PROCESS = 3,
+                            LOCAL = 4,
+                            EVENT = 5,
+                            ANNOT = 6,
+                            TERM = 7)
 
 # Enum values for relationship types
-RelType = common_utils.enum(GLOB_OBJ_PREV="GLOB_OBJ_PREV",
-                            LOC_OBJ="LOC_OBJ",
-                            LOC_OBJ_PREV="LOC_OBJ_PREV",
-                            PROC_OBJ="PROC_OBJ",
-                            PROC_OBJ_PREV="PROC_OBJ_PREV",
-                            PROC_PARENT="PROC_PARENT",
-                            PROC_EVENTS="PROC_EVENTS",
-                            IO_EVENTS="IO_EVENTS",
-                            PREV_EVENT="PREV_EVENT",
-                            FILE_META="FILE_META",
-                            LIB_META="LIB_META",
-                            ENV_META="ENV_META",
-                            OTHER_META="OTHER_META",
-                            META_PREV="META_PREV")
+RelType = common_utils.enum(GLOB_OBJ_PREV = "GLOB_OBJ_PREV",
+                            LOC_OBJ = "LOC_OBJ",
+                            LOC_OBJ_PREV = "LOC_OBJ_PREV",
+                            PROC_OBJ = "PROC_OBJ",
+                            PROC_OBJ_PREV = "PROC_OBJ_PREV",
+                            PROC_PARENT = "PROC_PARENT",
+                            PROC_EVENTS = "PROC_EVENTS",
+                            IO_EVENTS = "IO_EVENTS",
+                            PREV_EVENT = "PREV_EVENT",
+                            FILE_META = "FILE_META",
+                            LIB_META = "LIB_META",
+                            ENV_META = "ENV_META",
+                            OTHER_META = "OTHER_META",
+                            META_PREV = "META_PREV")
 
 # Enum values for relationship link states
 LinkState = common_utils.enum(NONE = 0,
