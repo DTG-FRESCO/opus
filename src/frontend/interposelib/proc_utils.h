@@ -58,9 +58,14 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
+        static const char* get_path_from_fd(const int fd, char *file_path);
         static const char* canonicalise_path(const char *path,
                                             char *actual_path);
         static const char* abs_path(const char *path, char *abs_path);
+        static const char* dirfd_get_path(const int fd,
+                                          const char *path,
+                                          char *path_res,
+                                          const char* (path_res_func)(const char*, char*));
         static const std::string get_error(const int err_num);
 
         /* Converts an integer to a string */

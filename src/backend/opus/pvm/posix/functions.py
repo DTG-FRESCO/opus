@@ -144,18 +144,6 @@ def posix_freopen64(storage_iface, proc_node, msg):
     return new_loc_node
 
 
-@FuncController.dec('fchmodat')
-def posix_fchmodat():
-    '''Implementation of fchmodat in PVM semantics.'''
-    pass
-
-
-@FuncController.dec('fchownat')
-def posix_fchownat():
-    '''Implementation of fchownat in PVM semantics.'''
-    pass
-
-
 @FuncController.dec('socket')
 @utils.check_message_error_num
 def posix_socket(storage_iface, proc_node, msg):
@@ -229,12 +217,9 @@ def posix_dup3(storage_iface, proc_node, msg):
     return loc_node
 
 
-@FuncController.dec('link')
-def posix_link(storage_iface, proc_node, msg):
-    '''Implementation of link in PVM semantics.'''
-    args = utils.parse_kvpair_list(msg.args)
-    return actions.link_action(storage_iface, proc_node,
-                            args['path1'], args['path2'])
+@FuncController.dec('renameat')
+def posix_renameat(storage_iface, p_id, msg):
+    return posix_rename(storage_iface, p_id, msg)
 
 
 @FuncController.dec('rename')

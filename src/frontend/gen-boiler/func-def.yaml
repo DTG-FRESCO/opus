@@ -2,7 +2,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags: 
+      read: ""
     name: fd
     type: "int"
 
@@ -11,11 +12,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags: 
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
@@ -24,11 +28,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
@@ -37,7 +44,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fp
     type: "FILE *"
 
@@ -52,7 +60,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -61,15 +70,17 @@
   ret: "char *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -78,11 +89,14 @@
   ret: "FILE *"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "const char *"
 
@@ -91,11 +105,14 @@
   ret: "FILE *"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "const char *"
 
@@ -104,11 +121,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -117,11 +135,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -130,19 +149,22 @@
   ret: "size_t"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ptr
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: nmemb
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -151,15 +173,19 @@
   ret: "FILE *"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -168,15 +194,19 @@
   ret: "FILE *"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: filename
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: type
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -185,19 +215,22 @@
   ret: "size_t"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ptr
     type: "const void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: nmemb
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -206,7 +239,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -220,15 +254,16 @@
   ret: "__ssize_t"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: lineptr
     type: "char **"
 
-  - flags: []
+  - flags: {}
     name: n
     type: "size_t *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -237,11 +272,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -250,7 +286,7 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
@@ -259,7 +295,7 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "const char *"
 
@@ -268,19 +304,22 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: count
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off_t"
 
@@ -289,19 +328,22 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "const void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: count
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off_t"
 
@@ -310,15 +352,17 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: count
     type: "size_t"
 
@@ -327,15 +371,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -344,11 +389,11 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -357,11 +402,11 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -370,15 +415,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -387,15 +433,17 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "const void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: count
     type: "size_t"
 
@@ -404,11 +452,11 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -417,15 +465,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -434,7 +483,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -448,11 +498,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -461,7 +512,7 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
@@ -470,7 +521,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -479,11 +531,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -492,19 +545,22 @@
   ret: "size_t"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ptr
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: n
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -513,19 +569,22 @@
   ret: "size_t"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ptr
     type: "const void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: n
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -534,15 +593,17 @@
   ret: "char *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: n
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -551,11 +612,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -564,15 +626,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "long"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: whence
     type: "int"
 
@@ -581,15 +646,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: whence
     type: "int"
 
@@ -598,11 +666,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: pos
     type: "const fpos_t *"
 
@@ -611,11 +680,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: pos
     type: "const fpos64_t *"
 
@@ -624,15 +694,18 @@
   ret: "off_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: whence
     type: "int"
 
@@ -641,15 +714,18 @@
   ret: "off64_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off64_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: whence
     type: "int"
 
@@ -658,7 +734,8 @@
   ret: "void"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -667,11 +744,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
@@ -680,15 +760,19 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: owner
     type: "uid_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: group
     type: "gid_t"
 
@@ -697,91 +781,54 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
-
-
-- name: fchmodat
-  ret: "int"
-  flags: []
-  args:
-  - flags: [read]
-    name: dirfd
-    type: "int"
-
-  - flags: [read,can]
-    name: pathname
-    type: "const char *"
-
-  - flags: [read]
-    name: mode
-    type: "mode_t"
-
-  - flags: [read]
-    name: flags
-    type: "int"
 
 
 - name: fchown
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: owner
     type: "uid_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: group
     type: "gid_t"
-
-
-- name: fchownat
-  ret: "int"
-  flags: []
-  args:
-  - flags: [read]
-    name: dirfd
-    type: "int"
-
-  - flags: [read,can]
-    name: pathname
-    type: "const char *"
-
-  - flags: [read]
-    name: owner
-    type: "uid_t"
-
-  - flags: [read]
-    name: group
-    type: "gid_t"
-
-  - flags: [read]
-    name: flags
-    type: "int"
 
 
 - name: lchown
   ret: "int"
   flags: []
   args:
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: owner
     type: "uid_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: group
     type: "gid_t"
 
@@ -790,7 +837,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: oldfd
     type: "int"
 
@@ -799,11 +847,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: oldfd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: newfd
     type: "int"
 
@@ -812,15 +862,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: oldfd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: newfd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: flags
     type: "int"
 
@@ -829,11 +882,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: length
     type: "off_t"
 
@@ -842,11 +897,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: length
     type: "off64_t"
 
@@ -855,11 +912,15 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: path1
     type: "const char *"
 
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path2
     type: "const char *"
 
@@ -868,11 +929,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
@@ -881,11 +945,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
@@ -894,19 +961,22 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: mode
     type: "mode_t"
 
-  - flags: []
+  - flags: {}
     name: dev
     type: dev_t
 
@@ -915,7 +985,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: pathname
     type: "const char *"
 
@@ -924,11 +996,15 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: oldpath
     type: "const char *"
 
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: newpath
     type: "const char *"
 
@@ -937,7 +1013,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: pathname
     type: "const char *"
 
@@ -946,11 +1024,15 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: oldpath
     type: "const char *"
 
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: newpath
     type: "const char *"
 
@@ -959,7 +1041,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: command
     type: "const char *"
 
@@ -968,11 +1051,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: length
     type: "off_t"
 
@@ -981,11 +1067,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: length
     type: "off64_t"
 
@@ -994,7 +1083,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: pathname
     type: "const char *"
 
@@ -1003,7 +1094,8 @@
   ret: "mode_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: mask
     type: "mode_t"
 
@@ -1012,11 +1104,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: filename
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: times
     type: "const struct utimbuf *"
 
@@ -1025,11 +1119,13 @@
   ret: "FILE *"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: command
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: type
     type: "const char *"
 
@@ -1038,7 +1134,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1047,7 +1144,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: templ
     type: "char *"
 
@@ -1056,11 +1155,14 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: templ
     type: "char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: flags
     type: "int"
 
@@ -1069,11 +1171,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: templ
     type: "char *"
 
-  - flags: []
+  - flags: {}
     name: suffixlen
     type: "int"
 
@@ -1082,15 +1186,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: templ
     type: "char *"
 
-  - flags: []
+  - flags: {}
     name: suffixlen
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: flags
     type: "int"
 
@@ -1109,15 +1216,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat *"
 
@@ -1126,15 +1234,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat64 *"
 
@@ -1143,15 +1252,17 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: path
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat *"
 
@@ -1160,15 +1271,17 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read,abs]
+  - flags:
+      read: ""
+      abs: ""
     name: path
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat64 *"
 
@@ -1177,15 +1290,17 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat *"
 
@@ -1194,15 +1309,17 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: __ver
     type: "int"
 
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "struct stat64 *"
 
@@ -1211,7 +1328,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read,can]
+  - flags:
+      read: ""
+      can: ""
     name: path
     type: "const char *"
 
@@ -1220,7 +1339,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
@@ -1229,11 +1349,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: pgrp
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: sig
     type: "int"
 
@@ -1242,7 +1364,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: euid
     type: "uid_t"
 
@@ -1251,7 +1374,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: egid
     type: "gid_t"
 
@@ -1260,7 +1384,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: gid
     type: "gid_t"
 
@@ -1269,11 +1394,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: ruid
     type: "uid_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: euid
     type: "uid_t"
 
@@ -1282,11 +1409,13 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: rgid
     type: "gid_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: egid
     type: "gid_t"
 
@@ -1295,7 +1424,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: uid
     type: "uid_t"
 
@@ -1309,7 +1439,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: string
     type: "char *"
 
@@ -1318,15 +1449,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: name
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: value
     type: "const char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: overwrite
     type: "int"
 
@@ -1335,7 +1469,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: name
     type: "const char *"
 
@@ -1355,7 +1490,7 @@
   real_func: "vprintf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1364,7 +1499,7 @@
   real_func: "vscanf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1373,11 +1508,12 @@
   real_func: "vfprintf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1386,11 +1522,12 @@
   real_func: "vfscanf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1399,7 +1536,7 @@
   real_func: "__isoc99_vscanf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1408,11 +1545,12 @@
   real_func: "__isoc99_vfscanf"
   flags: [vararg, nofnptr]
   args: 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1421,15 +1559,18 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: domain
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: type
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: protocol
     type: "int"
 
@@ -1438,15 +1579,16 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: sockfd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: addr
     type: "struct sockaddr *"
 
-  - flags: []
+  - flags: {}
     name: addrlen
     type: "socklen_t *"
 
@@ -1455,7 +1597,9 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read, rwpair]
+  - flags:
+      read: ""
+      rwpair: ""
     name: pipefd
     type: "int"
     dims: "[2]"
@@ -1464,12 +1608,15 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read, rwpair]
+  - flags:
+      read: ""
+      rwpair: ""
     name: pipefd
     type: "int"
     dims: "[2]"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: flags
     type: "int"
 
@@ -1477,19 +1624,24 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: domain
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: type
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: protocol
     type: "int"
 
-  - flags: [read, rwpair]
+  - flags:
+      read: ""
+      rwpair: ""
     name: sv
     type: "int"
     dims: "[2]"
@@ -1594,7 +1746,8 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1603,11 +1756,12 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: c
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1615,7 +1769,7 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "const char *"
 
@@ -1624,15 +1778,16 @@
   real_func: "__vfprintf_chk"
   flags: [vararg, nofnptr]
   args: 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: "format"
     type: "const char *"
 
@@ -1640,19 +1795,20 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const char *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -1661,19 +1817,22 @@
   ret: "char *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: strsize
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1682,19 +1841,22 @@
   ret: "char *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: s
     type: "char *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: strsize
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1703,19 +1865,22 @@
   ret: "wchar_t *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ws
     type: "wchar_t *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: size
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: strsize
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1724,19 +1889,22 @@
   ret: "wchar_t *"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: ws
     type: "wchar_t *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: strsize
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: n
     type: "int"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: stream
     type: "FILE *"
 
@@ -1745,23 +1913,27 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: nbytes
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off64_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: buflen
     type: "size_t"
 
@@ -1770,23 +1942,27 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: nbytes
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: offset
     type: "off_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: buflen
     type: "size_t"
 
@@ -1795,19 +1971,22 @@
   ret: "ssize_t"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fd
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: buf
     type: "void *"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: nbytes
     type: "size_t"
 
-  - flags: [read]
+  - flags:
+      read: ""
     name: buflen
     type: "size_t"
 
@@ -1816,19 +1995,20 @@
   ret: "int"
   flags: []
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fp
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const wchar_t *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -1837,15 +2017,15 @@
   ret: "int"
   flags: []
   args:
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const wchar_t *"
 
-  - flags: []
+  - flags: {}
     name: ap
     type: "va_list"
 
@@ -1855,15 +2035,16 @@
   real_func: "__vfwprintf_chk"
   flags: [vararg, nofnptr]
   args:
-  - flags: [read]
+  - flags:
+      read: ""
     name: fp
     type: "FILE *"
 
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const wchar_t *"
 
@@ -1873,10 +2054,243 @@
   real_func: "__vwprintf_chk"
   flags: [vararg, nofnptr]
   args:
-  - flags: []
+  - flags: {}
     name: flag
     type: "int"
 
-  - flags: []
+  - flags: {}
     name: format
     type: "const wchar_t *"
+
+
+- name: openat
+  ret: "int"
+  flags: [nogen]
+  args: "int dirfd, const char *pathname, int flags, ..."
+
+- name: openat64
+  ret: "int"
+  flags: [nogen]
+  args: "int dirfd, const char *pathname, int flags, ..."
+
+- name: renameat
+  ret: "int"
+  flags: []
+  args:
+  - flags: {}
+    name: "olddirfd"
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "olddirfd"
+        type: "abs"
+    name: "oldpath"
+    type: "const char *"
+
+  - flags: {}
+    name: "newdirfd"
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "newdirfd"
+    name: "newpath"
+    type: "const char *"
+
+
+- name: mkfifoat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: dirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "dirfd"
+    name: pathname
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: mode
+    type: "mode_t"
+
+
+- name: symlinkat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+      can: ""
+    name: oldpath
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: newdirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "newdirfd"
+    name: newpath
+    type: "const char *"
+
+
+- name: mkdirat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: dirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "dirfd"
+    name: pathname
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: mode
+    type: "mode_t"
+
+
+- name: unlinkat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: dirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "dirfd"
+    name: pathname
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: flags
+    type: "int"
+
+
+- name: fchmodat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: dirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "dirfd"
+        sym:
+          arg: "flags"
+          val: "AT_SYMLINK_NOFOLLOW"
+          comp: "AT_SYMLINK_NOFOLLOW"
+    name: pathname
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: mode
+    type: "mode_t"
+
+  - flags:
+      read: ""
+    name: flags
+    type: "int"
+
+- name: fchownat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: dirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "dirfd"
+        sym:
+          arg: "flags"
+          val: "AT_SYMLINK_NOFOLLOW"
+          comp: "AT_SYMLINK_NOFOLLOW"
+    name: pathname
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: owner
+    type: "uid_t"
+
+  - flags:
+      read: ""
+    name: group
+    type: "gid_t"
+
+  - flags:
+      read: ""
+    name: flags
+    type: "int"
+
+
+- name: linkat
+  ret: "int"
+  flags: []
+  args:
+  - flags:
+      read: ""
+    name: olddirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "olddirfd"
+        sym:
+          arg: "flags"
+          val: "AT_SYMLINK_FOLLOW"
+          comp: "0"
+    name: oldpath
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: newdirfd
+    type: "int"
+
+  - flags:
+      read: ""
+      dirfd:
+        fd: "newdirfd"
+    name: newpath
+    type: "const char *"
+
+  - flags:
+      read: ""
+    name: flags
+    type: "int"
+
+

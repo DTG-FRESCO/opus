@@ -484,6 +484,8 @@ void SignalUtils::restore_all_signal_states()
         int sig = 0;
         std::vector<SignalHandler*>::iterator viter;
 
+        if (!sig_handler_vec) return;
+
         for (viter = sig_handler_vec->begin();
                 viter != sig_handler_vec->end(); ++sig, ++viter)
         {

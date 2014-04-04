@@ -51,17 +51,10 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
         real_fptr = (fptr_type)ProcUtils::get_sym_addr(fname); \
                                                             \
     /* Call function if global flag is true */              \
-    if (ProcUtils::test_and_set_flag(true))                 \
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off()) \
     {                                                       \
-        errno = 0;                                          \
-        int ret = (*real_fptr)(arg1, __VA_ARGS__);          \
-        err_obj = errno;                                    \
-        return ret;                                         \
-    }                                                       \
-                                                            \
-    if (ProcUtils::is_interpose_off())                      \
-    {                                                       \
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);        \
+        if (unlikely(ProcUtils::is_interpose_off()))        \
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);    \
         errno = 0;                                          \
         int ret = (*real_fptr)(arg1, __VA_ARGS__);          \
         err_obj = errno;                                    \
@@ -253,12 +246,10 @@ static inline void exit_program(const char *exit_str, const int status)
     if (!exit_ptr)
         exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(exit_str);
 
-    if (ProcUtils::test_and_set_flag(true))
-        (*exit_ptr)(status);
-
-    if (ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         (*exit_ptr)(status);
     }
 
@@ -669,17 +660,10 @@ extern "C" pid_t fork(void)
     if (!real_fork)
         real_fork = (FORK_POINTER)ProcUtils::get_sym_addr("fork");
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        errno = 0;
-        pid_t pid = (*real_fork)();
-        err_obj = errno;
-        return pid;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         pid_t pid = (*real_fork)();
         err_obj = errno;
@@ -730,17 +714,10 @@ extern "C" void* dlopen(const char * filename, int flag)
     if (!real_dlopen)
         real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr("dlopen");
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        errno = 0;
-        void *handle = (*real_dlopen)(filename, flag);
-        err_obj = errno;
-        return handle;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         void *handle = (*real_dlopen)(filename, flag);
         err_obj = errno;
@@ -786,15 +763,10 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
         real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr("signal");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        CALL_REAL_SIGNAL;
-        return ret;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         CALL_REAL_SIGNAL;
         return ret;
     }
@@ -864,15 +836,10 @@ extern "C" int sigaction(int signum,
         real_sigaction = (SIGACTION_POINTER)ProcUtils::get_sym_addr("sigaction");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        CALL_REAL_SIGACTION;
-        return ret;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         CALL_REAL_SIGACTION;
         return ret;
     }
@@ -971,12 +938,10 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                 (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr("pthread_create");
     }
 
-    if (ProcUtils::test_and_set_flag(true))
-        return (*real_pthread_create)(thread, attr, real_handler, real_args);
-
-    if (ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         return (*real_pthread_create)(thread, attr, real_handler, real_args);
     }
 
@@ -1036,12 +1001,10 @@ extern "C" void pthread_exit(void *retval)
             (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr("pthread_exit");
     }
 
-    if (ProcUtils::test_and_set_flag(true))
-        (*real_pthread_exit)(retval);
-
-    if (ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         (*real_pthread_exit)(retval);
     }
 
@@ -1092,17 +1055,10 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
         real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr("sigset");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        errno = 0;
-        sighandler_t ret = (*real_sigset)(sig, disp);
-        err_obj = errno;
-        return ret;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         sighandler_t ret = (*real_sigset)(sig, disp);
         err_obj = errno;
@@ -1150,17 +1106,10 @@ extern "C" int sigignore(int sig)
         real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr("sigignore");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        errno = 0;
-        int ret = (*real_sigignore)(sig);
-        err_obj = errno;
-        return ret;
-    }
-
-    if (ProcUtils::is_interpose_off())
-    {
-        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        if (unlikely(ProcUtils::is_interpose_off()))
+            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         errno = 0;
         int ret = (*real_sigignore)(sig);
         err_obj = errno;

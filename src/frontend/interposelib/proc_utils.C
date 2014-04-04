@@ -975,3 +975,35 @@ void ProcUtils::interpose_off(const string& desc)
     // atomic operation
     opus_interpose_off = true;
 }
+
+const char* ProcUtils::get_path_from_fd(const int fd, char *file_path)
+{
+    char proc_fd_path[PATH_MAX + 1] = "";
+    snprintf(proc_fd_path, PATH_MAX, "/proc/self/fd/%d", fd);
+
+    return ProcUtils::canonicalise_path(proc_fd_path, file_path);
+}
+
+const char* ProcUtils::dirfd_get_path(const int fd,
+                                      const char *path,
+                                      char *path_res,
+                                      const char* (path_res_func)(const char*, char*)){
+    if(path[0] == '/'){
+        return path_res_func(path, path_res);
+    }else{
+        char path_dir[PATH_MAX + 1] = "";        
+        char path_tmp[PATH_MAX + 1] = "";
+        if(fd == AT_FDCWD){
+            if(getcwd(path_dir, PATH_MAX) == NULL){
+                LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
+                        ProcUtils::get_error(errno).c_str());
+                return path;
+            }
+        }else{
+            ProcUtils::get_path_from_fd(fd, path_dir);
+        }
+        snprintf(path_tmp, PATH_MAX, "%s/%s", path_dir, path);
+        
+        return path_res_func(path_tmp, path_res);
+    }
+}
