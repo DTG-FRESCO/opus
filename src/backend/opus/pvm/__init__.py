@@ -6,128 +6,138 @@ PVM core operations implementations.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-
-from opus import prov_db_pb2 as prov_db
-
-
-def version_local(tran, old_l_id, f_id):
-    '''Versions the local object identified by old_l_id and associated the new
-    version with the global ID specified as f_id.'''
-    new_l_id, new_l_obj = tran.create(prov_db.LOCAL)
-    old_l_obj = tran.get(old_l_id)
-    par_id = old_l_obj.process_object.id
-    par_obj = tran.get(par_id)
-    for loc in par_obj.local_object:
-        if loc.id == old_l_id:
-            loc.id = new_l_id
-    new_l_obj.process_object.id = par_id
-    new_l_obj.prev_version.id = old_l_id
-    old_l_obj.next_version.id = new_l_id
-    new_l_obj.name = old_l_obj.name
-    for lnk in old_l_obj.file_object:
-        new_lnk = new_l_obj.file_object.add()
-        new_lnk.id = f_id
-        #new_lnk.state = lnk.state  # TODO(tb403) Possibly questionable
-    new_l_obj.ref_count = old_l_obj.ref_count
-    return new_l_id
+from opus import storage
 
 
-def version_global(tran, old_g_id):
-    '''Versions the global object identified by old_g_id.'''
-    (new_g_id, new_g_obj) = tran.create(prov_db.GLOBAL)
-    old_g_obj = tran.get(old_g_id)
-    for name in old_g_obj.name:
-        new_g_obj.name.append(name)
-        tran.name_put(name, new_g_id)
-    old_g_obj.next_version.add().id = new_g_id
-    new_g_obj.prev_version.add().id = old_g_id
+def version_local(storage_iface, old_loc_node, glob_node):
+    '''Versions the local object identified by loc_node and associates the
+    new local object version with the global object identified by glob_node'''
+    # Create a new local object node
+    new_loc_node = storage_iface.create_node(storage.NodeType.LOCAL)
 
-    for loc in old_g_obj.process_object:
-        new_l_id = version_local(tran, loc.id, new_g_id)
-        new_g_obj.process_object.add().id = new_l_id
+    # Create link from global obj to new local obj
+    glob_to_loc_rel = storage_iface.create_relationship(glob_node,
+                                    new_loc_node, storage.RelType.LOC_OBJ)
+    # NOTE: Should we copy over state (nb466)?
 
-    return new_g_id
+    # Copy over the local name and ref_count
+    new_loc_node['name'] = old_loc_node['name']
+    new_loc_node['ref_count'] = old_loc_node['ref_count']
 
+    # Create link from new local object to previous local object
+    storage_iface.create_relationship(new_loc_node, old_loc_node,
+                                    storage.RelType.LOC_OBJ_PREV)
 
-def _remove_where(rep_cont, attr, val):
-    '''Removes all objects from rep_cont where attr matches val.'''
-    to_remove = []
-    for i in range(len(rep_cont)):
-        if attr is not None:
-            if getattr(rep_cont[i], attr) == val:
-                to_remove += [i]
-        else:
-            if rep_cont[i] == val:
-                to_remove += [i]
+    # Get process and link from old local
+    proc_node, rel_link = storage_iface.get_process_from_local(old_loc_node)
 
-    to_remove.sort()
+    # Create link from local to process
+    storage_iface.create_relationship(new_loc_node, proc_node,
+                                    storage.RelType.PROC_OBJ)
 
-    for i in range(len(to_remove)):
-        #The deletions are from lowest index to highest index.
-        #The -i compensates for the shift in index due to previous deletions.
-        del rep_cont[to_remove[i]-i]
+    # Change local->process link status to INACTIVE
+    rel_link['state'] = storage.LinkState.INACTIVE
 
-    return len(to_remove)
+    return new_loc_node
 
 
-def get_l(tran, p_id, loc_name):
+def version_global(storage_iface, old_glob_node):
+    '''Versions the global object identified by old_glob_node.'''
+    new_glob_node = storage_iface.create_node(storage.NodeType.GLOBAL)
+
+    if old_glob_node.has_key('name'):
+        # Copy over name list from previous old global object
+        name_list = old_glob_node['name']
+        new_glob_node['name'] = list(name_list)
+        for name in name_list:
+            # Update file index
+            storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
+                                    'name', name, new_glob_node)
+            # Update time index
+            storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
+                                        new_glob_node['sys_time'],
+                                        new_glob_node)
+
+    storage_iface.create_relationship(new_glob_node, old_glob_node,
+                                    storage.RelType.GLOB_OBJ_PREV)
+
+    # Create new versions of all local objects associated with
+    # the old global object and link them to the new global object
+    loc_node_link_list = storage_iface.get_locals_from_global(old_glob_node)
+    for (loc_node, rel_link) in loc_node_link_list:
+        new_loc_node = version_local(storage_iface, loc_node, new_glob_node)
+
+    return new_glob_node
+
+
+def get_l(storage_iface, proc_node, loc_name):
     '''Performs a PVM get on the local object named 'loc_name' of the process
-    identified by p_id.'''
-    (l_id, l_obj) = tran.create(prov_db.LOCAL)
-    p_obj = tran.get(p_id)
-    l_obj.name = loc_name
-    l_obj.process_object.id = p_id
-    p_obj.local_object.add().id = l_id
-    return l_id
+    identified by proc_node.'''
+    loc_node = storage_iface.create_node(storage.NodeType.LOCAL)
+    loc_node['name'] = loc_name
+
+    # Create a relation from local--->process node
+    storage_iface.create_relationship(loc_node, proc_node,
+                                    storage.RelType.PROC_OBJ)
+    return loc_node
 
 
-def get_g(tran, l_id, glob_name):
+def get_g(storage_iface, loc_node, glob_name):
     '''Performs a PVM get on the global object identified by glob_name and
-    binds it to l_id.'''
-    old_g_id = tran.name_get(glob_name)
-    if old_g_id is None:
-        (new_g_id, new_g_obj) = tran.create(prov_db.GLOBAL)
-        new_g_obj.name.append(glob_name)
-        tran.name_put(glob_name, new_g_id)
+    binds it to loc_node.'''
+
+    old_glob_node = storage_iface.get_latest_glob_version(glob_name)
+    new_glob_node = None
+
+    if old_glob_node is None:
+        new_glob_node = storage_iface.create_node(storage.NodeType.GLOBAL)
+
+        # Add name as type array property
+        new_glob_node['name'] = [glob_name]
+
+        # Update file index
+        storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
+                                    'name', glob_name, new_glob_node)
+
+        # Update time index
+        storage_iface.update_time_index(storage.Neo4JInterface.FILE_INDEX,
+                                        new_glob_node['sys_time'],
+                                        new_glob_node)
     else:
-        new_g_id = version_global(tran, old_g_id)
-    bind(tran, l_id, new_g_id)
-    return new_g_id
+        new_glob_node = version_global(storage_iface, old_glob_node)
+
+    bind(storage_iface, loc_node, new_glob_node)
+    return new_glob_node
 
 
-def drop_l(tran, l_id):
-    '''PVM drop on l_id.'''
-    l_obj = tran.get(l_id)
-    p_id = l_obj.process_object.id
-    p_obj = tran.get(p_id)
-    l_obj.process_object.state = prov_db.CLOSED
-    for lnk in p_obj.local_object:
-        if lnk.id == l_id:
-            lnk.state = prov_db.CLOSED
+def drop_l(storage_iface, loc_node):
+    '''PVM drop on loc_node.'''
+    # Set the link between the local object and
+    # process object to LinkState.CLOSED
+    proc_node, rel_link = storage_iface.get_process_from_local(loc_node)
+    rel_link['state'] = storage.LinkState.CLOSED
 
 
-def drop_g(tran, l_id, g_id):
-    '''PVM drop on g_id and disassociated fron l_id.'''
-    new_g_id = version_global(tran, g_id)
-    l_obj = tran.get(l_id)
-    new_l_id = l_obj.next_version.id
-    unbind(tran, new_l_id, new_g_id)
-    return new_g_id
+def drop_g(storage_iface, loc_node, glob_node):
+    '''PVM drop on glob_node and disassociated fron loc_node.'''
+    new_glob_node = version_global(storage_iface, glob_node)
+    new_loc_node = storage_iface.get_next_local_version(loc_node)
+    unbind(storage_iface, new_loc_node, new_glob_node)
+    return new_glob_node, new_loc_node
 
 
-def bind(tran, l_id, g_id):
-    '''PVM bind between l_id and g_id.'''
-    l_obj = tran.get(l_id)
-    g_obj = tran.get(g_id)
-    l_obj.file_object.add().id = g_id
-    l_obj.ref_count = len(g_obj.name)
-    g_obj.process_object.add().id = l_id
+def bind(storage_iface, loc_node, glob_node):
+    '''PVM bind between loc_node and glob_node.'''
+    storage_iface.create_relationship(glob_node, loc_node,
+                                storage.RelType.LOC_OBJ)
+    ref_count = 0
+    if glob_node.has_key('name'):
+        ref_count = len(glob_node['name'])
+    loc_node['ref_count'] = ref_count
 
 
-def unbind(tran, l_id, g_id):
-    '''PVM unbind between l_id and g_id.'''
-    l_obj = tran.get(l_id)
-    g_obj = tran.get(g_id)
-    _remove_where(l_obj.file_object, 'id', g_id)
-    l_obj.ref_count = 0
-    _remove_where(g_obj.process_object, 'id', l_id)
+def unbind(storage_iface, loc_node, glob_node):
+    '''PVM unbind between loc_node and glob_node.'''
+    storage_iface.find_and_del_rel(glob_node, loc_node,
+                                storage.RelType.LOC_OBJ)
+    loc_node['ref_count'] = 0

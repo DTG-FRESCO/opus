@@ -90,3 +90,7 @@ class EventOrderer(object):
         '''Stop a queue clear and resume normal activities.'''
         with self.q_over_min:
             self.clearing = False
+
+    def get_queue_size(self):
+        '''Returns queue size'''
+        return self.priority_queue.qsize()

@@ -30,6 +30,7 @@ namespace
         hdr_msg.payload_type = pay_type;
         hdr_msg.payload_len = msg_size;
         hdr_msg.tid = ProcUtils::gettid();
+        hdr_msg.sys_time = time(NULL);
 
         return ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }
@@ -45,7 +46,6 @@ namespace
 
         gen_msg->set_msg_type(gen_msg_type);
         gen_msg->set_msg_desc(desc);
-        gen_msg->set_sys_time(time(NULL));
 
         bool ret_val = set_header_and_send(*gen_msg, PayloadType::GENERIC_MSG);
         gen_msg->Clear();
@@ -86,7 +86,6 @@ namespace
     {
         FrontendTelemetry tel_msg;
 
-        tel_msg.set_sys_time(time(NULL));
         tel_msg.set_msg_type(msg_type);
         tel_msg.set_desc(desc);
 

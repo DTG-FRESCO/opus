@@ -9,10 +9,9 @@ from __future__ import (absolute_import, division,
 
 import logging
 
-
-from opus import prov_db_pb2 as prov_db
 from opus import pvm
 from opus.pvm.posix import actions, functions, utils
+from opus import storage
 
 
 # Mapping of pid to most recent DB id.
@@ -51,44 +50,45 @@ class DisconController(object):
         cls.dis_map = {}
 
 
-def handle_function(tran, pid, msg):
+def handle_function(storage_iface, pid, msg):
     '''Handle a function call message from the given pid.'''
     try:
-        affected_id = functions.FuncController.call(msg.func_name,
-                                                    tran,
-                                                    PIDMAP[pid],
+        proc_node = storage_iface.get_node_by_id(PIDMAP[pid])
+        affected_node = functions.FuncController.call(msg.func_name,
+                                                    storage_iface,
+                                                    proc_node,
                                                     msg)
-        utils.add_event(tran, affected_id, msg)
+        utils.add_event(storage_iface, affected_node, msg)
     except functions.MissingMappingError as ex:
         logging.debug(ex)
 
 
-def handle_process(tran, hdr, pay):
+def handle_process(storage_iface, hdr, pay):
     '''Handle a process startup message.'''
-    p_id = utils.process_from_startup(tran, (hdr, pay))
+    proc_node = utils.process_from_startup(storage_iface, (hdr, pay))
 
-    l_id = actions.touch_action(tran, p_id, pay.exec_name)
-    utils.set_link(tran, l_id, prov_db.BIN)
+    loc_node = actions.touch_action(storage_iface, proc_node, pay.exec_name)
+    utils.set_link(storage_iface, loc_node, storage.LinkState.BIN)
 
-    p_obj = tran.get(p_id)
-    if p_obj.pid in PIDMAP:
-        old_p_id = PIDMAP[p_obj.pid]
-        old_p_obj = tran.get(old_p_id)
-        old_p_obj.next_version.id = p_id
-        p_obj.prev_version.id = old_p_id
-        utils.clone_file_des(tran, old_p_id, p_id)
-    else:
+    pid = proc_node['pid']
+    if pid in PIDMAP: # Exec operation
+        old_proc_node_id = PIDMAP[pid]
+        old_proc_node = storage_iface.get_node_by_id(old_proc_node_id)
+        storage_iface.create_relationship(proc_node, old_proc_node,
+                                    storage.RelType.PROC_OBJ_PREV)
+        utils.clone_file_des(storage_iface, old_proc_node, proc_node)
+    else: # Fork and vfork
         if pay.ppid in PIDMAP:
-            par_id = PIDMAP[pay.ppid]
-            par_obj = tran.get(par_id)
-            p_obj.parent.id = par_id
-            par_obj.child.add().id = p_id
-            utils.clone_file_des(tran, par_id, p_id)
+            parent_proc_node_id = PIDMAP[pay.ppid]
+            parent_proc_node = storage_iface.get_node_by_id(parent_proc_node_id)
+            storage_iface.create_relationship(proc_node, parent_proc_node,
+                                        storage.RelType.PROC_PARENT)
+            utils.clone_file_des(storage_iface, parent_proc_node, proc_node)
         else:
             for i in range(3):
-                pvm.get_l(tran, p_id, str(i))
-    PIDMAP[hdr.pid] = p_id
-    DisconController.proc_create(p_obj.pid)
+                pvm.get_l(storage_iface, proc_node, str(i))
+    PIDMAP[hdr.pid] = proc_node['node_id']
+    DisconController.proc_create(pid)
 
 
 def handle_disconnect(pid):
@@ -102,16 +102,9 @@ def handle_prefunc(pid, msg):
         DisconController.proc_exec(pid)
 
 
-def handle_startup(tran, pay):
+def handle_startup(storage_iface, pay):
     '''Handle system startup.'''
-    _, t_obj = tran.create(prov_db.TERM)
-    t_obj.reason = pay.reason
-    t_obj.downtime_start = pay.downtime_start
-    t_obj.downtime_end = pay.downtime_end
-
-    cur_id_state = tran.id_state()
-
-    for k in cur_id_state:
-        kv_pair = t_obj.id_state.add()
-        kv_pair.key = k
-        kv_pair.value = cur_id_state[k]
+    term_node = storage_iface.create_node(storage.NodeType.TERM)
+    term_node['reason'] = pay.reason
+    term_node['downtime_start'] = pay.downtime_start
+    term_node['downtime_end'] = pay.downtime_end

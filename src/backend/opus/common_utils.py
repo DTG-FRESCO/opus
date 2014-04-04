@@ -10,6 +10,7 @@ import copy
 import logging
 import threading
 import functools
+import time
 
 from opus import uds_msg_pb2
 
@@ -131,3 +132,19 @@ def get_payload_type(header):
         return uds_msg_pb2.FrontendTelemetry()
     else:
         logging.error("Invalid payload type %d", header.payload_type)
+
+
+def calc_exec_time(func):
+    '''Decorator to measure function execution time'''
+    if not hasattr(calc_exec_time, "counter"):
+        calc_exec_time.counter = 0
+
+    def timex(*args, **kw):
+        start_time = time.clock()
+        ret = func(*args, **kw)
+        end_time = time.clock()
+        calc_exec_time.counter = calc_exec_time.counter + 1
+        print("%d - %s, %2.5f" % (calc_exec_time.counter, func.__name__, (end_time - start_time)))
+        return ret
+    return timex
+

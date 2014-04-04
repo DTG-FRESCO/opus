@@ -138,9 +138,7 @@ class OrderingAnalyser(Analyser):
             hdr_obj = messaging.Header()
             hdr_obj.loads(hdr)
 
-            pay_obj = common_utils.get_payload_type(hdr_obj)
-            pay_obj.ParseFromString(pay)
-            msg_chunk += [(hdr_obj.timestamp, (hdr_obj, pay_obj))]
+            msg_chunk += [(hdr_obj.timestamp, (hdr, pay))]
 
             if hdr_obj.payload_type == uds_msg.TERM_MSG:
                 if __debug__:
@@ -179,15 +177,16 @@ class PVMAnalyser(OrderingAnalyser):
     '''The PVM analyser class implements the core of the PVM model, including
     the significant operations and their interactions with the underlying
     storage system.'''
-    def __init__(self, storage_args, *args, **kwargs):
+    def __init__(self, storage_type, storage_args, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
-        self.storage_interface = storage.StorageIFace(**storage_args)
+        self.storage_iface = common_utils.meta_factory(storage.StorageIFace,
+                                                storage_type, **storage_args)
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
         once it is complete.'''
         super(PVMAnalyser, self).run()
-        self.storage_interface.close()
+        self.storage_iface.close()
 
     def cleanup(self):
         '''Clear the process data structures.'''
@@ -197,16 +196,23 @@ class PVMAnalyser(OrderingAnalyser):
     def process(self, (hdr, pay)):
         '''Process a single front end message, applying it's effects to the
         database.'''
-        tran = self.storage_interface.start_transaction()
-        if hdr.payload_type == uds_msg.FUNCINFO_MSG:
-            posix.handle_function(tran, hdr.pid, pay)
-        elif hdr.payload_type == uds_msg.STARTUP_MSG:
-            posix.handle_process(tran, hdr, pay)
-        elif hdr.payload_type == uds_msg.GENERIC_MSG:
-            if pay.msg_type == uds_msg.DISCON:
-                posix.handle_disconnect(hdr.pid)
-            elif pay.msg_type == uds_msg.PRE_FUNC_CALL:
-                posix.handle_prefunc(hdr.pid, pay)
-        elif hdr.payload_type == uds_msg.TERM_MSG:
-            posix.handle_startup(tran, pay)
-        tran.commit()
+        hdr_obj = messaging.Header()
+        hdr_obj.loads(hdr)
+        pay_obj = common_utils.get_payload_type(hdr_obj)
+        pay_obj.ParseFromString(pay)
+
+        # Set system time for current message
+        self.storage_iface.set_sys_time_for_msg(hdr_obj.sys_time)
+
+        with self.storage_iface.start_transaction():
+            if hdr_obj.payload_type == uds_msg.FUNCINFO_MSG:
+                posix.handle_function(self.storage_iface, hdr_obj.pid, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
+                posix.handle_process(self.storage_iface, hdr_obj, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
+                if pay_obj.msg_type == uds_msg.DISCON:
+                    posix.handle_disconnect(hdr_obj.pid)
+                elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
+                    posix.handle_prefunc(hdr_obj.pid, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.TERM_MSG:
+                    posix.handle_startup(self.storage_iface, pay_obj)

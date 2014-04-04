@@ -10,9 +10,8 @@ from __future__ import (absolute_import, division,
 
 import logging
 
-from opus import pvm
+from opus import pvm, storage
 from opus.pvm.posix import utils
-from opus import prov_db_pb2 as prov_db
 
 
 class ActionMap(object):
@@ -42,153 +41,174 @@ class ActionMap(object):
 
 
 @ActionMap.add('event', True)
-def event_action(_, p_id):
+def event_action(_, proc_node):
     '''Action representing a function that only generates a process event.'''
-    return p_id
+    return proc_node
 
 
 @ActionMap.add('read', False)
-def read_action(err, tran, p_id, filedes):
+def read_action(err, storage_iface, proc_node, filedes):
     '''Action that reads from a names file descriptor.'''
-    l_id = null_action(err, tran, p_id, filedes)
-    if l_id != p_id:
-        utils.set_rw_lnk(tran, l_id, prov_db.READ)
-    return l_id
+    node = null_action(err, storage_iface, proc_node, filedes)
+    if node['type'] == storage.NodeType.LOCAL:
+        utils.set_rw_lnk(storage_iface, node, storage.LinkState.READ)
+    return node
 
 
 @ActionMap.add('write', False)
-def write_action(err, tran, p_id, filedes):
+def write_action(err, storage_iface, proc_node, filedes):
     '''Action that writes to a named file descriptor.'''
-    l_id = null_action(err, tran, p_id, filedes)
-    if l_id != p_id:
-        utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
-    return l_id
+    node = null_action(err, storage_iface, proc_node, filedes)
+    if node['type'] == storage.NodeType.LOCAL:
+        utils.set_rw_lnk(storage_iface, node, storage.LinkState.WRITE)
+    return node
 
 
 @ActionMap.add('null', False)
-def null_action(_, tran, p_id, filedes):
+def null_action(err, storage_iface, proc_node, filedes):
     '''Action that interacts with a file descriptor but is neither a read or a
     write. Also the common basis between both the read and write actions.'''
     try:
-        l_id = utils.proc_get_local(tran, p_id, filedes)
+        loc_node = utils.proc_get_local(storage_iface, proc_node, filedes)
     except utils.NoMatchingLocalError:
-        return p_id
-
-    return l_id
+        if err > 0:
+            return proc_node
+        else:
+            raise utils.NoMatchingLocalError(proc_node, filedes)
+    return loc_node
 
 
 @ActionMap.add('open', True)
-def open_action(tran, p_id, filename, filedes):
+def open_action(storage_iface, proc_node, filename, filedes):
     '''Action that opens a named file.'''
-    l_id = pvm.get_l(tran, p_id, filedes)
-    pvm.get_g(tran, l_id, filename)
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, filedes)
+    new_glob_node = pvm.get_g(storage_iface, loc_node, filename)
+    return loc_node
 
 
 @ActionMap.add('close', False)
-def close_action(err, tran, p_id, filedes):
+def close_action(err, storage_iface, proc_node, filedes):
     '''Action that closes a named file descriptor.'''
     try:
-        l_id = utils.proc_get_local(tran, p_id, filedes)
+        loc_node = utils.proc_get_local(storage_iface, proc_node, filedes)
     except utils.NoMatchingLocalError:
-        return p_id
+        return proc_node
 
     if err > 0:
-        return l_id
+        return loc_node
 
-    l_obj = tran.get(l_id)
-    if len(l_obj.file_object) > 0:
-        if len(l_obj.file_object) > 1:
-            logging.error("Closing invalid local object.")
-        g_id = l_obj.file_object[0].id
-        pvm.drop_g(tran, l_id, g_id)
-        l_obj = tran.get(l_id)
-        new_l_id = l_obj.next_version.id
-        pvm.drop_l(tran, new_l_id)
+    glob_node_list = storage_iface.get_globals_from_local(loc_node)
+    if len(glob_node_list) > 0:
+        glob_node, glob_loc_rel = glob_node_list[0]
+        new_glob_node, new_loc_node = pvm.drop_g(storage_iface,
+                                            loc_node, glob_node)
+        pvm.drop_l(storage_iface, new_loc_node)
     else:
-        pvm.drop_l(tran, l_id)
+        pvm.drop_l(storage_iface, loc_node)
 
-    return l_id
+    return loc_node
 
 
-def delete_single_name(tran, omega_id, g_id):
+def delete_single_name(storage_iface, omega_id, glob_node):
     '''Deletes a file with a single name.'''
-    g_obj = tran.get(g_id)
-    new_g_id = pvm.drop_g(tran, omega_id, g_id)
-    new_g_obj = tran.get(new_g_id)
-    new_g_obj.prev_version[0].state = prov_db.DELETED
-    g_obj.next_version[0].state = prov_db.DELETED
-    for lnk in new_g_obj.process_object:
-        pvm.unbind(tran, lnk.id, new_g_id)
+    new_glob_node, new_loc_node = pvm.drop_g(storage_iface,
+                                        omega_id, glob_node)
+    prev_ver_rel_list = storage_iface.get_rel(new_glob_node,
+                                storage.RelType.GLOB_OBJ_PREV)
+    if len(prev_ver_rel_list) > 0:
+        prev_ver_rel_list[0]['state'] = storage.LinkState.DELETED
+
+    loc_node_rel_list = storage_iface.get_locals_from_global(new_glob_node)
+    for loc_node, loc_glob_rel in loc_node_rel_list:
+        pvm.unbind(storage_iface, loc_node, new_glob_node)
 
 
-def delete_multiple_names(tran, omega_id, g_id, g_name):
+def delete_multiple_names(storage_iface, omega_id, glob_node, glob_name):
     '''Deletes a file with multiple names.'''
-    g_obj = tran.get(g_id)
-    main_g_id = pvm.drop_g(tran, omega_id, g_id)
-    main_g_obj = tran.get(main_g_id)
-    for i in range(len(main_g_obj.name)):
-        if main_g_obj.name[i] == g_name:
-            del main_g_obj.name[i]
+    main_glob_node, main_loc_node = pvm.drop_g(storage_iface,
+                                        omega_id, glob_node)
+
+    glob_name_list = main_glob_node['name']
+    for i in range(len(glob_name_list)):
+        if glob_name_list[i] == glob_name:
+            del glob_name_list[i]
+            main_glob_node['name'] = glob_name_list
             break
-    for lnk in main_g_obj.process_object:
-        loc = tran.get(lnk.id)
-        loc.ref_count = loc.ref_count - 1
-    (side_g_id, side_g_obj) = tran.create(prov_db.GLOBAL)
-    side_g_obj.name.append(g_name)
-    tran.name_put(g_name, side_g_id)
-    fwd = g_obj.next_version.add()
-    fwd.id = side_g_id
-    fwd.state = prov_db.DELETED
-    bck = side_g_obj.prev_version.add()
-    bck.id = g_id
-    bck.state = prov_db.DELETED
+
+    loc_node_rel_list = storage_iface.get_locals_from_global(main_glob_node)
+    for loc_node, loc_glob_rel in loc_node_rel_list:
+        loc_node['ref_count'] = loc_node['ref_count'] - 1
+
+    side_glob_node = storage_iface.create_node(storage.NodeType.GLOBAL)
+    side_glob_node['name'] = [glob_name]
+    storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX, 'name',
+                                glob_name, side_glob_node)
+
+    glob_prev_rel = storage_iface.create_relationship(side_glob_node,
+                            glob_node, storage.RelType.GLOB_OBJ_PREV)
+    glob_prev_rel['state'] = storage.LinkState.DELETED
+
 
 
 @ActionMap.add('delete', True)
-def delete_action(tran, p_id, filename):
+def delete_action(storage_iface, proc_node, filename):
     '''Action that deletes a named file.'''
-    l_id = pvm.get_l(tran, p_id, "omega")
-    g_id = pvm.get_g(tran, l_id, filename)
-    g_obj = tran.get(g_id)
-    if len(g_obj.name) == 1:
-        delete_single_name(tran, l_id, g_id)
+    loc_node = pvm.get_l(storage_iface, proc_node, "omega")
+    glob_node = pvm.get_g(storage_iface, loc_node, filename)
+    name_list = glob_node['name']
+    if len(name_list) == 1:
+        delete_single_name(storage_iface, loc_node, glob_node)
     else:
-        delete_multiple_names(tran, l_id, g_id, filename)
-    new_l_id = tran.get(l_id).next_version.id
-    pvm.drop_l(tran, new_l_id)
-    utils.set_rw_lnk(tran, l_id, prov_db.WRITE)
-    return l_id
+        delete_multiple_names(storage_iface, loc_node, glob_node, filename)
+
+    new_loc_node = storage_iface.get_next_local_version(loc_node)
+    pvm.drop_l(storage_iface, new_loc_node)
+    utils.set_rw_lnk(storage_iface, loc_node, storage.LinkState.WRITE)
+
+    return loc_node
 
 
 @ActionMap.add('link', True)
-def link_action(tran, p_id, orig_name, new_name):
+def link_action(storage_iface, proc_node, orig_name, new_name):
     '''Action that links a new name to an existing file.'''
-    l_id = pvm.get_l(tran, p_id, "omega")
-    orig_id = pvm.get_g(tran, l_id, orig_name)
-    new_id = pvm.get_g(tran, l_id, new_name)
-    orig_id = pvm.drop_g(tran, l_id, orig_id)
-    new_obj = tran.get(new_id)
-    for lnk in new_obj.process_object:
-        if lnk.id != l_id:
-            pvm.version_local(tran, lnk.id, orig_id)
-    orig_obj = tran.get(orig_id)
-    for name in new_obj.name:
-        orig_obj.name.append(name)
-    new_obj.next_version.add().id = orig_id
-    orig_obj.prev_version.add().id = new_id
-    new_l_id = tran.get(l_id).next_version.id
-    pvm.drop_l(tran, new_l_id)
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, "omega")
+
+    orig_glob_node = pvm.get_g(storage_iface, loc_node, orig_name)
+
+    new_glob_node = pvm.get_g(storage_iface, loc_node, new_name)
+
+    new_o_glob_node, new_o_loc_node = pvm.drop_g(storage_iface,
+                                        loc_node, orig_glob_node)
+
+    loc_node_rel_list = storage_iface.get_locals_from_global(new_glob_node)
+    for l_node, l_glob_rel in loc_node_rel_list:
+        if l_node['node_id'] != loc_node['node_id']:
+            pvm.version_local(storage_iface, l_node, new_o_glob_node)
+
+    tmp_name_list = new_glob_node['name']
+    orig_name_list = new_o_glob_node['name']
+    for name in tmp_name_list:
+        orig_name_list.append(name)
+        storage_iface.update_index(storage.Neo4JInterface.FILE_INDEX,
+                                    'name', name, new_o_glob_node)
+    new_o_glob_node['name'] = orig_name_list
+
+    storage_iface.create_relationship(new_o_glob_node, new_glob_node,
+                                    storage.RelType.GLOB_OBJ_PREV)
+
+    pvm.drop_l(storage_iface, new_o_loc_node)
+    return loc_node
 
 
 @ActionMap.add('touch', True)
-def touch_action(tran, p_id, filename):
+def touch_action(storage_iface, proc_node, filename):
     '''Action that touches a named file.'''
-    l_id = pvm.get_l(tran, p_id, "omega")
-    g_id = pvm.get_g(tran, l_id, filename)
-    pvm.drop_g(tran, l_id, g_id)
-    l_obj = tran.get(l_id)
-    new_l_id = l_obj.next_version.id
-    pvm.drop_l(tran, new_l_id)
-    return l_id
+    loc_node = pvm.get_l(storage_iface, proc_node, "omega")
+
+    glob_node = pvm.get_g(storage_iface, loc_node, filename)
+
+    new_glob_node, new_loc_node = pvm.drop_g(storage_iface,
+                                        loc_node, glob_node)
+
+    pvm.drop_l(storage_iface, new_loc_node)
+    return loc_node

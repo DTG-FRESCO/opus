@@ -4,7 +4,7 @@ CC=protoc
 CFLAGS=--cpp_out=. --python_out=.
 
 
-SRC= uds_msg.proto prov_db.proto cc_msg.proto
+SRC= uds_msg.proto cc_msg.proto
 
 .SUFFIXES:
 .SUFFIXES: .proto .pb.cc

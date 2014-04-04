@@ -13,6 +13,7 @@ from opus import uds_msg_pb2 as uds_msg
 import logging
 import os
 import os.path
+import time
 
 
 class InvalidConfigFileException(common_utils.OPUSException):
@@ -52,6 +53,7 @@ def _startup_touch_file(touch_file):
     header.timestamp = (2**64) - 1
     header.tid = 0
     header.payload_type = uds_msg.TERM_MSG
+    header.sys_time = int(time.time())
 
     if os.path.exists(touch_file):
         term_msg.reason = uds_msg.TermMessage.CRASH
