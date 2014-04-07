@@ -190,8 +190,7 @@ class PVMAnalyser(OrderingAnalyser):
 
     def cleanup(self):
         '''Clear the process data structures.'''
-        posix.PIDMAP.clear()
-        posix.DisconController.clear()
+        posix.handle_cleanup()
 
     def process(self, (hdr, pay)):
         '''Process a single front end message, applying it's effects to the

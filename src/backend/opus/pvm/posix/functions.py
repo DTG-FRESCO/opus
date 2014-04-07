@@ -23,7 +23,7 @@ except ImportError:
 
 
 from opus import pvm
-from opus.pvm.posix import actions, utils
+from opus.pvm.posix import actions, process, utils
 from opus import storage
 
 
@@ -98,6 +98,30 @@ class FuncController(object):
 FuncController.load("opus/pvm/posix/pvm.yaml")
 
 
+@FuncController.dec('vfork')
+def posix_vfork(storage_iface, proc_node, msg):
+    '''Implementation of vfork in PVM semantics.'''
+    process.ProcStateController.proc_fork(storage_iface, proc_node,
+                                          msg.ret_val, msg.begin_time)
+    return proc_node
+
+
+@FuncController.dec('fork')
+def posix_fork(storage_iface, proc_node, msg):
+    '''Implementation of fork in PVM semantics.'''
+    process.ProcStateController.proc_fork(storage_iface, proc_node,
+                                          msg.ret_val, msg.begin_time)
+    return proc_node
+
+
+@FuncController.dec('popen')
+@utils.check_message_error_num
+def posix_popen(storage_iface, proc_node, msg):
+    '''Implementation of popen in PVM semantics.'''
+    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
+    return loc_node  # TODO(tb403) properly implement pipes
+
+
 @FuncController.dec('fcloseall')
 @utils.check_message_error_num
 def posix_fcloseall(storage_iface, proc_node, _):
@@ -123,10 +147,10 @@ def posix_freopen(storage_iface, proc_node, msg):
         utils.proc_get_local(storage_iface, proc_node, args['stream'])
     except utils.NoMatchingLocalError:
         actions.close_action(msg.error_num, storage_iface,
-                                proc_node, args['stream'])
+                             proc_node, args['stream'])
 
     new_loc_node = actions.open_action(storage_iface, proc_node,
-                                   args['filename'], str(msg.ret_val))
+                                       args['filename'], str(msg.ret_val))
     return new_loc_node
 
 
@@ -138,9 +162,9 @@ def posix_freopen64(storage_iface, proc_node, msg):
         utils.proc_get_local(storage_iface, proc_node, args['stream'])
     except utils.NoMatchingLocalError:
         actions.close_action(msg.error_num, storage_iface, proc_node,
-                                    args['stream'])
+                             args['stream'])
     new_loc_node = actions.open_action(storage_iface, proc_node,
-                                    args['filename'], str(msg.ret_val))
+                                       args['filename'], str(msg.ret_val))
     return new_loc_node
 
 
@@ -233,7 +257,7 @@ def posix_rename(storage_iface, proc_node, msg):
         if storage_iface.is_glob_deleted(dest_glob_node) is False:
             actions.delete_action(storage_iface, proc_node, args['newpath'])
     loc_node = actions.link_action(storage_iface, proc_node,
-                            args['oldpath'], args['newpath'])
+                                   args['oldpath'], args['newpath'])
     actions.delete_action(storage_iface, proc_node, args['oldpath'])
     return loc_node
 
@@ -245,14 +269,6 @@ def posix_umask(storage_iface, proc_node, msg):
     utils.update_proc_meta(storage_iface, proc_node, "file_mode_creation_mask",
                            args["mask"], msg.end_time)
     return proc_node
-
-
-@FuncController.dec('popen')
-@utils.check_message_error_num
-def posix_popen(storage_iface, proc_node, msg):
-    '''Implementation of popen in PVM semantics.'''
-    loc_node = pvm.get_l(storage_iface, proc_node, str(msg.ret_val))
-    return loc_node # TODO(tb403) properly implement pipes
 
 
 @FuncController.dec('tmpfile')
@@ -277,7 +293,7 @@ def posix_chdir(storage_iface, proc_node, msg):
     '''Implementation of chdir in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "cwd",
-                                args["path"], msg.end_time)
+                           args["path"], msg.end_time)
     return proc_node
 
 
@@ -302,7 +318,7 @@ def posix_fchdir(storage_iface, proc_node, msg):
     dir_name = name_list[0]
 
     utils.update_proc_meta(storage_iface, proc_node, "cwd",
-                            dir_name, msg.end_time)
+                           dir_name, msg.end_time)
     return loc_node
 
 
@@ -312,7 +328,7 @@ def posix_seteuid(storage_iface, proc_node, msg):
     '''Implementation of seteuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "euid",
-                            args["euid"], msg.end_time)
+                           args["euid"], msg.end_time)
     return proc_node
 
 
@@ -322,7 +338,7 @@ def posix_setegid(storage_iface, proc_node, msg):
     '''Implementation of setegid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "egid",
-                            args["egid"], msg.end_time)
+                           args["egid"], msg.end_time)
     return proc_node
 
 
@@ -332,7 +348,7 @@ def posix_setgid(storage_iface, proc_node, msg):
     '''Implementation of setgid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "gid",
-                            args["gid"], msg.end_time)
+                           args["gid"], msg.end_time)
     return proc_node
 
 
@@ -342,9 +358,9 @@ def posix_setreuid(storage_iface, proc_node, msg):
     '''Implementation of setreuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "ruid",
-                                args["ruid"], msg.end_time)
+                           args["ruid"], msg.end_time)
     utils.update_proc_meta(storage_iface, proc_node, "euid",
-                                args["euid"], msg.end_time)
+                           args["euid"], msg.end_time)
     return proc_node
 
 
@@ -354,9 +370,9 @@ def posix_setregid(storage_iface, proc_node, msg):
     '''Implementation of setregid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "rgid",
-                                args["rgid"], msg.end_time)
+                           args["rgid"], msg.end_time)
     utils.update_proc_meta(storage_iface, proc_node, "egid",
-                                args["egid"], msg.end_time)
+                           args["egid"], msg.end_time)
     return proc_node
 
 
@@ -366,7 +382,7 @@ def posix_setuid(storage_iface, proc_node, msg):
     '''Implementation of setuid in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
     utils.update_proc_meta(storage_iface, proc_node, "uid",
-                                args["uid"], msg.end_time)
+                           args["uid"], msg.end_time)
     return proc_node
 
 
@@ -375,15 +391,15 @@ def posix_setuid(storage_iface, proc_node, msg):
 def posix_clearenv(storage_iface, proc_node, msg):
     '''Implementation of clearenv in PVM semantics.'''
     env_meta_list = storage_iface.get_proc_meta(proc_node,
-                                storage.RelType.ENV_META)
+                                                storage.RelType.ENV_META)
 
     for meta_node, meta_rel in env_meta_list:
         new_meta_node = utils.new_meta(storage_iface, meta_node['name'],
-                                        None, msg.end_time)
+                                       None, msg.end_time)
         storage_iface.create_relationship(new_meta_node, meta_node,
-                                        storage.RelType.META_PREV)
+                                          storage.RelType.META_PREV)
         storage_iface.create_relationship(proc_node, new_meta_node,
-                                        storage.RelType.ENV_META)
+                                          storage.RelType.ENV_META)
         storage_iface.delete_relationship(meta_rel)
     return proc_node
 
@@ -431,8 +447,8 @@ def posix_fcntl(storage_iface, proc_node, msg):
     loc_node = utils.proc_get_local(storage_iface, proc_node, args['filedes'])
 
     if int(args['cmd']) == fcntl.F_DUPFD:
-        utils.proc_dup_fd(storage_iface, proc_node, args['filedes'],
-                            str(msg.ret_val))
+        utils.proc_dup_fd(storage_iface, proc_node,
+                          args['filedes'], str(msg.ret_val))
     if int(args['cmd']) == fcntl.F_SETFD:
         if int(args['arg']) == fcntl.FD_CLOEXEC:
             utils.set_link(storage_iface, loc_node, storage.LinkState.CLOEXEC)

@@ -50,64 +50,6 @@ def add_meta_to_proc(storage_iface, proc_node, name, val, time_stamp, rel_type):
     storage_iface.create_relationship(proc_node, meta_node, rel_type)
 
 
-def process_from_startup(storage_iface, (hdr, pay)):
-    '''Given a hdr, pay pair for a startup message create a process node,
-    meta nodes and link the process node to the meta nodes.'''
-
-    proc_node = storage_iface.create_node(storage.NodeType.PROCESS)
-
-    # Set properties on the process node
-    time_stamp = hdr.timestamp
-    proc_node['pid'] = hdr.pid
-
-    proc_node['timestamp'] = time_stamp
-
-    if pay.HasField('cwd'):
-        add_meta_to_proc(storage_iface, proc_node, "cwd", pay.cwd, time_stamp,
-                    storage.RelType.OTHER_META)
-
-    if pay.HasField('cmd_line_args'):
-        add_meta_to_proc(storage_iface, proc_node, "cmd_args",
-                    pay.cmd_line_args, time_stamp,
-                    storage.RelType.OTHER_META)
-
-    if pay.HasField('user_name'):
-        add_meta_to_proc(storage_iface, proc_node, "uid", pay.user_name,
-                    time_stamp, storage.RelType.OTHER_META)
-
-    if pay.HasField('group_name'):
-        add_meta_to_proc(storage_iface, proc_node, "gid", pay.group_name,
-                    time_stamp, storage.RelType.OTHER_META)
-
-    for pair in pay.environment:
-        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
-                    time_stamp, storage.RelType.ENV_META)
-
-    for pair in pay.system_info:
-        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
-                    time_stamp, storage.RelType.OTHER_META)
-
-    for pair in pay.resource_limit:
-        add_meta_to_proc(storage_iface, proc_node, pair.key, pair.value,
-                    time_stamp, storage.RelType.OTHER_META)
-
-    return proc_node
-
-
-def clone_file_des(storage_iface, old_proc_node, new_proc_node):
-    '''Clones the file descriptors of old_proc_node to new_proc_node
-    using the CoT mechanism.'''
-    loc_node_link_list = storage_iface.get_locals_from_process(old_proc_node)
-    for (loc_node, rel_link) in loc_node_link_list:
-        if rel_link['state'] in [storage.LinkState.CLOSED,
-                                storage.LinkState.CLOEXEC]:
-            continue
-        # Create a new link from the local node to the new process node
-        new_rel_link = storage_iface.create_relationship(loc_node,
-                                new_proc_node, storage.RelType.PROC_OBJ)
-        new_rel_link['state'] = storage.LinkState.CoT
-
-
 def new_meta(storage_iface, name, val, time_stamp):
     '''Create a new meta object node with the given name, value and timestamp.'''
     meta_node = storage_iface.create_node(storage.NodeType.META)
