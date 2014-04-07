@@ -575,10 +575,6 @@ fexecve:
   action: event
   arg_map: {}
 
-fork:
-  action: event
-  arg_map: {}
-
 utime:
   action: touch
   arg_map:
