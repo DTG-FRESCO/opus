@@ -179,14 +179,14 @@ class PVMAnalyser(OrderingAnalyser):
     storage system.'''
     def __init__(self, storage_type, storage_args, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
-        self.storage_iface = common_utils.meta_factory(storage.StorageIFace,
+        self.db_iface = common_utils.meta_factory(storage.StorageIFace,
                                                 storage_type, **storage_args)
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
         once it is complete.'''
         super(PVMAnalyser, self).run()
-        self.storage_iface.close()
+        self.db_iface.close()
 
     def cleanup(self):
         '''Clear the process data structures.'''
@@ -201,17 +201,17 @@ class PVMAnalyser(OrderingAnalyser):
         pay_obj.ParseFromString(pay)
 
         # Set system time for current message
-        self.storage_iface.set_sys_time_for_msg(hdr_obj.sys_time)
+        self.db_iface.set_sys_time_for_msg(hdr_obj.sys_time)
 
-        with self.storage_iface.start_transaction():
+        with self.db_iface.start_transaction():
             if hdr_obj.payload_type == uds_msg.FUNCINFO_MSG:
-                posix.handle_function(self.storage_iface, hdr_obj.pid, pay_obj)
+                posix.handle_function(self.db_iface, hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
-                posix.handle_process(self.storage_iface, hdr_obj, pay_obj)
+                posix.handle_process(self.db_iface, hdr_obj, pay_obj)
             elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
                 if pay_obj.msg_type == uds_msg.DISCON:
                     posix.handle_disconnect(hdr_obj.pid)
                 elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
                     posix.handle_prefunc(hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.TERM_MSG:
-                    posix.handle_startup(self.storage_iface, pay_obj)
+                    posix.handle_startup(self.db_iface, pay_obj)

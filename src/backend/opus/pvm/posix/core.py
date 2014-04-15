@@ -16,22 +16,23 @@ from opus.pvm.posix import actions, functions, process, utils
 from opus import storage
 
 
-def handle_function(storage_iface, pid, msg):
+def handle_function(db_iface, pid, msg):
     '''Handle a function call message from the given pid.'''
     try:
-        proc_node = storage_iface.get_node_by_id(process.ProcStateController.resolve_process(pid))
+        proc_node = db_iface.get_node_by_id(
+            process.ProcStateController.resolve_process(pid))
         affected_node = functions.FuncController.call(msg.func_name,
-                                                      storage_iface,
+                                                      db_iface,
                                                       proc_node,
                                                       msg)
-        utils.add_event(storage_iface, affected_node, msg)
+        utils.add_event(db_iface, affected_node, msg)
     except functions.MissingMappingError as ex:
         logging.debug(ex)
 
 
-def handle_process(storage_iface, hdr, pay):
+def handle_process(db_iface, hdr, pay):
     '''Handle a process startup message.'''
-    process.ProcStateController.proc_startup(storage_iface, hdr, pay)
+    process.ProcStateController.proc_startup(db_iface, hdr, pay)
 
 
 def handle_disconnect(pid):
@@ -45,13 +46,14 @@ def handle_prefunc(pid, msg):
         process.ProcStateController.proc_exec(pid)
 
 
-def handle_startup(storage_iface, pay):
+def handle_startup(db_iface, pay):
     '''Handle system startup.'''
-    term_node = storage_iface.create_node(storage.NodeType.TERM)
+    term_node = db_iface.create_node(storage.NodeType.TERM)
     term_node['reason'] = pay.reason
     term_node['downtime_start'] = pay.downtime_start
     term_node['downtime_end'] = pay.downtime_end
 
 
 def handle_cleanup():
+    '''Cleanup all PVM state'''
     process.ProcStateController.clear()
