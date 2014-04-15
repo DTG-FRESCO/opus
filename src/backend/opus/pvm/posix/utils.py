@@ -13,13 +13,16 @@ import logging
 
 from opus import pvm, storage, common_utils, traversal
 
-class PVMException(common_utils.OPUSException):
-    '''Base exception for PVM related failures.'''
-    def __init__(self, msg):
-        super(PVMException, self).__init__(msg)
+
+class InvalidNodeTypeException(common_utils.OPUSException):
+    '''exception for Invalid node types.'''
+    def __init__(self, node_type):
+        super(InvalidNodeTypeException, self).__init__(
+            "Error: Tried to assign an event to a node of type %d, "
+            "expected Local or Process." % node_type)
 
 
-class NoMatchingLocalError(PVMException):
+class NoMatchingLocalError(common_utils.OPUSException):
     '''Failed to find a local object matching the supplied name.'''
     def __init__(self, proc_node, name):
         super(NoMatchingLocalError, self).__init__(
@@ -116,49 +119,6 @@ def proc_get_local(db_iface, proc_node, loc_name):
     return new_loc_node
 
 
-
-def ins_local(db_iface, event_node, loc_node):
-    '''Inserts an event into local object.'''
-
-    # Get the last IO event and the connecting link
-    last_io_event_node, event_rel = traversal.get_last_event(
-        db_iface, loc_node, storage.RelType.IO_EVENTS)
-
-    if last_io_event_node is not None:
-        # Link the new event with the last IO event as previous
-        db_iface.create_relationship(event_node, last_io_event_node,
-                                     storage.RelType.PREV_EVENT)
-
-    # Create a new link between local object and new event object
-    db_iface.create_relationship(loc_node, event_node,
-                                 storage.RelType.IO_EVENTS)
-
-    if event_rel is not None:
-        # Delete the old link between local object and old event object
-        db_iface.delete_relationship(event_rel)
-
-
-def ins_proc(db_iface, event_node, proc_node):
-    '''Inserts an event into process object.'''
-
-    # Get the last process event and the connecting link
-    last_proc_event_node, event_rel = traversal.get_last_event(
-        db_iface, proc_node, storage.RelType.PROC_EVENTS)
-
-    if last_proc_event_node is not None:
-        # Link the new event with the last process event as previous
-        db_iface.create_relationship(event_node, last_proc_event_node,
-                                     storage.RelType.PREV_EVENT)
-
-    # Create a new link between process object and new event object
-    db_iface.create_relationship(proc_node, event_node,
-                                 storage.RelType.PROC_EVENTS)
-
-    if event_rel is not None:
-        # Delete the old link between process object and old event object
-        db_iface.delete_relationship(event_rel)
-
-
 def update_proc_meta(db_iface, proc_node, meta_name, new_val, timestamp):
     '''Updates the meta object meta_name for the process with a new value
     and timestamp. Adds a new object if an existing one cannot be found.'''
@@ -183,12 +143,33 @@ def update_proc_meta(db_iface, proc_node, meta_name, new_val, timestamp):
 
 def add_event(db_iface, node, msg):
     '''Adds an event to node, automatically deriving the object type.'''
+    rel_type = None
     event_node = event_from_msg(db_iface, msg)
     node_type = node['type']
+
     if node_type == storage.NodeType.LOCAL:
-        ins_local(db_iface, event_node, node)
+        rel_type = storage.RelType.IO_EVENTS
     elif node_type == storage.NodeType.PROCESS:
-        ins_proc(db_iface, event_node, node)
+        rel_type = storage.RelType.PROC_EVENTS
+
+    if rel_type is None:
+        raise InvalidNodeTypeException(node_type)
+
+    # Get the last event and the connecting link
+    last_event_node, event_rel = traversal.get_last_event(db_iface, node,
+                                                          rel_type)
+
+    if last_event_node is not None:
+        # Link the new event with the last event as previous
+        db_iface.create_relationship(event_node, last_event_node,
+                                     storage.RelType.PREV_EVENT)
+
+    # Create a new link between node object and new event object
+    db_iface.create_relationship(node, event_node, rel_type)
+
+    if event_rel is not None:
+        # Delete the old link between node object and old event object
+        db_iface.delete_relationship(event_rel)
 
 
 def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
@@ -268,15 +249,16 @@ def set_rw_lnk(db_iface, loc_node, state):
         else:
             new_state = state
 
-        set_link(db_iface, loc_node, new_state)
+        set_link(db_iface, loc_node, new_state, glob_node_list)
 
 
 
-def set_link(db_iface, loc_node, state):
+def set_link(db_iface, loc_node, state, glob_node_list=None):
     '''Sets the link between loc_node and the global it is connected to.'''
-    glob_node_link_list = traversal.get_globals_from_local(db_iface, loc_node)
-    if len(glob_node_link_list) == 1:
-        glob_node, rel_link = glob_node_link_list[0]
+    if glob_node_list is None:
+        glob_node_list = traversal.get_globals_from_local(db_iface, loc_node)
+    if len(glob_node_list) == 1:
+        glob_node, rel_link = glob_node_list[0]
         rel_link['state'] = state
         if state == storage.LinkState.BIN:
             for name in glob_node['name']:
