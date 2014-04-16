@@ -53,18 +53,19 @@ def patch_custom_monotonic_time():
     try:
         monotonic_time(ClockConstant.CLOCK_MONOTONIC)
         time.CLOCK_MONOTONIC = ClockConstant.CLOCK_MONOTONIC
-    except OSError as (_errno, err_msg):
-        if _errno == errno.EINVAL:
+    except OSError as exc:
+        if exc.errno == errno.EINVAL:
             mono_invalid = 1
-            logging.error("%s, %d", err_msg, ClockConstant.CLOCK_MONOTONIC)
+            logging.error("%s, %d", exc.strerror, ClockConstant.CLOCK_MONOTONIC)
 
     try:
         monotonic_time(ClockConstant.CLOCK_MONOTONIC_RAW)
         time.CLOCK_MONOTONIC_RAW = ClockConstant.CLOCK_MONOTONIC_RAW
-    except OSError as (_errno, err_msg):
-        if _errno == errno.EINVAL:
+    except OSError as exc:
+        if exc.errno == errno.EINVAL:
             mono_raw_invalid = 1
-            logging.error("%s, %d", err_msg, ClockConstant.CLOCK_MONOTONIC_RAW)
+            logging.error("%s, %d", exc.strerror,
+                          ClockConstant.CLOCK_MONOTONIC_RAW)
             if not mono_invalid:
                 time.CLOCK_MONOTONIC_RAW = ClockConstant.CLOCK_MONOTONIC
 

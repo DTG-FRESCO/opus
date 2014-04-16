@@ -16,8 +16,8 @@ def version_local(db_iface, old_loc_node, glob_node):
     new_loc_node = db_iface.create_node(storage.NodeType.LOCAL)
 
     # Create link from global obj to new local obj
-    glob_to_loc_rel = db_iface.create_relationship(glob_node,
-        new_loc_node, storage.RelType.LOC_OBJ)
+    db_iface.create_relationship(glob_node, new_loc_node,
+                                 storage.RelType.LOC_OBJ)
     # NOTE: Should we copy over state (nb466)?
 
     # Copy over the local name and ref_count
@@ -69,8 +69,8 @@ def version_global(db_iface, old_glob_node):
     # the old global object and link them to the new global object
     loc_node_link_list = traversal.get_locals_from_global(db_iface,
                                                           old_glob_node)
-    for (loc_node, rel_link) in loc_node_link_list:
-        new_loc_node = version_local(db_iface, loc_node, new_glob_node)
+    for (loc_node, _) in loc_node_link_list:
+        version_local(db_iface, loc_node, new_glob_node)
 
     return new_glob_node
 

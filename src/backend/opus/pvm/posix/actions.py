@@ -8,8 +8,6 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
-import logging
-
 from opus import pvm, storage, traversal
 from opus.pvm.posix import utils
 
@@ -82,7 +80,7 @@ def null_action(err, db_iface, proc_node, filedes):
 def open_action(db_iface, proc_node, filename, filedes):
     '''Action that opens a named file.'''
     loc_node = pvm.get_l(db_iface, proc_node, filedes)
-    new_glob_node = pvm.get_g(db_iface, loc_node, filename)
+    pvm.get_g(db_iface, loc_node, filename)
     return loc_node
 
 
@@ -99,9 +97,8 @@ def close_action(err, db_iface, proc_node, filedes):
 
     glob_node_list = traversal.get_globals_from_local(db_iface, loc_node)
     if len(glob_node_list) > 0:
-        glob_node, glob_loc_rel = glob_node_list[0]
-        new_glob_node, new_loc_node = pvm.drop_g(db_iface,
-                                                 loc_node, glob_node)
+        glob_node, _ = glob_node_list[0]
+        _, new_loc_node = pvm.drop_g(db_iface, loc_node, glob_node)
         pvm.drop_l(db_iface, new_loc_node)
     else:
         pvm.drop_l(db_iface, loc_node)
@@ -111,8 +108,7 @@ def close_action(err, db_iface, proc_node, filedes):
 
 def delete_single_name(db_iface, omega_id, glob_node):
     '''Deletes a file with a single name.'''
-    new_glob_node, new_loc_node = pvm.drop_g(db_iface,
-                                             omega_id, glob_node)
+    new_glob_node, _ = pvm.drop_g(db_iface, omega_id, glob_node)
     prev_ver_rel_list = traversal.get_rel(db_iface, new_glob_node,
                                 storage.RelType.GLOB_OBJ_PREV)
     if len(prev_ver_rel_list) > 0:
@@ -120,14 +116,13 @@ def delete_single_name(db_iface, omega_id, glob_node):
 
     loc_node_rel_list = traversal.get_locals_from_global(db_iface,
                                                          new_glob_node)
-    for loc_node, loc_glob_rel in loc_node_rel_list:
+    for loc_node, _ in loc_node_rel_list:
         pvm.unbind(db_iface, loc_node, new_glob_node)
 
 
 def delete_multiple_names(db_iface, omega_id, glob_node, glob_name):
     '''Deletes a file with multiple names.'''
-    main_glob_node, main_loc_node = pvm.drop_g(db_iface,
-                                               omega_id, glob_node)
+    main_glob_node, _ = pvm.drop_g(db_iface, omega_id, glob_node)
 
     glob_name_list = main_glob_node['name']
     for i in range(len(glob_name_list)):
@@ -138,7 +133,7 @@ def delete_multiple_names(db_iface, omega_id, glob_node, glob_name):
 
     loc_node_rel_list = traversal.get_locals_from_global(db_iface,
                                                          main_glob_node)
-    for loc_node, loc_glob_rel in loc_node_rel_list:
+    for loc_node, _ in loc_node_rel_list:
         loc_node['ref_count'] = loc_node['ref_count'] - 1
 
     side_glob_node = db_iface.create_node(storage.NodeType.GLOBAL)
@@ -184,7 +179,7 @@ def link_action(db_iface, proc_node, orig_name, new_name):
 
     loc_node_rel_list = traversal.get_locals_from_global(db_iface,
                                                          new_glob_node)
-    for l_node, l_glob_rel in loc_node_rel_list:
+    for l_node, _ in loc_node_rel_list:
         if l_node['node_id'] != loc_node['node_id']:
             pvm.version_local(db_iface, l_node, new_o_glob_node)
 
@@ -210,8 +205,7 @@ def touch_action(db_iface, proc_node, filename):
 
     glob_node = pvm.get_g(db_iface, loc_node, filename)
 
-    new_glob_node, new_loc_node = pvm.drop_g(db_iface,
-                                             loc_node, glob_node)
+    _, new_loc_node = pvm.drop_g(db_iface, loc_node, glob_node)
 
     pvm.drop_l(db_iface, new_loc_node)
     return loc_node

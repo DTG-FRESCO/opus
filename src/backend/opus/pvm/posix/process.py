@@ -13,6 +13,7 @@ from opus.pvm.posix import actions, utils
 
 
 def create_proc(db_iface, pid, time_stamp):
+    '''Create a process node with the given pid and timestamp.'''
     proc_node = db_iface.create_node(storage.NodeType.PROCESS)
 
     # Set properties on the process node
@@ -23,6 +24,8 @@ def create_proc(db_iface, pid, time_stamp):
 
 
 def expand_proc(db_iface, proc_node, pay):
+    '''Expand a process node with a binary relation and with meta data
+    from a given startup message payload 'pay'.'''
     time_stamp = proc_node['timestamp']
 
     loc_node = actions.touch_action(db_iface, proc_node, pay.exec_name)
@@ -84,6 +87,9 @@ class ProcStateController(object):
 
     @classmethod
     def proc_fork(cls, db_iface, p_node, pid, timestamp):
+        '''Handle a process 'p_node' forking a child with pid 'pid' at time
+        'timestamp'. Returns True if this is successful and False if this
+        violates the state system.'''
         if pid not in cls.proc_map:
             cls.proc_map[pid] = cls.proc_states.FORK
             new_proc_node = create_proc(db_iface, pid, timestamp)
@@ -101,6 +107,7 @@ class ProcStateController(object):
 
     @classmethod
     def proc_startup(cls, db_iface, hdr, pay):
+        '''Handles a process startup message arriving.'''
         if hdr.pid not in cls.proc_map:
             cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
 
@@ -129,6 +136,9 @@ class ProcStateController(object):
 
     @classmethod
     def proc_exec(cls, pid):
+        '''Handles a process with pid 'pid' executing an exec function.
+        Returns True if this succeeds and returns False if this violates
+        the state system.'''
         if pid in cls.proc_map:
             if cls.proc_map[pid] == cls.proc_states.NORMAL:
                 cls.proc_map[pid] = cls.proc_states.EXECED
@@ -146,6 +156,9 @@ class ProcStateController(object):
 
     @classmethod
     def proc_discon(cls, pid):
+        '''Handles a process with pid 'pid' disconnecting from the backend.
+        Returns True unless the process is unknown to the system, in which
+        case it returns False.'''
         if pid in cls.proc_map:
             if cls.proc_map[pid] == cls.proc_states.EXECED:
                 cls.proc_map[pid] = cls.proc_states.NORMAL
@@ -160,6 +173,9 @@ class ProcStateController(object):
 
     @classmethod
     def resolve_process(cls, pid):
+        '''Attempts to resolve an ID for a process with pid 'pid'. Logs an
+        error and returns None in the event that the pid supplied is
+        unknown.'''
         if pid in cls.PIDMAP:
             return cls.PIDMAP[pid]
         else:
@@ -169,5 +185,6 @@ class ProcStateController(object):
 
     @classmethod
     def clear(cls):
+        '''Clears up the classes data structures.'''
         cls.PIDMAP = {}
         cls.proc_map = {}

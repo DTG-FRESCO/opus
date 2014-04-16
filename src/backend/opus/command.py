@@ -159,7 +159,7 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         msg.cmd_name = "kill"
         arg = msg.args.add()
         arg.key = "pid"
-        if re.match("\A\d*\Z", args) is None:
+        if re.match(r"\A\d*\Z", args) is None:
             print("Error: Kill takes a single number as an argument.")
             return False
         arg.value = args

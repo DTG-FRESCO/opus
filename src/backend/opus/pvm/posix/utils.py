@@ -9,7 +9,6 @@ from __future__ import (absolute_import, division,
 
 
 import functools
-import logging
 
 from opus import pvm, storage, common_utils, traversal
 
@@ -190,7 +189,7 @@ def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
         glob_node_link_list = traversal.get_globals_from_local(db_iface,
                                                                o_loc_node)
         if len(glob_node_link_list) > 0:
-            glob_node, glob_loc_rel = glob_node_link_list[0]
+            glob_node, _ = glob_node_link_list[0]
             new_glob_node, new_o_loc_node = pvm.drop_g(db_iface,
                                                        o_loc_node, glob_node)
             pvm.drop_l(db_iface, new_o_loc_node)
@@ -201,7 +200,7 @@ def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
     i_glob_node_link_list = traversal.get_globals_from_local(db_iface,
                                                              i_loc_node)
     if len(i_glob_node_link_list) == 1:
-        i_glob_node, i_glob_rel = i_glob_node_link_list[0]
+        i_glob_node, _ = i_glob_node_link_list[0]
         new_glob_node = pvm.version_global(db_iface, i_glob_node)
         pvm.bind(db_iface, o_loc_node, new_glob_node)
 
@@ -222,17 +221,25 @@ def process_put_env(db_iface, proc_node, env, overwrite):
             found = True
             if not overwrite:
                 break
-            new_meta_node = new_meta(db_iface, name, val, time_stamp)
-            db_iface.create_relationship(new_meta_node, meta_node,
-                                         storage.RelType.META_PREV)
-            db_iface.create_relationship(proc_node, new_meta_node,
-                                         storage.RelType.ENV_META)
-            db_iface.delete_relationship(meta_rel)
+            version_meta(db_iface, proc_node, meta_node, meta_rel, env)
 
     if not found and val is not None:
         new_meta_node = new_meta(db_iface, name, val, time_stamp)
         db_iface.create_relationship(proc_node, new_meta_node,
                                      storage.RelType.ENV_META)
+
+
+def version_meta(db_iface, proc_node, meta_node, meta_rel, env):
+    '''Adds a new node to the meta chain of 'proc_node' replacing
+    'meta_node'.'''
+    name, val, time_stamp = env
+    new_meta_node = new_meta(db_iface, name, val, time_stamp)
+
+    db_iface.create_relationship(new_meta_node, meta_node,
+                                 storage.RelType.META_PREV)
+    db_iface.create_relationship(proc_node, new_meta_node,
+                                 storage.RelType.ENV_META)
+    db_iface.delete_relationship(meta_rel)
 
 
 def set_rw_lnk(db_iface, loc_node, state):
@@ -242,7 +249,7 @@ def set_rw_lnk(db_iface, loc_node, state):
     glob_node_list = traversal.get_globals_from_local(db_iface, loc_node)
 
     if len(glob_node_list) == 1:
-        glob_node, glob_loc_rel = glob_node_list[0]
+        _, glob_loc_rel = glob_node_list[0]
         if ((state == storage.LinkState.READ and
             glob_loc_rel['state'] == storage.LinkState.WRITE) or
             (state == storage.LinkState.WRITE and

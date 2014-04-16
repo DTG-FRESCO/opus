@@ -129,11 +129,11 @@ def posix_fcloseall(db_iface, proc_node, _):
     local_node_link_list = traversal.get_locals_from_process(db_iface,
                                                              proc_node)
 
-    for (loc_node, rel_link) in local_node_link_list:
+    for (loc_node, _) in local_node_link_list:
         glob_node_link_list = traversal.get_globals_from_local(db_iface,
                                                                loc_node)
 
-        for (glob_node, rel_link) in glob_node_link_list:
+        for (glob_node, _) in glob_node_link_list:
             pvm.drop_g(db_iface, loc_node, glob_node)
         pvm.drop_l(db_iface, loc_node)
 
@@ -245,6 +245,7 @@ def posix_dup3(db_iface, proc_node, msg):
 
 @FuncController.dec('renameat')
 def posix_renameat(db_iface, p_id, msg):
+    '''Implementation of renameat in PVM semantics.'''
     return posix_rename(db_iface, p_id, msg)
 
 
@@ -316,7 +317,7 @@ def posix_fchdir(db_iface, proc_node, msg):
     if len(glob_node_rel_list) == 0 or len(glob_node_rel_list) > 1:
         return loc_node
 
-    glob_node, rel = glob_node_rel_list[0]
+    glob_node, _ = glob_node_rel_list[0]
     name_list = glob_node['name']
     dir_name = name_list[0]
 
@@ -397,13 +398,8 @@ def posix_clearenv(db_iface, proc_node, msg):
                                                 storage.RelType.ENV_META)
 
     for meta_node, meta_rel in env_meta_list:
-        new_meta_node = utils.new_meta(db_iface, meta_node['name'],
-                                       None, msg.end_time)
-        db_iface.create_relationship(new_meta_node, meta_node,
-                                          storage.RelType.META_PREV)
-        db_iface.create_relationship(proc_node, new_meta_node,
-                                          storage.RelType.ENV_META)
-        db_iface.delete_relationship(meta_rel)
+        utils.version_meta(db_iface, proc_node, meta_node, meta_rel,
+                           (meta_node['name'], None, msg.end_time))
     return proc_node
 
 
