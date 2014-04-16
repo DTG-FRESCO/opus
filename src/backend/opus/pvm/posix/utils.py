@@ -147,6 +147,9 @@ def add_event(db_iface, node, msg):
     event_node = event_from_msg(db_iface, msg)
     node_type = node['type']
 
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                  node.id)
+
     if node_type == storage.NodeType.LOCAL:
         rel_type = storage.RelType.IO_EVENTS
     elif node_type == storage.NodeType.PROCESS:

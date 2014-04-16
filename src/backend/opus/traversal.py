@@ -29,6 +29,8 @@ def is_glob_deleted(glob_node):
     return ret
 
 
+@storage.CacheManager.dec(storage.CACHE_NAMES.LOCAL_GLOBAL,
+                          lambda loc_node: loc_node.id)
 def get_globals_from_local(db_iface, loc_node):
     '''Gets the global object nodes and relationship list
     associated with the local object node'''
@@ -105,6 +107,8 @@ def get_next_local_version(db_iface, loc_node):
     return next_loc_node
 
 
+@storage.CacheManager.dec(storage.CACHE_NAMES.VALID_LOCAL,
+                          lambda proc_node, loc_name: (proc_node.id, loc_name))
 def get_valid_local(db_iface, proc_node, loc_name):
     '''Returns a local, local->process link tuple
     filtered by local node name and link state'''
@@ -196,6 +200,8 @@ def get_proc_meta(db_iface, proc_node, rel_type):
     return meta_rel_list
 
 
+@storage.CacheManager.dec(storage.CACHE_NAMES.LAST_EVENT,
+                          lambda start_node, rel_type: start_node.id)
 def get_last_event(db_iface, start_node, rel_type):
     '''Returns the event object and relationship link
     connected to the passed node'''

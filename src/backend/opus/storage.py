@@ -57,6 +57,11 @@ LinkState = common_utils.enum(NONE = 0,
                                 CLOEXEC = 9,
                                 INACTIVE = 10)
 
+#Enum values for cache naming
+CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
+                                LOCAL_GLOBAL=1,
+                                LAST_EVENT=2,
+                                NODE_BY_ID=3)
 
 
 class UniqueIDException(common_utils.OPUSException):
@@ -65,6 +70,63 @@ class UniqueIDException(common_utils.OPUSException):
         super(UniqueIDException, self).__init__(
             "Error: Unique ID generation error"
         )
+
+
+class InvalidCacheException(common_utils.OPUSException):
+    '''Exception when unique ID cannot be generated'''
+    def __init__(self, cache):
+        super(InvalidCacheException, self).__init__(
+            "Error: Attempted to access cache {0} but it did not "
+            "exist.".format(cache)
+        )
+
+
+class CacheManager(object):
+    '''Manages a series of caches and allows for them to be
+    updated and invalidated.'''
+    def __init__(self, cache_list):
+        self.caches = {key: {} for key in cache_list}
+
+    def invalidate(self, cache, key):
+        if cache not in self.caches:
+            raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
+
+        if key not in self.caches[cache]:
+            logging.info("Warning: Attempted to invalidate key {0} "
+                         "in cache {1} but {0} was not present in "
+                         "the cache.".format(key,
+                                             CACHE_NAMES.enum_str(cache)))
+            return
+
+        del self.caches[cache][key]
+
+    @staticmethod
+    def dec(cache, key_lambda):
+        '''Decorates a function to cache it's return values in 'cache', uses
+        'key_lambda' to convert the arguments of the function into a key for
+        the cache.'''
+        def wrapper(fun):
+            '''Wraps function fun.'''
+            @functools.wraps(fun)
+            def wrapped_fun(db_iface, *args, **kwargs):
+                '''Caches the return of fun using key_lambda to convert
+                it's arguments into a key.'''
+                if cache not in db_iface.cache_man.caches:
+                    raise InvalidCacheException(
+                        CACHE_NAMES.enum_str(cache)
+                        )
+
+                key = key_lambda(*args, **kwargs)
+
+                if key in db_iface.cache_man.caches[cache]:
+                    return db_iface.cache_man.caches[cache][key]
+
+                val = fun(db_iface, *args, **kwargs)
+
+                db_iface.cache_man.caches[cache][key] = val
+                return val
+            return wrapped_fun
+        return wrapper
 
 
 class StorageIFace(object):
@@ -115,6 +177,11 @@ class DBInterface(StorageIFace):
             self.node_id_idx = None
             self.id_node = None
             self.sys_time = int(time.time())
+
+            self.cache_man = CacheManager([CACHE_NAMES.LOCAL_GLOBAL,
+                                           CACHE_NAMES.LAST_EVENT,
+                                           CACHE_NAMES.VALID_LOCAL,
+                                           CACHE_NAMES.NODE_BY_ID])
 
             with self.db.transaction:
                 # Unique ID index
@@ -244,7 +311,7 @@ class DBInterface(StorageIFace):
         '''Deletes relatioship given a relationship object'''
         rel.delete()
 
-
+    @CacheManager.dec(CACHE_NAMES.NODE_BY_ID, lambda node_id: node_id)
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
         node_list = self.node_id_idx['node'][node_id]

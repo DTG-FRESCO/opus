@@ -24,10 +24,10 @@ except ImportError:
 
 from opus import pvm
 from opus.pvm.posix import actions, process, utils
-from opus import storage, traversal
+from opus import common_utils, storage, traversal
 
 
-class MissingMappingError(utils.PVMException):
+class MissingMappingError(common_utils.OPUSException):
     '''Failed to find a mapping for a given function.'''
     def __init__(self):
         super(MissingMappingError, self).__init__(

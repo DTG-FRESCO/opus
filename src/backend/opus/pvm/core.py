@@ -36,6 +36,9 @@ def version_local(db_iface, old_loc_node, glob_node):
     db_iface.create_relationship(new_loc_node, proc_node,
                                  storage.RelType.PROC_OBJ)
 
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                  (proc_node.id, old_loc_node['name']))
+
     # Change local->process link status to INACTIVE
     rel_link['state'] = storage.LinkState.INACTIVE
 
@@ -119,6 +122,9 @@ def drop_l(db_iface, loc_node):
     proc_node, rel_link = traversal.get_process_from_local(db_iface, loc_node)
     rel_link['state'] = storage.LinkState.CLOSED
 
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                  (proc_node.id, loc_node['name']))
+
 
 def drop_g(db_iface, loc_node, glob_node):
     '''PVM drop on glob_node and disassociated fron loc_node.'''
@@ -132,6 +138,8 @@ def bind(db_iface, loc_node, glob_node):
     '''PVM bind between loc_node and glob_node.'''
     db_iface.create_relationship(glob_node, loc_node,
                                  storage.RelType.LOC_OBJ)
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
+                                  loc_node.id)
     ref_count = 0
     if glob_node.has_key('name'):
         ref_count = len(glob_node['name'])
@@ -142,3 +150,6 @@ def unbind(db_iface, loc_node, glob_node):
     '''PVM unbind between loc_node and glob_node.'''
     db_iface.find_and_del_rel(glob_node, loc_node, storage.RelType.LOC_OBJ)
     loc_node['ref_count'] = 0
+
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
+                                  loc_node.id)

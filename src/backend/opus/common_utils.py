@@ -86,7 +86,7 @@ def meta_factory(base, tag, *args, **kwargs):
 
 def enum(**enums):
     '''Returns an enum class object'''
-    enums['enum_str'] = lambda x: {val: key for key, val in enums.items()}[x]
+    enums['enum_str'] = staticmethod(lambda x: {val: key for key, val in enums.items()}[x])
     return type(str('Enum'), (), enums)
 
 
