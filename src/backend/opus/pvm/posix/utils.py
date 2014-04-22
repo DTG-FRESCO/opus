@@ -87,7 +87,6 @@ def event_from_msg(db_iface, msg):
     return event_node
 
 
-
 def proc_get_local(db_iface, proc_node, loc_name):
     '''Retrieves the local object node that corresponds with
     a given name from a process node.'''
@@ -100,7 +99,7 @@ def proc_get_local(db_iface, proc_node, loc_name):
     if loc_proc_rel['state'] != storage.LinkState.CoT:
         return loc_node
 
-    #### Handle Copy on Touch ####
+    # ### Handle Copy on Touch ### #
 
     # Delete the CoT link to local
     db_iface.delete_relationship(loc_proc_rel)
@@ -250,17 +249,16 @@ def set_rw_lnk(db_iface, loc_node, state):
 
     if len(glob_node_list) == 1:
         _, glob_loc_rel = glob_node_list[0]
-        if ((state == storage.LinkState.READ and
+        if((state == storage.LinkState.READ and
             glob_loc_rel['state'] == storage.LinkState.WRITE) or
-            (state == storage.LinkState.WRITE and
+           (state == storage.LinkState.WRITE and
             glob_loc_rel['state'] == storage.LinkState.READ) or
-            glob_loc_rel['state'] == storage.LinkState.RaW):
+           glob_loc_rel['state'] == storage.LinkState.RaW):
             new_state = storage.LinkState.Raw
         else:
             new_state = state
 
         set_link(db_iface, loc_node, new_state, glob_node_list)
-
 
 
 def set_link(db_iface, loc_node, state, glob_node_list=None):
@@ -276,7 +274,6 @@ def set_link(db_iface, loc_node, state, glob_node_list=None):
                                       'name', name, glob_node)
             db_iface.update_time_index(storage.DBInterface.PROC_INDEX,
                                        glob_node['sys_time'], glob_node)
-
 
 
 def process_rw_pair(db_iface, proc_node, msg):

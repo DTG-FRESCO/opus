@@ -130,7 +130,7 @@ class TCPInterface(CommandInterface):
                 break
 
 
-class CMDInterface(CommandInterface, cmd.Cmd):
+class CMDInterface(CommandInterface, cmd.Cmd):  # pylint: disable=R0904
     '''Command line interface for command and control module.'''
     def __init__(self, *args, **kwargs):
         super(CMDInterface, self).__init__(*args, **kwargs)

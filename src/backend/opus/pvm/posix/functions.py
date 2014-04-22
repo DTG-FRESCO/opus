@@ -395,7 +395,7 @@ def posix_setuid(db_iface, proc_node, msg):
 def posix_clearenv(db_iface, proc_node, msg):
     '''Implementation of clearenv in PVM semantics.'''
     env_meta_list = traversal.get_proc_meta(db_iface, proc_node,
-                                                storage.RelType.ENV_META)
+                                            storage.RelType.ENV_META)
 
     for meta_node, meta_rel in env_meta_list:
         utils.version_meta(db_iface, proc_node, meta_node, meta_rel,

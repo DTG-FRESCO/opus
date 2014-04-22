@@ -110,7 +110,7 @@ def delete_single_name(db_iface, omega_id, glob_node):
     '''Deletes a file with a single name.'''
     new_glob_node, _ = pvm.drop_g(db_iface, omega_id, glob_node)
     prev_ver_rel_list = traversal.get_rel(db_iface, new_glob_node,
-                                storage.RelType.GLOB_OBJ_PREV)
+                                          storage.RelType.GLOB_OBJ_PREV)
     if len(prev_ver_rel_list) > 0:
         prev_ver_rel_list[0]['state'] = storage.LinkState.DELETED
 
@@ -141,10 +141,9 @@ def delete_multiple_names(db_iface, omega_id, glob_node, glob_name):
     db_iface.update_index(storage.DBInterface.FILE_INDEX, 'name',
                           glob_name, side_glob_node)
 
-    glob_prev_rel = db_iface.create_relationship(side_glob_node,
-                            glob_node, storage.RelType.GLOB_OBJ_PREV)
+    glob_prev_rel = db_iface.create_relationship(side_glob_node, glob_node,
+                                                 storage.RelType.GLOB_OBJ_PREV)
     glob_prev_rel['state'] = storage.LinkState.DELETED
-
 
 
 @ActionMap.add('delete', True)

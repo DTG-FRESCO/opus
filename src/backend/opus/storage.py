@@ -16,12 +16,12 @@ from neo4j import GraphDatabase
 
 # Enum values for node types
 NodeType = common_utils.enum(META=1,
-                            GLOBAL=2,
-                            PROCESS=3,
-                            LOCAL=4,
-                            EVENT=5,
-                            ANNOT=6,
-                            TERM=7)
+                             GLOBAL=2,
+                             PROCESS=3,
+                             LOCAL=4,
+                             EVENT=5,
+                             ANNOT=6,
+                             TERM=7)
 
 # Enum values for relationship types
 RelType = common_utils.enum(GLOB_OBJ_PREV="GLOB_OBJ_PREV",
@@ -41,18 +41,18 @@ RelType = common_utils.enum(GLOB_OBJ_PREV="GLOB_OBJ_PREV",
 
 # Enum values for relationship link states
 LinkState = common_utils.enum(NONE=0,
-                                CoT=1,
-                                READ=2,
-                                WRITE=3,
-                                RaW=4,
-                                CLOSED=5,
-                                DELETED=6,
-                                BIN=7,
-                                CoE=8,
-                                CLOEXEC=9,
-                                INACTIVE=10)
+                              CoT=1,
+                              READ=2,
+                              WRITE=3,
+                              RaW=4,
+                              CLOSED=5,
+                              DELETED=6,
+                              BIN=7,
+                              CoE=8,
+                              CLOEXEC=9,
+                              INACTIVE=10)
 
-#Enum values for cache naming
+# Enum values for cache naming
 CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
                                 LOCAL_GLOBAL=1,
                                 LAST_EVENT=2,
@@ -110,9 +110,7 @@ class CacheManager(object):
                 '''Caches the return of fun using key_lambda to convert
                 it's arguments into a key.'''
                 if cache not in db_iface.cache_man.caches:
-                    raise InvalidCacheException(
-                        CACHE_NAMES.enum_str(cache)
-                        )
+                    raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
 
                 key = key_lambda(*args, **kwargs)
 
@@ -185,8 +183,7 @@ class DBInterface(StorageIFace):
                 # Unique ID index
                 if self.db.node.indexes.exists(DBInterface.UNIQ_ID_IDX):
                     uniq_id_idx = self.db.node.indexes.get(
-			DBInterface.UNIQ_ID_IDX
-			)
+                        DBInterface.UNIQ_ID_IDX)
                     id_nodes = uniq_id_idx['node']['UNIQ_ID']
                     if len(id_nodes) == 1:
                         self.id_node = id_nodes[0]
@@ -194,8 +191,7 @@ class DBInterface(StorageIFace):
                         raise UniqueIDException()
                 else:
                     uniq_id_idx = self.db.node.indexes.create(
-			DBInterface.UNIQ_ID_IDX
-			)
+                        DBInterface.UNIQ_ID_IDX)
                     self.id_node = self.db.node()
                     self.id_node['serial_id'] = 0
                     uniq_id_idx['node']['UNIQ_ID'] = self.id_node
@@ -203,32 +199,26 @@ class DBInterface(StorageIFace):
                 # File index
                 if self.db.node.indexes.exists(DBInterface.FILE_INDEX):
                     self.file_index = self.db.node.indexes.get(
-			DBInterface.FILE_INDEX
-			)
+                        DBInterface.FILE_INDEX)
                 else:
                     self.file_index = self.db.node.indexes.create(
-			DBInterface.FILE_INDEX
-			)
+                        DBInterface.FILE_INDEX)
 
                 # Process index
                 if self.db.node.indexes.exists(DBInterface.PROC_INDEX):
                     self.proc_index = self.db.node.indexes.get(
-			DBInterface.PROC_INDEX
-			)
+                        DBInterface.PROC_INDEX)
                 else:
                     self.proc_index = self.db.node.indexes.create(
-			DBInterface.PROC_INDEX
-			)
+                        DBInterface.PROC_INDEX)
 
                 # Node ID index
                 if self.db.node.indexes.exists(DBInterface.NODE_ID_IDX):
                     self.node_id_idx = self.db.node.indexes.get(
-			DBInterface.NODE_ID_IDX
-			)
+                        DBInterface.NODE_ID_IDX)
                 else:
                     self.node_id_idx = self.db.node.indexes.create(
-			DBInterface.NODE_ID_IDX
-			)
+                        DBInterface.NODE_ID_IDX)
 
             # Fix for the class load error when using multiple threads
             rows = self.db.query("START n=node(1) RETURN n")
@@ -239,22 +229,18 @@ class DBInterface(StorageIFace):
             logging.error("Error: %s", str(exc))
             raise exc
 
-
     def close(self):
         '''Shutdown the database'''
         self.db.shutdown()
-
 
     def start_transaction(self):
         '''Returns a Neo4J transaction'''
         return self.db.transaction
 
-
     def set_sys_time_for_msg(self, sys_time):
         '''Stores the system time passed in the header
         for each message being processed'''
         self.sys_time = sys_time
-
 
     def create_node(self, node_type):
         '''Creates a node and sets the node ID, type and timestamp'''
@@ -267,13 +253,11 @@ class DBInterface(StorageIFace):
         self.update_index(DBInterface.NODE_ID_IDX, 'node', node_id, node)
         return node
 
-
     def create_relationship(self, from_node, to_node, rel_type):
         '''Creates a relationship of given type'''
         rel = from_node.relationships.create(rel_type, to_node)
         rel['state'] = LinkState.NONE
         return rel
-
 
     def update_time_index(self, idx_type, sys_time_val, glob_node):
         '''Updates the file or process time index entry for the hourly
@@ -286,7 +270,6 @@ class DBInterface(StorageIFace):
         hourly_bucket = sys_time_val - (sys_time_val % 3600)
         idx['time'][hourly_bucket] = glob_node
 
-
     def update_index(self, idx_type, idx_name, idx_key, idx_val):
         '''Adds value to a given index type with the name and key'''
         if idx_type == DBInterface.FILE_INDEX:
@@ -295,7 +278,6 @@ class DBInterface(StorageIFace):
             self.proc_index[idx_name][idx_key] = idx_val
         elif idx_type == DBInterface.NODE_ID_IDX:
             self.node_id_idx[idx_name][idx_key] = idx_val
-
 
     def __get_next_id(self):
         '''Returns a unique node ID'''
@@ -306,7 +288,6 @@ class DBInterface(StorageIFace):
             return node_id
         else:
             raise UniqueIDException()
-
 
     def find_and_del_rel(self, from_node, to_node, rel_type):
         '''Finds a relation of type rel_type between two nodes
@@ -319,7 +300,6 @@ class DBInterface(StorageIFace):
         for row in rows:
             rel = row['rel']
             rel.delete()
-
 
     def delete_relationship(self, rel):
         '''Deletes relatioship given a relationship object'''

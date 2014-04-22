@@ -71,8 +71,8 @@ def clone_file_des(db_iface, old_proc_node, new_proc_node):
                                  storage.LinkState.CLOEXEC]:
             continue
         # Create a new link from the local node to the new process node
-        new_rel_link = db_iface.create_relationship(loc_node,
-            new_proc_node, storage.RelType.PROC_OBJ)
+        new_rel_link = db_iface.create_relationship(loc_node, new_proc_node,
+                                                    storage.RelType.PROC_OBJ)
         new_rel_link['state'] = storage.LinkState.CoT
 
 
@@ -94,7 +94,7 @@ class ProcStateController(object):
             cls.proc_map[pid] = cls.proc_states.FORK
             new_proc_node = create_proc(db_iface, pid, timestamp)
             db_iface.create_relationship(new_proc_node, p_node,
-                                              storage.RelType.PROC_PARENT)
+                                         storage.RelType.PROC_PARENT)
             clone_file_des(db_iface, p_node, new_proc_node)
             cls.PIDMAP[pid] = new_proc_node['node_id']
             return True
@@ -129,7 +129,7 @@ class ProcStateController(object):
                 old_proc_node_id = cls.PIDMAP[hdr.pid]
                 old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
                 db_iface.create_relationship(proc_node, old_proc_node,
-                                                  storage.RelType.PROC_OBJ_PREV)
+                                             storage.RelType.PROC_OBJ_PREV)
                 clone_file_des(db_iface, old_proc_node, proc_node)
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
         return True

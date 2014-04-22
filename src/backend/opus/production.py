@@ -186,13 +186,13 @@ class UDSCommunicationManager(CommunicationManager):
         '''Receives data from client or closes the client connection'''
         status_code, header_buf, payload_buf = self.__read_data(sock_fd)
 
-        if status_code == UDSCommunicationManager.StatusCode.success:
+        if status_code == self.StatusCode.success:
             if __debug__:
                 logging.debug("Got valid data")
             ret_list += [(header_buf, payload_buf)]
-        elif status_code == UDSCommunicationManager.StatusCode.close_connection:
+        elif status_code == self.StatusCode.close_connection:
             self.__handle_close_connection(sock_fd, ret_list)
-        elif status_code == UDSCommunicationManager.StatusCode.try_again_later:
+        elif status_code == self.StatusCode.try_again_later:
             if __debug__:
                 logging.debug("Will try again later")
 

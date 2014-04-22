@@ -49,7 +49,7 @@ def _startup_touch_file(touch_file):
 
     header = messaging.Header()
     header.pid = 0
-    #Max int64 so ensure sorted after any messages in the queue
+    # Max int64 so ensure sorted after any messages in the queue
     header.timestamp = (2**64) - 1
     header.tid = 0
     header.payload_type = uds_msg.TERM_MSG

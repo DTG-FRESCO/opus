@@ -180,7 +180,7 @@ class PVMAnalyser(OrderingAnalyser):
     def __init__(self, storage_type, storage_args, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
         self.db_iface = common_utils.meta_factory(storage.StorageIFace,
-                                                storage_type, **storage_args)
+                                                  storage_type, **storage_args)
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface

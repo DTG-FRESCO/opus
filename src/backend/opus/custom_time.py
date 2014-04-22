@@ -13,14 +13,14 @@ import ctypes
 import errno
 import logging
 
-
-class ClockConstant(object):
-    '''Clock type values from from <linux/time.h>'''
-    CLOCK_MONOTONIC = 1
-    CLOCK_MONOTONIC_RAW = 4
+from opus import common_utils
 
 
-class Timespec(ctypes.Structure):
+CLOCK_CONSTANT = common_utils.enum(CLOCK_MONOTONIC=1,
+                                   CLOCK_MONOTONIC_RAW=4)
+
+
+class Timespec(ctypes.Structure):  # pylint: disable=R0903
     '''Describes the fields in timespec structure'''
     _fields_ = [('tv_sec', ctypes.c_long), ('tv_nsec', ctypes.c_long)]
 
@@ -51,23 +51,24 @@ def patch_custom_monotonic_time():
     mono_raw_invalid = 0
 
     try:
-        monotonic_time(ClockConstant.CLOCK_MONOTONIC)
-        time.CLOCK_MONOTONIC = ClockConstant.CLOCK_MONOTONIC
+        monotonic_time(CLOCK_CONSTANT.CLOCK_MONOTONIC)
+        time.CLOCK_MONOTONIC = CLOCK_CONSTANT.CLOCK_MONOTONIC
     except OSError as exc:
         if exc.errno == errno.EINVAL:
             mono_invalid = 1
-            logging.error("%s, %d", exc.strerror, ClockConstant.CLOCK_MONOTONIC)
+            logging.error("%s, %d", exc.strerror,
+                          CLOCK_CONSTANT.CLOCK_MONOTONIC)
 
     try:
-        monotonic_time(ClockConstant.CLOCK_MONOTONIC_RAW)
-        time.CLOCK_MONOTONIC_RAW = ClockConstant.CLOCK_MONOTONIC_RAW
+        monotonic_time(CLOCK_CONSTANT.CLOCK_MONOTONIC_RAW)
+        time.CLOCK_MONOTONIC_RAW = CLOCK_CONSTANT.CLOCK_MONOTONIC_RAW
     except OSError as exc:
         if exc.errno == errno.EINVAL:
             mono_raw_invalid = 1
             logging.error("%s, %d", exc.strerror,
-                          ClockConstant.CLOCK_MONOTONIC_RAW)
+                          CLOCK_CONSTANT.CLOCK_MONOTONIC_RAW)
             if not mono_invalid:
-                time.CLOCK_MONOTONIC_RAW = ClockConstant.CLOCK_MONOTONIC
+                time.CLOCK_MONOTONIC_RAW = CLOCK_CONSTANT.CLOCK_MONOTONIC
 
     if mono_invalid and mono_raw_invalid:
         logging.error("Cannot patch custom monotonic time")

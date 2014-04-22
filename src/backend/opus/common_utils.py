@@ -15,7 +15,7 @@ import time
 from opus import uds_msg_pb2
 
 
-#Number of seconds to wait for a thread to join on shutdown.
+# Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
 
 
@@ -38,7 +38,7 @@ class InvalidTagException(OPUSException):
         super(InvalidTagException, self).__init__("Invalid tag: %s" % tag)
 
 
-class FixedDict(object):
+class FixedDict(object):  # pylint: disable=R0903
     '''Ensures keys are fixed in the dictionary'''
     def __init__(self, dictionary):
         '''Take a copy of the dictionary'''
@@ -139,4 +139,3 @@ def calc_exec_time(func):
                                   (end_time - start_time)))
         return ret
     return timex
-
