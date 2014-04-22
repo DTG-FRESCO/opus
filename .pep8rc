@@ -1,0 +1,2 @@
+[pep8]
+exclude=opus/uds_msg_pb2.py,opus/prov_db_pb2.py,opus/cc_msg_pb2.py
