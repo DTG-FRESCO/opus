@@ -15,7 +15,7 @@ import time
 from opus import uds_msg_pb2
 
 
-'''Number of seconds to wait for a thread to join on shutdown.'''
+# Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
 
 
@@ -38,7 +38,7 @@ class InvalidTagException(OPUSException):
         super(InvalidTagException, self).__init__("Invalid tag: %s" % tag)
 
 
-class FixedDict(object):
+class FixedDict(object):  # pylint: disable=R0903
     '''Ensures keys are fixed in the dictionary'''
     def __init__(self, dictionary):
         '''Take a copy of the dictionary'''
@@ -86,7 +86,9 @@ def meta_factory(base, tag, *args, **kwargs):
 
 def enum(**enums):
     '''Returns an enum class object'''
-    enums['enum_str'] = staticmethod(lambda x: {val: key for key, val in enums.items()}[x])
+    enums['enum_str'] = staticmethod(lambda x: {val: key
+                                                for key, val in enums.items()
+                                                }[x])
     return type(str('Enum'), (), enums)
 
 
@@ -101,20 +103,6 @@ def analyser_lock(func):
         with analyser_lock.mutex:
             return func(self, *args, **kwargs)
     return deco
-
-
-def header_size():
-    '''Creates a header object and returns the object size'''
-    if hasattr(header_size, "size"):
-        return header_size.size
-    header = uds_msg_pb2.Header()
-    header.timestamp = 0
-    header.pid = 0
-    header.tid = 0
-    header.payload_type = 0
-    header.payload_len = 0
-    header_size.size = header.ByteSize()
-    return header_size.size
 
 
 def get_payload_type(header):
@@ -141,11 +129,13 @@ def calc_exec_time(func):
         calc_exec_time.counter = 0
 
     def timex(*args, **kw):
+        '''Tracks the execution time of 'func'.'''
         start_time = time.clock()
         ret = func(*args, **kw)
         end_time = time.clock()
         calc_exec_time.counter = calc_exec_time.counter + 1
-        print("%d - %s, %2.5f" % (calc_exec_time.counter, func.__name__, (end_time - start_time)))
+        print("%d - %s, %2.5f" % (calc_exec_time.counter,
+                                  func.__name__,
+                                  (end_time - start_time)))
         return ret
     return timex
-

@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division,
 import os
 from opus import common_utils, storage
 
+
 class InvalidQueryException(common_utils.OPUSException):
     '''Exception when unique ID cannot be generated'''
     def __init__(self):
@@ -32,11 +33,9 @@ class FSTree(object):
         super(FSTree, self).__init__()
         self.tree_map = {}
 
-
     def get_tree_map(self):
         '''Returns the tree map'''
         return self.tree_map
-
 
     def build(self, line):
         '''Starts building the tree'''
@@ -48,7 +47,6 @@ class FSTree(object):
             path_list[-1] = '/'
 
         self.treefy(path_list, self.tree_map)
-
 
     def treefy(self, path_list, submap):
         '''Recursively builds a tree with the given path'''
@@ -65,7 +63,6 @@ class FSTree(object):
                 submap[node_key] = {'attr': {'hist': False}, 'subdirs': {}}
             self.treefy(path_list, submap[node_key]['subdirs'])
 
-
     def pretty_print(self, tmp_map, indent=0):
         '''Recursively prints the tree'''
         for key, val in tmp_map.items():
@@ -75,12 +72,12 @@ class FSTree(object):
             print("  " * indent + enable + key)
             self.pretty_print(tmp_map[key]['subdirs'], indent + 1)
 
-
     def print_tree(self):
         '''Prints the tree map'''
         self.pretty_print(self.tree_map)
 
-######## The following functions are used for the GUI ########
+# ####### The following functions are used for the GUI ####### #
+
 
 def __construct_name_idx_qry(idx_key):
     '''Returns sub query string to lookup name index'''
@@ -123,9 +120,8 @@ def __construct_file_qry(file_states, proc_states):
     return tmp_qry
 
 
-
 def __add_deleted_node(bin_glob_node, proc_node,
-                            file_glob_node, result_list):
+                       file_glob_node, result_list):
     '''Checks incoming relations with deleted state to a global node
     and adds the deleted global to the result list'''
     for link in file_glob_node.GLOB_OBJ_PREV.incoming:
@@ -143,7 +139,7 @@ def __add_deleted_node(bin_glob_node, proc_node,
 
 
 def __add_result(result_list, bin_glob_node, proc_node,
-                    file_glob_node, glob_loc_rel):
+                 file_glob_node, glob_loc_rel):
     '''Common function that populates result list'''
     file_name = ""
     if file_glob_node.has_key('name'):
@@ -151,7 +147,7 @@ def __add_result(result_list, bin_glob_node, proc_node,
 
     if len(file_glob_node.GLOB_OBJ_PREV.incoming) > 0:
         __add_deleted_node(bin_glob_node, proc_node,
-                            file_glob_node, result_list)
+                           file_glob_node, result_list)
 
     result_list.append((bin_glob_node['name'], proc_node['pid'],
                         file_name, glob_loc_rel['state'],
@@ -182,7 +178,7 @@ def __get_history(db_iface, qry, file_states, proc_states):
         glob_loc_rel = row['rel2']
 
         __add_result(result_list, bin_glob_node, proc_node,
-                            file_glob_node, glob_loc_rel)
+                     file_glob_node, glob_loc_rel)
     return result_list
 
 
@@ -243,7 +239,7 @@ def get_programs(db_iface, file_name, start_date, end_date, user_name):
     '''Returns program tree matching the file name string within the
     given start and end date range'''
     return __get_file_proc_tree(db_iface, file_name, start_date, end_date,
-                                    storage.DBInterface.FILE_INDEX)
+                                storage.DBInterface.FILE_INDEX)
 
 
 # Query for the main panel
@@ -251,7 +247,8 @@ def get_files(db_iface, prog_name, start_date, end_date, user_name):
     '''Returns file tree matching the program name string within the
     given start and end date range'''
     return __get_file_proc_tree(db_iface, prog_name, start_date, end_date,
-                                    storage.DBInterface.PROC_INDEX)
+                                storage.DBInterface.PROC_INDEX)
+
 
 def __build_idx_qry(node_name, search_str, idx_type, time_idx_qry):
     '''Builds a query string  using file/process name and time indexes'''
@@ -264,7 +261,7 @@ def __build_idx_qry(node_name, search_str, idx_type, time_idx_qry):
 
 # Query for the right panel
 def get_file_proc_history(db_iface, file_name, proc_name, user_name,
-                            start_date, end_date):
+                          start_date, end_date):
     '''Returns the history of a file/process after applying filters
     passed as input args. Returned data format is a list of tupes
     of format (Binary name, PID, File name, Action, Time, node_id)'''
@@ -292,14 +289,15 @@ def get_file_proc_history(db_iface, file_name, proc_name, user_name,
     else:
         time_idx_qry = ""
 
-
     if file_name is not None:
         file_idx_qry = __build_idx_qry("file_glob_node", file_name,
-                                storage.DBInterface.FILE_INDEX, time_idx_qry)
+                                       storage.DBInterface.FILE_INDEX,
+                                       time_idx_qry)
 
     if proc_name is not None:
         proc_idx_qry = __build_idx_qry("bin_glob_node", proc_name,
-                                storage.DBInterface.PROC_INDEX, time_idx_qry)
+                                       storage.DBInterface.PROC_INDEX,
+                                       time_idx_qry)
 
     if file_name and proc_name:
         comma_char = ", "

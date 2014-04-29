@@ -130,7 +130,7 @@ class TCPInterface(CommandInterface):
                 break
 
 
-class CMDInterface(CommandInterface, cmd.Cmd):
+class CMDInterface(CommandInterface, cmd.Cmd):  # pylint: disable=R0904
     '''Command line interface for command and control module.'''
     def __init__(self, *args, **kwargs):
         super(CMDInterface, self).__init__(*args, **kwargs)
@@ -159,7 +159,7 @@ class CMDInterface(CommandInterface, cmd.Cmd):
         msg.cmd_name = "kill"
         arg = msg.args.add()
         arg.key = "pid"
-        if re.match("\A\d*\Z", args) is None:
+        if re.match(r"\A\d*\Z", args) is None:
             print("Error: Kill takes a single number as an argument.")
             return False
         arg.value = args

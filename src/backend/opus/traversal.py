@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division,
 import logging
 from opus import storage
 
+
 def get_latest_glob_version(db_iface, name):
     '''Gets the latest global version for the given name'''
     node = None
@@ -157,19 +158,20 @@ def get_glob_latest_version(db_iface, loc_node):
     node_id = glob_node.id
 
     while 1:
-        result = db_iface.query("START src_node=node({id}) "
-                                "MATCH src_node<-[rel:GLOB_OBJ_PREV]-dest_node "
-                                "WHERE rel.state <> {state} "
-                                "RETURN dest_node "
-                                "ORDER BY dest_node.node_id",
-                                id=node_id, state=storage.LinkState.DELETED)
+        result = db_iface.query(
+            "START src_node=node({id}) "
+            "MATCH src_node<-[rel:GLOB_OBJ_PREV]-dest_node "
+            "WHERE rel.state <> {state} "
+            "RETURN dest_node "
+            "ORDER BY dest_node.node_id",
+            id=node_id, state=storage.LinkState.DELETED)
         for row in result:
             dest_glob_node = row['dest_node']
             node_id = dest_glob_node.id
             ret_glob = dest_glob_node
             found = True
 
-        if found: # Check if node has any incoming relationships
+        if found:  # Check if node has any incoming relationships
             if len(ret_glob.relationships.incoming) == 0:
                 break
             else:
@@ -180,7 +182,6 @@ def get_glob_latest_version(db_iface, loc_node):
             break
 
     return ret_glob
-
 
 
 def get_proc_meta(db_iface, proc_node, rel_type):
@@ -231,5 +232,3 @@ def get_rel(db_iface, src_node, rel_type):
         rel = row['rel']
         rel_list.append(rel)
     return rel_list
-
-

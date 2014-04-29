@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
-import datetime
 import errno
 import logging
 import os
@@ -26,7 +25,7 @@ from opus import (cc_msg_pb2, common_utils, messaging, uds_msg_pb2)
 
 def unlink_uds_path(path):
     '''Remove UDS link'''
-    if(os.path.exists(path)):
+    if os.path.exists(path):
         os.unlink(path)
 
 
@@ -48,8 +47,8 @@ def mono_time_in_nanosecs():
     if hasattr(time, 'clock_gettime'):
         try:
             ret_time = int(time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1e+9)
-        except OSError as (_errno, err_msg):
-            logging.error("Error: %d, Message: %s", _errno, err_msg)
+        except OSError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
 
     return ret_time
 
@@ -187,13 +186,13 @@ class UDSCommunicationManager(CommunicationManager):
         '''Receives data from client or closes the client connection'''
         status_code, header_buf, payload_buf = self.__read_data(sock_fd)
 
-        if status_code == UDSCommunicationManager.StatusCode.success:
+        if status_code == self.StatusCode.success:
             if __debug__:
                 logging.debug("Got valid data")
             ret_list += [(header_buf, payload_buf)]
-        elif status_code == UDSCommunicationManager.StatusCode.close_connection:
+        elif status_code == self.StatusCode.close_connection:
             self.__handle_close_connection(sock_fd, ret_list)
-        elif status_code == UDSCommunicationManager.StatusCode.try_again_later:
+        elif status_code == self.StatusCode.try_again_later:
             if __debug__:
                 logging.debug("Will try again later")
 
@@ -243,15 +242,17 @@ class UDSCommunicationManager(CommunicationManager):
                     status_code = \
                         UDSCommunicationManager.StatusCode.close_connection
                     break
-            except socket.error as (err, msg):
-                if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+            except socket.error as exc:
+                if exc.errno == errno.EAGAIN or exc.errno == errno.EWOULDBLOCK:
                     status_code = \
                         UDSCommunicationManager.StatusCode.try_again_later
-                elif err == errno.EINTR:
-                    logging.error("Error: %d, Message: %s", err, msg)
+                elif exc.errno == errno.EINTR:
+                    logging.error("Error: %d, Message: %s",
+                                  exc.errno, exc.strerror)
                     continue
                 else:
-                    logging.error("Error: %d, Message: %s", err, msg)
+                    logging.error("Error: %d, Message: %s",
+                                  exc.errno, exc.strerror)
                     status_code = \
                         UDSCommunicationManager.StatusCode.close_connection
                 break

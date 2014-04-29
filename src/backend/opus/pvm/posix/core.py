@@ -9,10 +9,7 @@ from __future__ import (absolute_import, division,
 
 import logging
 
-
-from opus import prov_db_pb2 as prov_db
-from opus import pvm
-from opus.pvm.posix import actions, functions, process, utils
+from opus.pvm.posix import functions, process, utils
 from opus import storage
 
 

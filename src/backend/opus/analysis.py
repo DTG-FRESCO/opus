@@ -60,9 +60,9 @@ class LoggingAnalyser(Analyser):
         self.logfile_path = log_path
 
         try:
-            self.file_object = open(self.logfile_path, "ab+")
-        except IOError as (err, msg):
-            logging.error("Error: %d, Message: %s", err, msg)
+            self.file_object = open(self.logfile_path, "a+b")
+        except IOError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
             raise common_utils.OPUSException("log file open error")
         if __debug__:
             logging.debug("Opened file %s", self.logfile_path)
@@ -180,7 +180,7 @@ class PVMAnalyser(OrderingAnalyser):
     def __init__(self, storage_type, storage_args, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
         self.db_iface = common_utils.meta_factory(storage.StorageIFace,
-                                                storage_type, **storage_args)
+                                                  storage_type, **storage_args)
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
@@ -214,4 +214,4 @@ class PVMAnalyser(OrderingAnalyser):
                 elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
                     posix.handle_prefunc(hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.TERM_MSG:
-                    posix.handle_startup(self.db_iface, pay_obj)
+                posix.handle_startup(self.db_iface, pay_obj)

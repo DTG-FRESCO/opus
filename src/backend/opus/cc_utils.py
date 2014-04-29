@@ -12,7 +12,7 @@ import struct
 from opus import cc_msg_pb2
 
 
-class BiDict(object):
+class BiDict(object):  # pylint: disable=R0903
     '''Implements a one-to-one mapping.'''
     def __init__(self):
         self.dict = {}

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-#Auto generated file produced by src/messaging/gen_msg.py
-#using src/messaging/py.tmpl as a template.
+# Auto generated file produced by src/messaging/gen_msg.py
+# using src/messaging/py.tmpl as a template.
 #
 
 '''
@@ -21,7 +21,7 @@ class Message(object):
     def __init__(self):
         pass
 
-    def loads(self,  buf):
+    def loads(self, buf):
         '''Load data from buf into self.'''
         data = struct.unpack(self.struct_string, buf)
         self.tuple_to_self(data)
@@ -51,7 +51,7 @@ class {{msg.name}}(Message):
 
     def __init__(self):
         super({{msg.name}}, self).__init__(){% for field in msg.fields %}
-        {{"self."~field.name~" = None"}}{% endfor %} 
+        {{"self."~field.name~" = None"}}{% endfor %}
 
     def tuple_to_self(self, tup):
         ({% for field in msg.fields %}{{"self."~field.name}}{% if not loop.last %},
