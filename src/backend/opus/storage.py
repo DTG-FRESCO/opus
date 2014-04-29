@@ -100,6 +100,15 @@ class CacheManager(object):
 
         del self.caches[cache][key]
 
+
+    def update(self, cache, key, val):
+        '''Updates the relevant cache and key combination with
+        the new value'''
+        if cache not in self.caches:
+            raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
+        self.caches[cache][key] = val
+
+
     @staticmethod
     def dec(cache, key_lambda):
         '''Decorates a function to cache it's return values in 'cache', uses

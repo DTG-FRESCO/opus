@@ -106,6 +106,10 @@ def proc_get_local(db_iface, proc_node, loc_name):
     # Delete the CoT link to local
     db_iface.delete_relationship(loc_proc_rel)
 
+    # Invalidate the VALID_LOCAL cache
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                  (proc_node.id, loc_name))
+
     # Create a new local object node
     new_loc_node = pvm.get_l(db_iface, proc_node, loc_name)
 
@@ -147,9 +151,6 @@ def add_event(db_iface, node, msg):
     event_node = event_from_msg(db_iface, msg)
     node_type = node['type']
 
-    db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
-                                  node.id)
-
     if node_type == storage.NodeType.LOCAL:
         rel_type = storage.RelType.IO_EVENTS
     elif node_type == storage.NodeType.PROCESS:
@@ -168,11 +169,16 @@ def add_event(db_iface, node, msg):
                                      storage.RelType.PREV_EVENT)
 
     # Create a new link between node object and new event object
-    db_iface.create_relationship(node, event_node, rel_type)
+    new_event_rel = db_iface.create_relationship(node, event_node, rel_type)
 
     if event_rel is not None:
         # Delete the old link between node object and old event object
         db_iface.delete_relationship(event_rel)
+
+    # Update the new event and relation in the event cache
+    db_iface.cache_man.update(storage.CACHE_NAMES.LAST_EVENT, node.id,
+                              (event_node, new_event_rel))
+
 
 
 def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):

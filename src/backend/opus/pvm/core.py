@@ -78,6 +78,11 @@ def version_global(db_iface, old_glob_node):
 def get_l(db_iface, proc_node, loc_name):
     '''Performs a PVM get on the local object named 'loc_name' of the process
     identified by proc_node.'''
+
+    # Invalidate the VALID_LOCAL cache
+    db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                  (proc_node.id, loc_name))
+
     loc_node = db_iface.create_node(storage.NodeType.LOCAL)
     loc_node['name'] = loc_name
 
