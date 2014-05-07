@@ -206,6 +206,8 @@ class PVMAnalyser(OrderingAnalyser):
         with self.db_iface.start_transaction():
             if hdr_obj.payload_type == uds_msg.FUNCINFO_MSG:
                 posix.handle_function(self.db_iface, hdr_obj.pid, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.AGGREGATION_MSG:
+                posix.handle_bulk_functions(self.db_iface, hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
                 posix.handle_process(self.db_iface, hdr_obj, pay_obj)
             elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
