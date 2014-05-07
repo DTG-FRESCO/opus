@@ -8,6 +8,7 @@ enum PayloadType {
     GENERIC_MSG = 4;
     TERM_MSG = 5;
     TELEMETRY_MSG = 6;
+    AGGREGATION_MSG = 7;
 }
 
 enum GenMsgType {
@@ -74,3 +75,8 @@ message TermMessage {
     }
     optional TermState reason = 3;
 }
+
+message AggregationMessage {
+    repeated FuncInfoMessage messages = 1;
+}
+
