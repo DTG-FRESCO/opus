@@ -80,7 +80,7 @@ class CacheManager(object):
     '''Manages a series of caches and allows for them to be
     updated and invalidated.'''
     def __init__(self, cache_list):
-        self.caches = {key: {} for key in cache_list}
+        self.caches = {key: dict() for key in cache_list}
 
     def invalidate(self, cache, key):
         '''Invalidates the entry 'key' in 'cache', a InvalidCacheExcetion
@@ -90,7 +90,7 @@ class CacheManager(object):
             raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
 
         if key not in self.caches[cache]:
-            logging.info("Warning: Attempted to invalidate key {0} "
+            logging.warn("Warning: Attempted to invalidate key {0} "
                          "in cache {1} but {0} was not present in "
                          "the cache.".format(key,
                                              CACHE_NAMES.enum_str(cache)))
@@ -98,14 +98,12 @@ class CacheManager(object):
 
         del self.caches[cache][key]
 
-
     def update(self, cache, key, val):
         '''Updates the relevant cache and key combination with
         the new value'''
         if cache not in self.caches:
             raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
         self.caches[cache][key] = val
-
 
     @staticmethod
     def dec(cache, key_lambda):

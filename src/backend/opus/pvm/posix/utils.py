@@ -178,7 +178,6 @@ def add_event(db_iface, node, msg):
                               (event_node, new_event_rel))
 
 
-
 def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
     '''Helper for duplicating file descriptors. Handles closing the old
     descriptor if needed and binding it to the new identifier.'''
@@ -277,7 +276,7 @@ def set_link(db_iface, loc_node, state, glob_node_list=None):
         if state == storage.LinkState.BIN:
             for name in glob_node['name']:
                 db_iface.update_index(storage.DBInterface.PROC_INDEX,
-                                      'name', name, glob_node)
+                                      "name", name, glob_node)
             db_iface.update_time_index(storage.DBInterface.PROC_INDEX,
                                        glob_node['sys_time'], glob_node)
 
