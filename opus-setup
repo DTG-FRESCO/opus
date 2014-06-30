@@ -16,3 +16,8 @@ export LIBC_BUILD_PATH=/local/scratch/nik/build/glibc
 # Add the protobuf extension library to the python path
 export PYTHONPATH=$PROJ_HOME/lib/:$PROJ_HOME/src/backend/:$PYTHONPATH
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
+
+# Message aggregation controls
+export OPUS_MSG_AGGR=1 # ON=1, OFF=0
+export OPUS_MAX_AGGR_MSG_SIZE=1024 # Size in bytes
+

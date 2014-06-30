@@ -16,21 +16,26 @@ namespace
     using ::fresco::opus::IPCMessage::LibInfoMessage;
     using ::fresco::opus::IPCMessage::StartupMessage;
     using ::fresco::opus::IPCMessage::FrontendTelemetry;
+    using ::fresco::opus::IPCMessage::AggregationMessage;
 
+
+    inline void set_header_data(Header *hdr_msg,
+                                const uint64_t pay_msg_size,
+                                const PayloadType pay_type)
+    {
+        hdr_msg->timestamp = ProcUtils::get_time();
+        hdr_msg->pid = static_cast<uint64_t>(ProcUtils::getpid());
+        hdr_msg->payload_type = pay_type;
+        hdr_msg->payload_len = pay_msg_size;
+        hdr_msg->tid = ProcUtils::gettid();
+        hdr_msg->sys_time = time(NULL);
+    }
 
     inline bool set_header_and_send(const Message& pay_msg,
                                     const PayloadType pay_type)
     {
-        const uint64_t msg_size = pay_msg.ByteSize();
-        const uint64_t current_time = ProcUtils::get_time();
-
         struct Header hdr_msg;
-        hdr_msg.timestamp = current_time;
-        hdr_msg.pid = static_cast<uint64_t>(ProcUtils::getpid());
-        hdr_msg.payload_type = pay_type;
-        hdr_msg.payload_len = msg_size;
-        hdr_msg.tid = ProcUtils::gettid();
-        hdr_msg.sys_time = time(NULL);
+        set_header_data(&hdr_msg, pay_msg.ByteSize(), pay_type);
 
         return ProcUtils::serialise_and_send_data(hdr_msg, pay_msg);
     }

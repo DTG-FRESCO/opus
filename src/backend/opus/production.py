@@ -53,14 +53,14 @@ def mono_time_in_nanosecs():
     return ret_time
 
 
-def create_close_conn_obj(sock_fd, pid):
+def create_close_conn_obj(sock_obj, pid):
     '''Returns objects to mark a client connection close'''
     if __debug__:
-        logging.debug("Creating close message for %d", sock_fd.fileno())
+        logging.debug("Creating close message for %d", sock_obj.fileno())
 
     gen_msg = uds_msg_pb2.GenericMessage()
     gen_msg.msg_type = uds_msg_pb2.DISCON
-    gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_fd.fileno())
+    gen_msg.msg_desc = "Client socket: %d disconnected" % (sock_obj.fileno())
 
     header = messaging.Header()
     header.timestamp = mono_time_in_nanosecs()
@@ -71,6 +71,106 @@ def create_close_conn_obj(sock_fd, pid):
     header.sys_time = int(time.time())
 
     return header.dumps(), gen_msg.SerializeToString()
+
+
+class SockReader(object):
+    '''Reads header and payload from a non-blocking socket'''
+
+    def __init__(self, sock_obj):
+        '''Initialize data members'''
+        self.sock_obj = sock_obj
+        self.buf_data = b''
+        self.header = None
+
+    def get_message(self):
+        '''Reads message from socket'''
+
+        # Read header
+        if self.header is None:
+            remaining_len =  messaging.Header.length - len(self.buf_data)
+
+            status_code = self.__fill_buffer(remaining_len)
+            if status_code != UDSCommunicationManager.StatusCode.success:
+                return status_code, None, None
+
+            # If header is fully received, construct the header object
+            if len(self.buf_data) == messaging.Header.length:
+                self.header = messaging.Header()
+                self.header.loads(self.buf_data)
+                if __debug__:
+                    logging.debug("Header: %s", self.header.__str__())
+
+
+        # Account for header data already present
+        hdr_len = messaging.Header.length
+        remaining_len = self.header.payload_len - (len(self.buf_data) - hdr_len)
+
+        # Read the payload
+        status_code = self.__fill_buffer(remaining_len)
+        if status_code != UDSCommunicationManager.StatusCode.success:
+            return status_code, None, None
+
+        hdr_buf = self.buf_data[:hdr_len]
+        pay_buf = self.buf_data[hdr_len:]
+
+        # Deserialization only needed for debugging during development
+        if __debug__:
+            payload = common_utils.get_payload_type(self.header)
+            payload.ParseFromString(pay_buf)
+            logging.debug("Payload: %s", payload.__str__())
+
+        # Reset data members
+        self.buf_data = b''
+        self.header = None
+
+        return status_code, hdr_buf, pay_buf
+
+
+    def __fill_buffer(self, remaining_len):
+        '''Calls receive and appends buffer'''
+        tmp_buf, status_code = self.__receive(self.sock_obj, remaining_len)
+        self.buf_data += tmp_buf
+        return status_code
+
+
+    def __receive(self, sock_obj, size):
+        '''Receives data for a given size from a socket'''
+        buf = b''
+        status_code = UDSCommunicationManager.StatusCode.success
+        while size > 0:
+            try:
+                data = sock_obj.recv(size)
+                if data == b'':
+                    status_code = \
+                        UDSCommunicationManager.StatusCode.close_connection
+                    break
+            except socket.error as exc:
+                if exc.errno == errno.EAGAIN or exc.errno == errno.EWOULDBLOCK:
+                    status_code = \
+                        UDSCommunicationManager.StatusCode.try_again_later
+                elif exc.errno == errno.EINTR:
+                    logging.error("Error: %d, Message: %s",
+                                  exc.errno, exc.strerror)
+                    continue
+                else:
+                    logging.error("Error: %d, Message: %s",
+                                  exc.errno, exc.strerror)
+                    status_code = \
+                        UDSCommunicationManager.StatusCode.close_connection
+                break
+            buf += data
+            size -= len(data)
+        return buf, status_code
+
+
+    def get_sock_obj(self):
+        '''Returns socket object'''
+        return self.sock_obj
+
+    def close(self):
+        '''Closes the underlying socket object'''
+        self.sock_obj.close()
+
 
 
 class CommunicationManager(object):
@@ -94,13 +194,14 @@ class UDSCommunicationManager(CommunicationManager):
                                    close_connection=100,
                                    try_again_later=101)
 
+
     def __init__(self, uds_path, ctrl_sock,
                  max_conn=10, select_timeout=5.0,
                  *args, **kwargs):
         '''Initialize the class members'''
         super(UDSCommunicationManager, self).__init__(*args, **kwargs)
         unlink_uds_path(uds_path)
-        self.input_client_map = {}  # fileno to sock object map
+        self.input_client_map = {}  # fd -> SockReader
         self.pid_map = {}  # pid to list of sock objects map
         self.uds_path = uds_path  # Configurable
         self.max_server_conn = max_conn  # Configurable
@@ -125,6 +226,7 @@ class UDSCommunicationManager(CommunicationManager):
         self.epoll.register(self.control_sock.r_pipe,
                             select.EPOLLIN | select.EPOLLERR)
 
+
     def do_poll(self):
         '''Returns a list of tuples for all ready file descriptors'''
         ret_list = []  # List of tuples of form (header, payload)
@@ -146,13 +248,15 @@ class UDSCommunicationManager(CommunicationManager):
             elif fileno == self.control_sock.r_pipe:
                 self.__handle_command(ret_list)
             elif event & select.EPOLLIN:
-                self.__handle_client(self.input_client_map[fileno], ret_list)
+                sock_obj = self.input_client_map[fileno].get_sock_obj()
+                self.__handle_client(sock_obj, ret_list)
             elif event & select.EPOLLHUP:
                 if __debug__:
                     logging.debug("Got an EPOLLHUP event")
-                self.__handle_close_connection(self.input_client_map[fileno],
-                                               ret_list)
+                sock_obj = self.input_client_map[fileno].get_sock_obj()
+                self.__handle_close_connection(sock_obj, ret_list)
         return ret_list
+
 
     def __handle_command(self, ret_list):
         '''Handles a command message from the command and control system.'''
@@ -182,37 +286,41 @@ class UDSCommunicationManager(CommunicationManager):
             rsp.rsp_data = "%s is not a valid command." % cmd.cmd_name
         self.control_sock.write(rsp)
 
-    def __handle_client(self, sock_fd, ret_list):
+
+    def __handle_client(self, sock_obj, ret_list):
         '''Receives data from client or closes the client connection'''
-        status_code, header_buf, payload_buf = self.__read_data(sock_fd)
+        sock_rdr = self.input_client_map[sock_obj.fileno()]
+        status_code, header_buf, payload_buf = sock_rdr.get_message()
 
         if status_code == self.StatusCode.success:
             if __debug__:
                 logging.debug("Got valid data")
             ret_list += [(header_buf, payload_buf)]
         elif status_code == self.StatusCode.close_connection:
-            self.__handle_close_connection(sock_fd, ret_list)
+            self.__handle_close_connection(sock_obj, ret_list)
         elif status_code == self.StatusCode.try_again_later:
             if __debug__:
                 logging.debug("Will try again later")
 
-    def __handle_close_connection(self, sock_fd, ret_list):
-        '''Handles close event or hang up event on the client socket'''
-        self.epoll.unregister(sock_fd.fileno())
-        if sock_fd.fileno() in self.input_client_map:
-            del self.input_client_map[sock_fd.fileno()]
 
-        pid, _, _ = get_credentials(sock_fd)
+    def __handle_close_connection(self, sock_obj, ret_list):
+        '''Handles close event or hang up event on the client socket'''
+        self.epoll.unregister(sock_obj.fileno())
+        if sock_obj.fileno() in self.input_client_map:
+            del self.input_client_map[sock_obj.fileno()]
+
+        pid, _, _ = get_credentials(sock_obj)
         if pid in self.pid_map:
             sock_list = self.pid_map[pid]
-            sock_list.remove(sock_fd)
+            sock_list.remove(sock_obj)
             if len(sock_list) == 0:
                 del self.pid_map[pid]
-                ret_list.append(tuple(create_close_conn_obj(sock_fd, pid)))
+                ret_list.append(tuple(create_close_conn_obj(sock_obj, pid)))
 
         if __debug__:
-            logging.debug('closing socket: %d', sock_fd.fileno())
-        sock_fd.close()
+            logging.debug('closing socket: %d', sock_obj.fileno())
+        sock_obj.close()
+
 
     def __handle_new_connection(self):
         '''Accepts and adds the new connection to the fd list'''
@@ -225,66 +333,15 @@ class UDSCommunicationManager(CommunicationManager):
         client_fd.setblocking(0)  # Make the socket non-blocking
         self.epoll.register(client_fd.fileno(),
                             select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
-        self.input_client_map[client_fd.fileno()] = client_fd
+
+        sock_rdr = SockReader(client_fd) # Instantiate a SockReader object
+        self.input_client_map[client_fd.fileno()] = sock_rdr
+
         if pid in self.pid_map:
             self.pid_map[pid] += [client_fd]
         else:
             self.pid_map[pid] = [client_fd]
 
-    def __receive(self, sock_fd, size):
-        '''Receives data for a given size from a socket'''
-        buf = b''
-        status_code = UDSCommunicationManager.StatusCode.success
-        while size > 0:
-            try:
-                data = sock_fd.recv(size)
-                if data == b'':
-                    status_code = \
-                        UDSCommunicationManager.StatusCode.close_connection
-                    break
-            except socket.error as exc:
-                if exc.errno == errno.EAGAIN or exc.errno == errno.EWOULDBLOCK:
-                    status_code = \
-                        UDSCommunicationManager.StatusCode.try_again_later
-                elif exc.errno == errno.EINTR:
-                    logging.error("Error: %d, Message: %s",
-                                  exc.errno, exc.strerror)
-                    continue
-                else:
-                    logging.error("Error: %d, Message: %s",
-                                  exc.errno, exc.strerror)
-                    status_code = \
-                        UDSCommunicationManager.StatusCode.close_connection
-                break
-            buf += data
-            size -= len(data)
-        return buf, status_code
-
-    def __read_data(self, sock_fd):
-        '''Receives data from a socket object and
-        returns a header and payload pair in bytes'''
-
-        # Read header data and obtain the payload len
-        hdr_buf, status_code = self.__receive(sock_fd,
-                                              messaging.Header.length)
-        if status_code != UDSCommunicationManager.StatusCode.success:
-            return status_code, None, None
-        header = messaging.Header()
-        header.loads(hdr_buf)
-        if __debug__:
-            logging.debug("Header: %s", header.__str__())
-
-        # Find out the payload length and type
-        payload_buf, status_code = self.__receive(sock_fd, header.payload_len)
-        if status_code != UDSCommunicationManager.StatusCode.success:
-            return status_code, None, None
-
-        # Deserialization only needed for debuggin during development
-        if __debug__:
-            payload = common_utils.get_payload_type(header)
-            payload.ParseFromString(payload_buf)
-            logging.debug("Payload: %s", payload.__str__())
-        return status_code, hdr_buf, payload_buf
 
     def close(self):
         '''Close all connections and cleanup'''

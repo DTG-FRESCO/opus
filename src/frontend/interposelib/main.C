@@ -50,6 +50,9 @@ void opus_init(int argc, char** argv, char** envp)
     // Set the correct pid
     ProcUtils::setpid(getpid());
 
+    // Set message aggregation flag
+    ProcUtils::set_msg_aggr_flag();
+
     if (check_env_opus_interpose_off())
     {
         LOG_MSG(LOG_DEBUG, "[%s:%d]: OPUS_INTERPOSE_OFF flag is enabled\n",
@@ -93,6 +96,8 @@ void opus_fini()
 
     LOG_MSG(LOG_DEBUG, "[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
                 __FILE__, __LINE__, ProcUtils::getpid(), ProcUtils::gettid());
+
+    ProcUtils::flush_buffered_data();
 
     ProcUtils::disconnect();
     ProcUtils::test_and_set_flag(false);

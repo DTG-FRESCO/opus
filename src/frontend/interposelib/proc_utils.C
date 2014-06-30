@@ -45,6 +45,7 @@ __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
 __thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
 __thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
+__thread AggregationMessage *ProcUtils::aggr_msg_obj = NULL;
 
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
@@ -54,6 +55,9 @@ sig_atomic_t ProcUtils::opus_interpose_off = false;
 
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
+
+/** Aggregate messages flag */
+bool ProcUtils::aggr_on_flag = false;
 
 /**
  * Callback function passed to dl_iterate_phdr.
@@ -258,7 +262,7 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
 {
     try
     {
-        char *preload_path = get_env_val("LD_PRELOAD");
+        char* preload_path = get_env_val("LD_PRELOAD");
 
         LOG_MSG(LOG_DEBUG, "[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
@@ -308,6 +312,105 @@ void ProcUtils::get_formatted_time(string* date_time)
         return;
     }
     *date_time = buffer;
+}
+
+/**
+ * Reads message aggregation flag from environment
+ * and stores the value within the ProcUtils class
+ */
+void ProcUtils::set_msg_aggr_flag()
+{
+    try
+    {
+        char* msg_aggr = get_env_val("OPUS_MSG_AGGR");
+
+        if (atoi(msg_aggr) == 1) aggr_on_flag = true;
+    }
+    catch(const std::exception& e)
+    {
+        LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+    }
+
+}
+
+bool ProcUtils::flush_buffered_data()
+{
+    if (!aggr_msg_obj) return false;
+
+    /* Nothing to send */
+    if (aggr_msg_obj->ByteSize() == 0)
+        return true;
+
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Flushing aggr msg of size %d bytes\n",
+            __FILE__, __LINE__, aggr_msg_obj->ByteSize());
+
+    /* Create the header message */
+    Header hdr_msg;
+    set_header_data(&hdr_msg, aggr_msg_obj->ByteSize(),
+            PayloadType::AGGREGATION_MSG);
+
+    if (!serialise_and_send_data(hdr_msg, *aggr_msg_obj))
+    {
+        std::string err_msg = "Failed sending AGGREGATION_MSG";
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n",
+                __FILE__, __LINE__, err_msg.c_str());
+        return false;
+    }
+
+    aggr_msg_obj->Clear();
+
+    return true;
+}
+
+
+/**
+ * Buffers FUNCINFO_MSG and sends the messages in a batch
+ */
+bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
+{
+    bool ret = true;
+    static int64_t max_aggr_msg_size = 0;
+
+    if (!comm_obj) return false;
+
+    if (!aggr_on_flag)
+        return set_header_and_send(buf_func_info_msg,
+                            PayloadType::FUNCINFO_MSG);
+
+    try
+    {
+        /*
+           Pre allocate a message buffer using
+           the environment OPUS_MAX_AGGR_MSG_SIZE
+         */
+        if (max_aggr_msg_size == 0)
+        {
+            char *aggr_msg_size = get_env_val("OPUS_MAX_AGGR_MSG_SIZE");
+
+            if (!aggr_msg_size) max_aggr_msg_size = DEFAULT_MAX_BUF_SIZE;
+            else max_aggr_msg_size = atoi(aggr_msg_size);
+        }
+
+        // Pre allocate an AggregationMessage pointer
+        if (!aggr_msg_obj) aggr_msg_obj = new AggregationMessage();
+
+        FuncInfoMessage *func_info_msg = aggr_msg_obj->add_messages();
+        func_info_msg->MergeFrom(buf_func_info_msg); // Performs deep copy
+
+        /* Flush buffered data if message size has reached max_aggr_msg_size */
+        if (aggr_msg_obj->ByteSize() >= max_aggr_msg_size)
+            ret = ProcUtils::flush_buffered_data();
+
+    }
+    catch(const std::exception& e)
+    {
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        disconnect(); // Close the socket with the OPUS backend
+        interpose_off(e.what());
+        ret = false;
+    }
+
+    return ret;
 }
 
 /**

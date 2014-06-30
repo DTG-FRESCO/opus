@@ -16,6 +16,9 @@
 #define MAX_TEL_DESC    256
 #define INTERPOSE_OFF_MSG "Global interpose flag is off"
 
+// Size is in kilo bytes
+#define DEFAULT_MAX_BUF_SIZE 1024
+
 /**
  * A utility class that encapsulates common
  * process functions used by the library
@@ -30,6 +33,11 @@ class ProcUtils
         static bool serialise_and_send_data(
                     const struct Header& hdr_obj,
                     const ::google::protobuf::Message& pay_obj);
+
+        static bool buffer_and_send_data(
+            const ::fresco::opus::IPCMessage::FuncInfoMessage& buf_func_info_msg);
+
+        static bool flush_buffered_data();
 
         static void send_startup_message();
         static void send_startup_message(const int argc,
@@ -86,6 +94,8 @@ class ProcUtils
         static bool is_interpose_off();
         static void interpose_off(const std::string& desc);
 
+        static void set_msg_aggr_flag();
+
     private:
         static __thread bool in_func_flag;
         static __thread UDSCommClient *comm_obj;
@@ -93,10 +103,12 @@ class ProcUtils
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
         static sig_atomic_t opus_interpose_off;
+        static bool aggr_on_flag;
 
         /* Thread local cached message objects */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;
         static __thread ::fresco::opus::IPCMessage::GenericMessage *gen_msg_obj;
+        static __thread ::fresco::opus::IPCMessage::AggregationMessage *aggr_msg_obj;
 
         /* TLS pointing to objects on the stack */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *__alt_func_msg_ptr;

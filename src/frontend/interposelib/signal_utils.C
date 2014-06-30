@@ -64,6 +64,8 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     }                                                               \
     else                                                            \
     {                                                               \
+        ProcUtils::flush_buffered_data();                           \
+                                                                    \
         char desc_buf[256];                                         \
         snprintf(desc_buf, 256, "Process terminating. Received signal %d", sig); \
         send_telemetry_msg(FrontendTelemetry::CRITICAL, desc_buf);  \
