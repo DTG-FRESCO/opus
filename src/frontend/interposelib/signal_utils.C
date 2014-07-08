@@ -473,6 +473,7 @@ void SignalUtils::restore_all_signal_states()
     LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
+
     sigset_t old_set;
     block_all_signals(&old_set);
 
@@ -484,7 +485,13 @@ void SignalUtils::restore_all_signal_states()
         int sig = 0;
         std::vector<SignalHandler*>::iterator viter;
 
-        if (!sig_handler_vec) return;
+        if (!sig_handler_vec)
+        {
+            LOG_MSG(LOG_DEBUG, "[%s:%d]: sig_handler_vec not initialized\n",
+                                __FILE__, __LINE__);
+            restore_signal_mask(&old_set);
+            return;
+        }
 
         for (viter = sig_handler_vec->begin();
                 viter != sig_handler_vec->end(); ++sig, ++viter)

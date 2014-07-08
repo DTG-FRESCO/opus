@@ -37,9 +37,9 @@
 
 {% macro fn_call(fn) -%}
   {%- if fn.ret != "void" -%}
-    {{fn.ret}} ret = (*func_ptr)({{fn_arg_call(fn)}});
+    CALL_FUNC({{fn.ret}}, ret, func_ptr, {{fn_arg_call(fn)}});
   {%- else -%}
-    (*func_ptr)({{fn_arg_call(fn)}});
+    CALL_FUNC_VOID(func_ptr, {{fn_arg_call(fn)}});
   {%- endif -%}
 {%- endmacro %}
 

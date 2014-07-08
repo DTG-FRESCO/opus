@@ -955,7 +955,10 @@ void ProcUtils::interpose_off(const string& desc)
 {
     ProcUtils::test_and_set_flag(true);
 
-    if (!opus_interpose_off) SignalUtils::restore_all_signal_states();
+#ifdef CAPTURE_SIGNALS
+    if (!opus_interpose_off)
+        SignalUtils::restore_all_signal_states();
+#endif
 
     const char *ipos_off_env = "OPUS_INTERPOSE_OFF=1";
     if (putenv(const_cast<char*>(ipos_off_env)) != 0)

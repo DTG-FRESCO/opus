@@ -18,24 +18,11 @@
 #include "proc_utils.h"
 #include "message_util.h"
 #include "track_errno.h"
+#include "common_macros.h"
 
 #define STRINGIFY(value) #value
 
 static inline void exit_program(const char *exit_str, const int status) __attribute__ ((noreturn));
-
-/**
- * Macros to replace repetitive
- * code in signal and sigaction
- */
-#define CALL_REAL_SIGNAL                            \
-    errno = 0;                                      \
-    ret = (*real_signal)(signum, real_handler);     \
-    err_obj = errno;
-
-#define CALL_REAL_SIGACTION                         \
-    errno = 0;                                      \
-    ret = (*real_sigaction)(signum, act, oldact);   \
-    err_obj = errno;
 
 
 /**
@@ -51,13 +38,16 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
         real_fptr = (fptr_type)ProcUtils::get_sym_addr(fname); \
                                                             \
     /* Call function if global flag is true */              \
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off()) \
+    if (ProcUtils::test_and_set_flag(true))                 \
     {                                                       \
-        if (unlikely(ProcUtils::is_interpose_off()))        \
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);    \
-        errno = 0;                                          \
-        int ret = (*real_fptr)(arg1, __VA_ARGS__);          \
-        err_obj = errno;                                    \
+        CALL_FUNC(int, ret, real_fptr, arg1, __VA_ARGS__);  \
+        return ret;                                         \
+    }                                                       \
+                                                            \
+    if (ProcUtils::is_interpose_off())                      \
+    {                                                       \
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);        \
+        CALL_FUNC(int, ret, real_fptr, arg1, __VA_ARGS__);  \
         return ret;                                         \
     }                                                       \
                                                             \
@@ -66,6 +56,7 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
                                                             \
     /* Call the original exec */                            \
     uint64_t start_time = ProcUtils::get_time();
+
 
 #define POST_EXEC_CALL(desc, arg1_val)                      \
                                                             \
@@ -95,11 +86,9 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
  * This function macro is used by exec functions
  * that do not pass environment variables
  */
-#define EXEC_FUNC(fptr_type, fname, desc, arg1, ...)        \
-    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
-    errno = 0;                                              \
-    int ret = (*real_fptr)(arg1, __VA_ARGS__);              \
-    err_obj = errno;                                        \
+#define EXEC_FUNC(fptr_type, fname, desc, arg1, ...)            \
+    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__);   \
+    CALL_FUNC(int, ret, real_fptr, arg1, __VA_ARGS__);          \
     POST_EXEC_CALL(desc, arg1);
 
 /**
@@ -107,13 +96,14 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
  * that pass environment variables. The environment
  * data allocated on the heap is released if exec fails.
  */
-#define EXEC_FUNC_ENV(fptr_type, fname, desc, arg1, ...)    \
-    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__); \
-    errno = 0;                                              \
-    int ret = (*real_fptr)(arg1, __VA_ARGS__);              \
-    err_obj = errno;                                        \
-    /* If exec returns, it indicates an error. Free allocated memory */ \
-    cleanup_allocated_memory(&env_vec);                     \
+#define EXEC_FUNC_ENV(fptr_type, fname, desc, arg1, ...)        \
+    PRE_EXEC_CALL(fptr_type, fname, desc, arg1, __VA_ARGS__);   \
+    CALL_FUNC(int, ret, real_fptr, arg1, __VA_ARGS__);          \
+                                                                \
+    /* If exec returns, it indicates an error
+       Free allocated memory
+    */                                                          \
+    cleanup_allocated_memory(&env_vec);                         \
     POST_EXEC_CALL(desc, arg1);
 
 
@@ -246,10 +236,14 @@ static inline void exit_program(const char *exit_str, const int status)
     if (!exit_ptr)
         exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(exit_str);
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        (*exit_ptr)(status);
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         (*exit_ptr)(status);
     }
 
@@ -660,20 +654,24 @@ extern "C" pid_t fork(void)
     if (!real_fork)
         real_fork = (FORK_POINTER)ProcUtils::get_sym_addr("fork");
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        pid_t pid = (*real_fork)();
-        err_obj = errno;
+        CALL_FUNC(pid_t, pid, real_fork);
         return pid;
     }
 
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(pid_t, pid, real_fork);
+        return pid;
+    }
+
+
     uint64_t start_time = ProcUtils::get_time();
 
-    errno = 0;
-    pid_t pid = (*real_fork)();
+    CALL_FUNC(pid_t, pid, real_fork);
+
     if (pid == 0)
     {
         /* Child process */
@@ -683,7 +681,6 @@ extern "C" pid_t fork(void)
 
     /* Parent process */
     int errno_value = errno;
-    err_obj = errno;
 
     uint64_t end_time = ProcUtils::get_time();
 
@@ -708,25 +705,27 @@ extern "C" pid_t fork(void)
  */
 extern "C" void* dlopen(const char * filename, int flag)
 {
+    bool comm_ret = true;
     static DLOPEN_POINTER real_dlopen = NULL;
     TrackErrno err_obj(errno);
 
     if (!real_dlopen)
         real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr("dlopen");
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        void *handle = (*real_dlopen)(filename, flag);
-        err_obj = errno;
+        CALL_FUNC(void*, handle, real_dlopen, filename, flag);
         return handle;
     }
 
-    bool comm_ret = true;
-    void *handle = (*real_dlopen)(filename, flag);
-    err_obj = errno;
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(void*, handle, real_dlopen, filename, flag);
+        return handle;
+    }
+
+    CALL_FUNC(void*, handle, real_dlopen, filename, flag);
 
     if (handle)
     {
@@ -756,18 +755,22 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
 {
     static SIGNAL_POINTER real_signal = NULL;
     TrackErrno err_obj(errno);
-    sighandler_t ret = NULL;
 
     /* Get the symbol address and store it */
     if (!real_signal)
         real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr("signal");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        CALL_REAL_SIGNAL;
+        CALL_FUNC(sighandler_t, ret, real_signal, signum, real_handler);
+        return ret;
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(sighandler_t, ret, real_signal, signum, real_handler);
         return ret;
     }
 
@@ -777,12 +780,13 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     */
     if (!SignalUtils::is_signal_valid(signum))
     {
-        CALL_REAL_SIGNAL;
+        CALL_FUNC(sighandler_t, ret, real_signal, signum, real_handler);
         ProcUtils::test_and_set_flag(false);
         return ret;
     }
 
     SignalHandler *sh_obj = NULL;
+    sighandler_t ret = NULL;
 
     try
     {
@@ -804,8 +808,8 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     catch(const std::bad_alloc& e)
     {
         ProcUtils::interpose_off(e.what());
-        CALL_REAL_SIGNAL;
-        return ret;
+        CALL_FUNC(sighandler_t, retval, real_signal, signum, real_handler);
+        return retval;
     }
     catch(const std::exception& e)
     {
@@ -829,18 +833,24 @@ extern "C" int sigaction(int signum,
 {
     static SIGACTION_POINTER real_sigaction = NULL;
     TrackErrno err_obj(errno);
-    int ret = 0;
 
     /* Get the symbol address and store it */
     if (!real_sigaction)
         real_sigaction = (SIGACTION_POINTER)ProcUtils::get_sym_addr("sigaction");
 
+    LOG_MSG(LOG_ERROR, "Inside sigaction %d\n", signum);
+
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        CALL_REAL_SIGACTION;
+        CALL_FUNC(int, ret, real_sigaction, signum, act, oldact);
+        return ret;
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(int, ret, real_sigaction, signum, act, oldact);
         return ret;
     }
 
@@ -850,11 +860,12 @@ extern "C" int sigaction(int signum,
     */
     if (!SignalUtils::is_signal_valid(signum))
     {
-        CALL_REAL_SIGACTION;
+        CALL_FUNC(int, ret, real_sigaction, signum, act, oldact);
         ProcUtils::test_and_set_flag(false);
         return ret;
     }
 
+    int ret = 0;
     SignalHandler *sh_obj = NULL;
     struct sigaction *sa = NULL;
 
@@ -891,8 +902,8 @@ extern "C" int sigaction(int signum,
     catch(const std::bad_alloc& e)
     {
         ProcUtils::interpose_off(e.what());
-        CALL_REAL_SIGACTION;
-        return ret;
+        CALL_FUNC(int, retval, real_sigaction, signum, act, oldact);
+        return retval;
     }
     catch(const std::exception& e)
     {
@@ -938,10 +949,12 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                 (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr("pthread_create");
     }
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
+        return (*real_pthread_create)(thread, attr, real_handler, real_args);
+
+    if (ProcUtils::is_interpose_off())
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         return (*real_pthread_create)(thread, attr, real_handler, real_args);
     }
 
@@ -1001,10 +1014,12 @@ extern "C" void pthread_exit(void *retval)
             (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr("pthread_exit");
     }
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
+        (*real_pthread_exit)(retval);
+
+    if (ProcUtils::is_interpose_off())
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
         (*real_pthread_exit)(retval);
     }
 
@@ -1055,13 +1070,16 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
         real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr("sigset");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        sighandler_t ret = (*real_sigset)(sig, disp);
-        err_obj = errno;
+        CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
+        return ret;
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
         return ret;
     }
 
@@ -1072,18 +1090,12 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
     if (disp == SIG_IGN || disp == SIG_DFL)
     {
         ProcUtils::test_and_set_flag(false);
-
-        errno = 0;
-        sighandler_t ret = signal(sig, disp);
-        err_obj = errno;
-
+        CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
         return ret;
     }
 
     /* We do not deal with SIG_HOLD */
-    errno = 0;
-    sighandler_t ret = (*real_sigset)(sig, disp);
-    err_obj = errno;
+    CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
 
     ProcUtils::test_and_set_flag(false);
     return ret;
@@ -1106,15 +1118,19 @@ extern "C" int sigignore(int sig)
         real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr("sigignore");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        int ret = (*real_sigignore)(sig);
-        err_obj = errno;
+        CALL_FUNC(int, ret, real_sigignore, sig);
         return ret;
     }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(int, ret, real_sigignore, sig);
+        return ret;
+    }
+
 
     /* Use sigaction to ignore the signal */
     struct sigaction act;
@@ -1128,9 +1144,7 @@ extern "C" int sigignore(int sig)
        OPUS can track the current state of this signal.
     */
     ProcUtils::test_and_set_flag(false);
-    errno = 0;
-    int ret = sigaction(sig, &act, NULL);
-    err_obj = errno;
+    CALL_FUNC(int, ret, sigaction, sig, &act, NULL);
 
     return ret;
 }

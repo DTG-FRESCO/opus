@@ -12,6 +12,7 @@
 #include "proc_utils.h"
 #include "message_util.h"
 #include "track_errno.h"
+#include "common_macros.h"
 
 
 #define GET_MODE                    \
@@ -40,28 +41,22 @@ static int __open_internal(const char* pathname, int flags,
 
     if (ProcUtils::test_and_set_flag(true))
     {
-        errno = 0;
-        int ret = (*real_open)(pathname, flags, mode);
-        err_obj = errno;
+        CALL_FUNC(int, ret, real_open, pathname, flags, mode);
         return ret;
     }
 
     if (ProcUtils::is_interpose_off())
     {
         ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        int ret = (*real_open)(pathname, flags, mode);
-        err_obj = errno;
+        CALL_FUNC(int, ret, real_open, pathname, flags, mode);
         return ret;
     }
 
     uint64_t start_time = ProcUtils::get_time();
 
-    errno = 0;
-    int ret = (*real_open)(pathname, flags, mode);
+    CALL_FUNC(int, ret, real_open, pathname, flags, mode);
 
     int errno_value = errno;
-    err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
@@ -134,21 +129,22 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
 
     if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        int ret = (*real_openat)(dirfd, pathname, flags, mode);
-        err_obj = errno;
+        CALL_FUNC(int, ret, real_openat, dirfd, pathname, flags, mode);
+        return ret;
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        CALL_FUNC(int, ret, real_openat, dirfd, pathname, flags, mode);
         return ret;
     }
 
     uint64_t start_time = ProcUtils::get_time();
 
-    errno = 0;
-    int ret = (*real_openat)(dirfd, pathname, flags, mode);
+    CALL_FUNC(int, ret, real_openat, dirfd, pathname, flags, mode);
 
     int errno_value = errno;
-    err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
@@ -224,6 +220,21 @@ extern "C" int openat64(int dirfd, const char *pathname, int flags, ...)
     return __openat_internal(dirfd, pathname, flags, "openat64", real_openat64, mode);
 }
 
+/**
+ *  Macro to call real fcntl with different
+ *  arguments based in argument format
+ */
+#define FCNTL_CALL_FUNC                                               \
+    errno = 0;                                                        \
+    if (argfmt == NO_ARG) {                                           \
+        ret = real_fcntl(filedes, cmd);                               \
+    } else if (argfmt == INT_ARG) {                                   \
+        ret = real_fcntl(filedes, cmd, int_arg);                      \
+    } else {                                                          \
+        ret = real_fcntl(filedes, cmd, flock_arg);                    \
+    }                                                                 \
+    err_obj = errno;
+
 
 static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt)
 {
@@ -244,35 +255,24 @@ static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt
     }
     va_end(arg);
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-        errno = 0;
-        if(argfmt == NO_ARG){
-            ret = real_fcntl(filedes, cmd);
-        }else if(argfmt == INT_ARG){
-            ret = real_fcntl(filedes, cmd, int_arg);
-        }else{
-            ret = real_fcntl(filedes, cmd, flock_arg);
-        }
-        err_obj = errno;
+        FCNTL_CALL_FUNC
+        return ret;
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        FCNTL_CALL_FUNC
         return ret;
     }
 
     uint64_t start_time = ProcUtils::get_time();
 
-    errno = 0;
-    if(argfmt == NO_ARG){
-        ret = real_fcntl(filedes, cmd);
-    }else if(argfmt == INT_ARG){
-        ret = real_fcntl(filedes, cmd, int_arg);
-    }else{
-        ret = real_fcntl(filedes, cmd, flock_arg);
-    }
+    FCNTL_CALL_FUNC
 
     int errno_value = errno;
-    err_obj = errno;
     uint64_t end_time = ProcUtils::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
