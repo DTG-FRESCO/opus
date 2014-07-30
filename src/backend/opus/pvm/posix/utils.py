@@ -82,8 +82,8 @@ def event_from_msg(db_iface, msg):
     if len(arg_values) > 0:
         event_node['arg_values'] = arg_values
 
-    event_node['before_time'] = msg.begin_time
-    event_node['after_time'] = msg.end_time
+    event_node['before_time'] = str(msg.begin_time)
+    event_node['after_time'] = str(msg.end_time)
     return event_node
 
 
@@ -96,29 +96,7 @@ def proc_get_local(db_iface, proc_node, loc_name):
     if loc_node is None:
         raise NoMatchingLocalError(proc_node, loc_name)
 
-    if loc_proc_rel['state'] != storage.LinkState.CoT:
-        return loc_node
-
-    # ### Handle Copy on Touch ### #
-
-    # Delete the CoT link to local
-    db_iface.delete_relationship(loc_proc_rel)
-
-    # Invalidate the VALID_LOCAL cache
-    db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
-                                  (proc_node.id, loc_name))
-
-    # Create a new local object node
-    new_loc_node = pvm.get_l(db_iface, proc_node, loc_name)
-
-    # Find the newest valid version of the global object
-    glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
-    if glob_node is None:
-        return new_loc_node
-
-    new_glob_node = pvm.version_global(db_iface, glob_node)
-    pvm.bind(db_iface, new_loc_node, new_glob_node)
-    return new_loc_node
+    return loc_node
 
 
 def update_proc_meta(db_iface, proc_node, meta_name, new_val, timestamp):

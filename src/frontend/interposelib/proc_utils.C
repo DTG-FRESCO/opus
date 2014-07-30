@@ -616,6 +616,7 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     start_msg.set_user_name(ProcUtils::get_user_name(getuid()));
     start_msg.set_group_name(ProcUtils::get_group_name(getgid()));
     start_msg.set_ppid(getppid());
+    start_msg.set_start_time(ProcUtils::get_time());
 
     set_command_line(&start_msg, argc, argv);
     if (envp) set_env_vars(&start_msg, envp);
