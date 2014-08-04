@@ -31,14 +31,9 @@
 #define MEM_FUNC_MACRO(libc_func, ...)                              \
     TrackErrno err_obj(errno);                                      \
                                                                     \
-    if (ProcUtils::test_and_set_flag(true))                         \
-    {                                                               \
-        CALL_MEM_FUNC(libc_func, __VA_ARGS__);                      \
-        return ret;                                                 \
-    }                                                               \
-                                                                    \
+    bool prev_ipose_val = ProcUtils::test_and_set_flag(true);       \
     CALL_MEM_FUNC(libc_func, __VA_ARGS__);                          \
-    ProcUtils::test_and_set_flag(false);                            \
+    ProcUtils::test_and_set_flag(prev_ipose_val);                   \
     return ret;
 
 
@@ -66,18 +61,7 @@ extern "C" void free(void* ptr)
 {
     TrackErrno err_obj(errno);
 
-    if (ProcUtils::test_and_set_flag(true))
-    {
-        sigset_t old_set;
-        SignalUtils::block_all_signals(&old_set);
-
-        errno = 0;
-        __libc_free(ptr);
-        err_obj = errno;
-
-        SignalUtils::restore_signal_mask(&old_set);
-        return;
-    }
+    bool prev_ipose_val = ProcUtils::test_and_set_flag(true);
 
     sigset_t old_set;
     SignalUtils::block_all_signals(&old_set);
@@ -87,6 +71,6 @@ extern "C" void free(void* ptr)
     err_obj = errno;
 
     SignalUtils::restore_signal_mask(&old_set);
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::test_and_set_flag(prev_ipose_val);
 }
 
