@@ -322,9 +322,8 @@ void ProcUtils::set_msg_aggr_flag()
 {
     try
     {
-        char* msg_aggr = get_env_val("OPUS_MSG_AGGR");
-
-        if (atoi(msg_aggr) == 1) aggr_on_flag = true;
+        char *msg_aggr = get_env_val("OPUS_MSG_AGGR");
+        if (msg_aggr) aggr_on_flag = true;
     }
     catch(const std::exception& e)
     {
@@ -369,7 +368,7 @@ bool ProcUtils::flush_buffered_data()
 bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
 {
     bool ret = true;
-    static int64_t max_aggr_msg_size = 0;
+    static int64_t max_aggr_msg_size = DEFAULT_MAX_BUF_SIZE;
 
     if (!comm_obj) return false;
 
@@ -379,20 +378,15 @@ bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
 
     try
     {
-        /*
-           Pre allocate a message buffer using
-           the environment OPUS_MAX_AGGR_MSG_SIZE
-         */
-        if (max_aggr_msg_size == 0)
+        if (!aggr_msg_obj)
         {
+            // Read aggregation message size from environment
             char *aggr_msg_size = get_env_val("OPUS_MAX_AGGR_MSG_SIZE");
+            if (aggr_msg_size) max_aggr_msg_size = atoi(aggr_msg_size);
 
-            if (!aggr_msg_size) max_aggr_msg_size = DEFAULT_MAX_BUF_SIZE;
-            else max_aggr_msg_size = atoi(aggr_msg_size);
+            // Allocate memory for AggregationMessage object
+            aggr_msg_obj = new AggregationMessage();
         }
-
-        // Pre allocate an AggregationMessage pointer
-        if (!aggr_msg_obj) aggr_msg_obj = new AggregationMessage();
 
         FuncInfoMessage *func_info_msg = aggr_msg_obj->add_messages();
         func_info_msg->MergeFrom(buf_func_info_msg); // Performs deep copy
