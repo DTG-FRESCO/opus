@@ -45,7 +45,7 @@ __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
 __thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
 __thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
-__thread AggregationMessage *ProcUtils::aggr_msg_obj = NULL;
+__thread AggrMsg *ProcUtils::aggr_msg_obj = NULL;
 
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
@@ -56,7 +56,7 @@ sig_atomic_t ProcUtils::opus_interpose_off = false;
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
 
-/** Aggregate messages flag */
+/** Aggregation flag */
 bool ProcUtils::aggr_on_flag = false;
 
 /**
@@ -335,30 +335,7 @@ void ProcUtils::set_msg_aggr_flag()
 bool ProcUtils::flush_buffered_data()
 {
     if (!aggr_msg_obj) return false;
-
-    /* Nothing to send */
-    if (aggr_msg_obj->ByteSize() == 0)
-        return true;
-
-    LOG_MSG(LOG_DEBUG, "[%s:%d]: Flushing aggr msg of size %d bytes\n",
-            __FILE__, __LINE__, aggr_msg_obj->ByteSize());
-
-    /* Create the header message */
-    Header hdr_msg;
-    set_header_data(&hdr_msg, aggr_msg_obj->ByteSize(),
-            PayloadType::AGGREGATION_MSG);
-
-    if (!serialise_and_send_data(hdr_msg, *aggr_msg_obj))
-    {
-        std::string err_msg = "Failed sending AGGREGATION_MSG";
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n",
-                __FILE__, __LINE__, err_msg.c_str());
-        return false;
-    }
-
-    aggr_msg_obj->Clear();
-
-    return true;
+    return aggr_msg_obj->flush();
 }
 
 
@@ -368,8 +345,6 @@ bool ProcUtils::flush_buffered_data()
 bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
 {
     bool ret = true;
-    static int64_t max_aggr_msg_size = DEFAULT_MAX_BUF_SIZE;
-
     if (!comm_obj) return false;
 
     if (!aggr_on_flag)
@@ -378,23 +353,10 @@ bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
 
     try
     {
-        if (!aggr_msg_obj)
-        {
-            // Read aggregation message size from environment
-            char *aggr_msg_size = get_env_val("OPUS_MAX_AGGR_MSG_SIZE");
-            if (aggr_msg_size) max_aggr_msg_size = atoi(aggr_msg_size);
+        if (!aggr_msg_obj) aggr_msg_obj = new AggrMsg();
 
-            // Allocate memory for AggregationMessage object
-            aggr_msg_obj = new AggregationMessage();
-        }
-
-        FuncInfoMessage *func_info_msg = aggr_msg_obj->add_messages();
-        func_info_msg->MergeFrom(buf_func_info_msg); // Performs deep copy
-
-        /* Flush buffered data if message size has reached max_aggr_msg_size */
-        if (aggr_msg_obj->ByteSize() >= max_aggr_msg_size)
-            ret = ProcUtils::flush_buffered_data();
-
+        if (!aggr_msg_obj->add_msg(buf_func_info_msg))
+            throw std::runtime_error("add_msg() failed!!");
     }
     catch(const std::exception& e)
     {
@@ -416,16 +378,12 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
 {
     bool ret = true;
 
-    if (!comm_obj)
-    {
-        ret = false;
-        return ret;
-    }
+    if (!comm_obj) return false;
 
     char *buf = NULL;
 
     int hdr_size = sizeof(header_obj);
-    int pay_size = payload_obj.ByteSize();
+    int pay_size = header_obj.payload_len;
     int total_size = hdr_size + pay_size;
 
     try

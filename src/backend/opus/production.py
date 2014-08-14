@@ -115,9 +115,13 @@ class SockReader(object):
 
         # Deserialization only needed for debugging during development
         if __debug__:
-            payload = common_utils.get_payload_type(self.header)
-            payload.ParseFromString(pay_buf)
-            logging.debug("Payload: %s", payload.__str__())
+            if self.header.payload_type == uds_msg_pb2.AGGREGATION_MSG:
+                logging.debug("Payload: %s", repr(pay_buf))
+            else:
+                payload = common_utils.get_payload_type(self.header)
+                logging.debug("pay_buf: %s", repr(pay_buf))
+                payload.ParseFromString(pay_buf)
+                logging.debug("Payload: %s", payload.__str__())
 
         # Reset data members
         self.buf_data = b''

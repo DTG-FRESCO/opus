@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division,
 import fcntl
 import logging
 import sys
+import opuspb
 
 try:
     import yaml
@@ -23,7 +24,7 @@ except ImportError:
 
 from opus import pvm
 from opus.pvm.posix import actions, process, utils
-from opus import common_utils, storage, traversal
+from opus import common_utils, storage, traversal, uds_msg_pb2
 
 
 class MissingMappingError(common_utils.OPUSException):
@@ -153,7 +154,9 @@ def load_cache(db_iface, loc_name, proc_node, mono_time):
 def process_aggregate_functions(db_iface, proc_node, msg_list):
     '''Processes an aggregation message.'''
     fd_cache = {}
-    for msg in msg_list:
+    for smsg in msg_list:
+        msg = uds_msg_pb2.FuncInfoMessage()
+        msg.ParseFromString(smsg)
         des = get_fd_from_msg(msg)
 
         db_iface.set_mono_time_for_msg(msg.begin_time)

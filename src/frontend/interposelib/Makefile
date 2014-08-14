@@ -37,7 +37,8 @@ SRCS    :=  log.C \
             signal_utils.C \
             main.C \
             opus_vfork.C \
-            $(VFORK_WRAPPER)
+            $(VFORK_WRAPPER) \
+            aggr_msg.C
 
 HDRS    :=  log.h \
             opus_lock.h \
@@ -50,6 +51,7 @@ HDRS    :=  log.h \
             signal_utils.h \
             main.h \
             opus_vfork.h \
-            track_errno.h
+            track_errno.h \
+            aggr_msg.h
 
 include     $(TOP)/Maketmpl/shlib-NEW.mk

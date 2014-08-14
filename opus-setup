@@ -19,5 +19,5 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 
 # Message aggregation controls
 export OPUS_MSG_AGGR=1 # ON=1, OFF=0
-export OPUS_MAX_AGGR_MSG_SIZE=1024 # Size in bytes
+export OPUS_MAX_AGGR_MSG_SIZE=65536 # Size in bytes
 

@@ -10,14 +10,12 @@
 #include "opus_lock.h"
 #include "uds_client.h"
 #include "messaging.h"
+#include "aggr_msg.h"
 
 // Process global constants
 #define MAX_INT32_LEN   16
 #define MAX_TEL_DESC    256
 #define INTERPOSE_OFF_MSG "Global interpose flag is off"
-
-// Size is in kilo bytes
-#define DEFAULT_MAX_BUF_SIZE 1024
 
 /**
  * A utility class that encapsulates common
@@ -108,7 +106,7 @@ class ProcUtils
         /* Thread local cached message objects */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *func_msg_obj;
         static __thread ::fresco::opus::IPCMessage::GenericMessage *gen_msg_obj;
-        static __thread ::fresco::opus::IPCMessage::AggregationMessage *aggr_msg_obj;
+        static __thread AggrMsg *aggr_msg_obj;
 
         /* TLS pointing to objects on the stack */
         static __thread ::fresco::opus::IPCMessage::FuncInfoMessage *__alt_func_msg_ptr;

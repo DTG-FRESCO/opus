@@ -78,6 +78,6 @@ message TermMessage {
 }
 
 message AggregationMessage {
-    repeated FuncInfoMessage messages = 1;
+    repeated bytes messages = 1;
 }
 
