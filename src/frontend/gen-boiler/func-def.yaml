@@ -2293,4 +2293,23 @@
     name: flags
     type: "int"
 
+- name: malloc
+  ret: "void*"
+  flags: [nogen]
+  args: "size_t size"
+
+- name: calloc
+  ret: "void*"
+  flags: [nogen]
+  args: "size_t nmemb, size_t size"
+
+- name: realloc
+  ret: "void*"
+  flags: [nogen]
+  args: "void* ptr, size_t size"
+
+- name: free
+  ret: "void"
+  flags: [nogen]
+  args: "void* ptr"
 

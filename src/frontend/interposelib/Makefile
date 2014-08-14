@@ -37,7 +37,8 @@ SRCS    :=  log.C \
             signal_utils.C \
             main.C \
             opus_vfork.C \
-            $(VFORK_WRAPPER)
+            $(VFORK_WRAPPER) \
+            memory_functions.C
 
 HDRS    :=  log.h \
             opus_lock.h \
