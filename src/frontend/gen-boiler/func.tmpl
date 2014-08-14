@@ -5,6 +5,7 @@ using src/frontend/gen-boiler/func.tmpl as a template.
 */
 
 #include "func_ptr_types.h"
+#include "common_macros.h"
 
 {% for func in fn_list if 'nogen' not in func.flags -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
@@ -29,15 +30,20 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     va_start(va_args, {{(func.args|last).name}});
     {%- endif %}
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::test_and_set_flag(true))
     {
-        if (unlikely(ProcUtils::is_interpose_off()))
-            ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
-
-        errno = 0;
         {{macros.fn_call(func)}}
 
-        err_obj = errno;
+        {% if "vararg" in func.flags -%}
+        va_end(va_args);
+        {%- endif %}
+        {{macros.return_func(func)}}
+    }
+
+    if (ProcUtils::is_interpose_off())
+    {
+        ProcUtils::interpose_off(INTERPOSE_OFF_MSG);
+        {{macros.fn_call(func)}}
 
         {% if "vararg" in func.flags -%}
         va_end(va_args);
@@ -52,13 +58,10 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {%- endif -%}
     {%- endfor %}
     uint64_t start_time = ProcUtils::get_time();
-    
-    errno = 0;
+
     {{macros.fn_call(func)}}
+
     int errno_value = errno;
-
-    err_obj = errno;
-
     uint64_t end_time = ProcUtils::get_time();
 
     {% if "vararg" in func.flags -%}
