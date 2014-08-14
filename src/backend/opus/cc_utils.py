@@ -7,9 +7,13 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import os
+import socket
 import struct
 
-from opus import cc_msg_pb2
+from opus import cc_msg_pb2, common_utils
+
+
+CC_HDR = struct.Struct(str("@II"))
 
 
 class BiDict(object):  # pylint: disable=R0903
@@ -42,6 +46,7 @@ def _msg_type_transcode(obj):
         trans_dict[cc_msg_pb2.CMDCTL] = type(cc_msg_pb2.CmdCtlMessage())
         trans_dict[cc_msg_pb2.CMDCTLRSP] = type(cc_msg_pb2.CmdCtlMessageRsp())
         trans_dict[cc_msg_pb2.PSRSP] = type(cc_msg_pb2.PSMessageRsp())
+        trans_dict[cc_msg_pb2.QRYRSP] = type(cc_msg_pb2.QueryMessageRsp())
         _msg_type_transcode.trans_dict = trans_dict
     return _msg_type_transcode.trans_dict[obj]
 
@@ -55,9 +60,8 @@ class RWPipePair(object):
 
     def read(self):
         '''Reads a single message from the read pipe.'''
-        hdr_size = struct.calcsize(str("@II"))
-        hdr_buf = os.read(self.r_pipe, hdr_size)
-        pay_len, pay_type = struct.unpack(str("@II"), hdr_buf)
+        hdr_buf = os.read(self.r_pipe, CC_HDR.size)
+        pay_len, pay_type = CC_HDR.unpack(hdr_buf)
         pay_buf = os.read(self.r_pipe, pay_len)
         pay_cls = _msg_type_transcode(pay_type)
         return pay_cls.FromString(pay_buf)
@@ -66,7 +70,7 @@ class RWPipePair(object):
         '''Write a single message to the write pipe.'''
         msg_len = msg.ByteSize()
         msg_type = _msg_type_transcode(type(msg))
-        buf = struct.pack(str("@II"), msg_len, msg_type)
+        buf = CC_HDR.pack(msg_len, msg_type)
         buf += msg.SerializeToString()
         os.write(self.w_pipe, buf)
 
@@ -85,7 +89,7 @@ def send_cc_msg(sock, msg):
     '''Sends a command control message over the socket sock.'''
     msg_len = msg.ByteSize()
     msg_type = _msg_type_transcode(type(msg))
-    buf = struct.pack(str("@II"), msg_len, msg_type)
+    buf = CC_HDR.pack(msg_len, msg_type)
     buf += msg.SerializeToString()
     sock.send(buf)
 
@@ -97,19 +101,50 @@ def __recv(sock, data_len):
     size = data_len
     while size > 0:
         tmp = sock.recv(data_len)
-        if tmp == "":
+        if tmp == str(""):
             raise IOError()
         buf += [tmp]
         size -= len(tmp)
-    return "".join(buf)
+    return str("").join(buf)
 
 
 def recv_cc_msg(sock):
     '''Receives a single command control message from the given socket sock.'''
-    hdr_len = struct.calcsize(str("@II"))
-    hdr_buf = __recv(sock, hdr_len)
-    pay_len, pay_type = struct.unpack(str("@II"), hdr_buf)
+    hdr_buf = __recv(sock, CC_HDR.size)
+    pay_len, pay_type = CC_HDR.unpack(hdr_buf)
     pay_buf = __recv(sock, pay_len)
     pay_cls = _msg_type_transcode(pay_type)
     pay = pay_cls.FromString(str(pay_buf))
     return pay
+
+
+class BackendConnectionError(common_utils.OPUSException):
+    '''Exception class for a failure of a script to make communication with
+    the backend.'''
+    def __init__(self, msg):
+        super(BackendConnectionError, self).__init__(msg)
+
+
+class CommandConnectionHelper(object):
+    '''Manages a connection to the backend and provides helpers for making
+    requests.'''
+    def __init__(self, host, port):
+        try:
+            self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.conn.connect((host, port))
+        except IOError as exc:
+            raise BackendConnectionError("Failed to make contact with "
+                                         "the backend: %s" % exc)
+
+    def make_request(self, msg):
+        '''Sends a request message to the backend and retrieves a response.'''
+        try:
+            send_cc_msg(self.conn, msg)
+        except IOError as exc:
+            raise BackendConnectionError("Failed to send message to backend:"
+                                         " %s" % exc)
+        try:
+            return recv_cc_msg(self.conn)
+        except IOError as exc:
+            raise BackendConnectionError("Failed to receive message from"
+                                         " backend: %s" % exc)

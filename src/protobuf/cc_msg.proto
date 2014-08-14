@@ -4,6 +4,7 @@ enum CC_MSG_TYPE {
     CMDCTL = 1;
     CMDCTLRSP = 2;
     PSRSP = 3;
+    QRYRSP = 4;
 }
 
 message CmdCtlMessage {
@@ -29,4 +30,18 @@ message PSMessageRsp {
     }
 
     repeated PSData ps_data = 1; // Process data
+}
+
+message QueryMessageRsp {
+    message Row {
+        message KVPair {
+            optional string key = 1;
+            optional string value = 2;
+        }
+
+        repeated KVPair cells = 1;
+    }
+
+    repeated Row rows = 1;
+    optional string error = 2;
 }

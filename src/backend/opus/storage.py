@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division,
 
 import functools
 import logging
+import threading
 import time
 
 from opus import common_utils
@@ -176,6 +177,8 @@ class DBInterface(StorageIFace):
 
     def __init__(self, filename):
         super(DBInterface, self).__init__()
+
+        self.trans_lock = threading.Lock()
         try:
             self.db = GraphDatabase(filename)
             self.file_index = None
@@ -189,7 +192,7 @@ class DBInterface(StorageIFace):
                                            CACHE_NAMES.VALID_LOCAL,
                                            CACHE_NAMES.NODE_BY_ID])
 
-            with self.db.transaction:
+            with self.start_transaction():
                 # Unique ID index
                 if self.db.node.indexes.exists(DBInterface.UNIQ_ID_IDX):
                     uniq_id_idx = self.db.node.indexes.get(
@@ -245,7 +248,23 @@ class DBInterface(StorageIFace):
 
     def start_transaction(self):
         '''Returns a Neo4J transaction'''
-        return self.db.transaction
+
+        class TransactionWrapper(object):
+
+            def __init__(self, lock, wraped):
+                self.lock = lock
+                self.wraped = wraped
+
+            def __enter__(self, *args, **kwargs):
+                self.lock.acquire()
+                return self.wraped.__enter__(*args, **kwargs)
+
+            def __exit__(self, *args, **kwargs):
+                ret = self.wraped.__exit__(*args, **kwargs)
+                self.lock.release()
+                return ret
+
+        return TransactionWrapper(self.trans_lock, self.db.transaction)
 
     def set_sys_time_for_msg(self, sys_time):
         '''Stores the system time passed in the header
@@ -311,11 +330,11 @@ class DBInterface(StorageIFace):
     def find_and_del_rel(self, from_node, to_node, rel_type):
         '''Finds a relation of type rel_type between two nodes
         and deletes it'''
-        qry = "START from_node=node(" + str(from_node.id) + ") "
-        qry += "MATCH from_node-[rel:" + rel_type + "]->to_node "
-        qry += "WHERE id(to_node) = " + str(to_node.id)
-        qry += " RETURN rel"
-        rows = self.db.query(qry)
+        rows = self.db.query("START from_node=node({from_id}),"
+                             " to_node=node({to_id}) "
+                             "MATCH from_node-[rel:" + rel_type + "]->to_node "
+                             " RETURN rel",
+                             from_id=from_node.id, to_id=to_node.id)
         for row in rows:
             rel = row['rel']
             rel.delete()
@@ -336,3 +355,8 @@ class DBInterface(StorageIFace):
     def query(self, qry, **kwargs):
         '''Executes query and returns result'''
         return self.db.query(qry, **kwargs)
+
+    def locked_query(self, qry, **kwargs):
+        '''Executes a query within a locknig transation.'''
+        with self.trans_lock:
+            return self.db.query(qry, **kwargs)

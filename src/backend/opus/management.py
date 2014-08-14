@@ -6,7 +6,7 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (analysis, cc_utils, command,
+from opus import (analysis, cc_utils, command, command_interface,
                   common_utils, production, messaging)
 from opus import uds_msg_pb2 as uds_msg
 
@@ -116,7 +116,8 @@ class DaemonManager(object):
         self.command = command.CommandControl(self, ctrl_prod)
 
         self.command.set_interface(
-            _load_module(config, "CommandInterface", command.CommandInterface,
+            _load_module(config, "CommandInterface",
+                         command_interface.CommandInterface,
                          {"command_control": self.command})
         )
 
