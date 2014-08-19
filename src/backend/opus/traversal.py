@@ -13,9 +13,8 @@ def get_latest_glob_version(db_iface, name):
     '''Gets the latest global version for the given name'''
     node = None
 
-    result = db_iface.query("START n=node:FILE_INDEX('name:\"{name}\"') "
-                            "RETURN n ORDER BY n.node_id DESC LIMIT 1",
-                            name=name)
+    result = db_iface.query("START n=node:FILE_INDEX('name:\"" + name + "\"') "
+                            "RETURN n ORDER BY n.node_id DESC LIMIT 1")
     for row in result:
         node = row['n']
     return node

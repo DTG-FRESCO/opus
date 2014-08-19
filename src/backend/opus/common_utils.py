@@ -6,6 +6,8 @@ be used by multiple modules in the OPUS backend
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import bisect
+import collections
 import copy
 import logging
 import threading
@@ -66,6 +68,46 @@ class FixedDict(object):  # pylint: disable=R0903
         return len(self._dictionary)
 
 
+class IndexList(collections.MutableSequence):
+    '''A list that maintains a bisectable index based on a key function.'''
+    def __init__(self, key):
+        self.key = key
+        self.list = []
+        self.index = []
+
+    def insert(self, i, val):
+        '''Insert an item into the list.'''
+        self.list.insert(i, val)
+        self.index.insert(i, self.key(val))
+
+    def find(self, val, key=None):
+        '''Find an items position in the list by bisecting the index.'''
+        if key is None:
+            return bisect.bisect(self.index, self.key(val))
+        else:
+            return bisect.bisect(self.index, key(val))
+
+    def __getitem__(self, i):
+        return self.list[i]
+
+    def __setitem__(self, i, x):
+        self.list[i] = x
+        self.index[i] = self.key(x)
+
+    def __delitem__(self, i):
+        del self.list[i]
+        del self.index[i]
+
+    def __len__(self):
+        return len(self.list)
+
+    def __contains__(self, x):
+        return x in self.list
+
+    def __repr__(self):
+        return str(self.index)
+
+
 def meta_factory(base, tag, *args, **kwargs):
     '''Return an instance of the class
     derived from base with the name "tag"'''
@@ -119,6 +161,8 @@ def get_payload_type(header):
         return uds_msg_pb2.TermMessage()
     elif header.payload_type == uds_msg_pb2.TELEMETRY_MSG:
         return uds_msg_pb2.FrontendTelemetry()
+    elif header.payload_type == uds_msg_pb2.AGGREGATION_MSG:
+        return uds_msg_pb2.AggregationMessage()
     else:
         logging.error("Invalid payload type %d", header.payload_type)
 

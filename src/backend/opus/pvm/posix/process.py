@@ -70,10 +70,13 @@ def clone_file_des(db_iface, old_proc_node, new_proc_node):
         if rel_link['state'] in [storage.LinkState.CLOSED,
                                  storage.LinkState.CLOEXEC]:
             continue
-        # Create a new link from the local node to the new process node
-        new_rel_link = db_iface.create_relationship(loc_node, new_proc_node,
-                                                    storage.RelType.PROC_OBJ)
-        new_rel_link['state'] = storage.LinkState.CoT
+        new_loc_node = pvm.get_l(db_iface, new_proc_node, loc_node['name'])
+
+        # Find the newest valid version of the global object
+        glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
+        if glob_node is not None:
+            new_glob_node = pvm.version_global(db_iface, glob_node)
+            pvm.bind(db_iface, new_loc_node, new_glob_node)
 
 
 class ProcStateController(object):

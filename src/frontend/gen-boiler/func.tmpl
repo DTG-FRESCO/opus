@@ -68,6 +68,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     va_end(va_args);
     {%- endif %}
 
+
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
 
@@ -171,7 +172,11 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     set_func_info_msg(func_msg, "{{func.name}}", start_time, end_time, errno_value);
     {%- endif %}
 
+    {% if "buffer" in func.flags -%}
+    bool comm_ret = ProcUtils::buffer_and_send_data(*func_msg);
+    {%- else -%}
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
+    {%- endif %}
 
     /*
         If the message is successfully sent

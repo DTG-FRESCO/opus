@@ -8,6 +8,7 @@ enum PayloadType {
     GENERIC_MSG = 4;
     TERM_MSG = 5;
     TELEMETRY_MSG = 6;
+    AGGREGATION_MSG = 7;
 }
 
 enum GenMsgType {
@@ -30,6 +31,7 @@ message StartupMessage {
     optional string user_name = 4;
     optional string group_name = 5;
     optional int64 ppid = 6;
+    optional int64 start_time = 10;
     repeated KVPair environment = 7;
     repeated KVPair system_info = 8;
     repeated KVPair resource_limit = 9;
@@ -74,3 +76,8 @@ message TermMessage {
     }
     optional TermState reason = 3;
 }
+
+message AggregationMessage {
+    repeated bytes messages = 1;
+}
+

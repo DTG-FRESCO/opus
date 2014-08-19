@@ -90,10 +90,13 @@ class CacheManager(object):
             raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
 
         if key not in self.caches[cache]:
-            logging.warn("Warning: Attempted to invalidate key {0} "
-                         "in cache {1} but {0} was not present in "
-                         "the cache.".format(key,
-                                             CACHE_NAMES.enum_str(cache)))
+            if __debug__:
+                logging.warn("Warning: Attempted to invalidate key {0} "
+                             "in cache {1} but {0} was not present in "
+                             "the cache.".format(
+                                key, CACHE_NAMES.enum_str(cache)
+                                )
+                             )
             return
 
         del self.caches[cache][key]
@@ -248,6 +251,10 @@ class DBInterface(StorageIFace):
         '''Stores the system time passed in the header
         for each message being processed'''
         self.sys_time = sys_time
+        self.mono_time = None
+
+    def set_mono_time_for_msg(self, mono_time):
+        self.mono_time = mono_time
 
     def create_node(self, node_type):
         '''Creates a node and sets the node ID, type and timestamp'''
@@ -256,6 +263,11 @@ class DBInterface(StorageIFace):
         node['node_id'] = node_id
         node['type'] = node_type
         node['sys_time'] = self.sys_time
+        if node_type == NodeType.LOCAL:
+            if self.mono_time is None:
+                logging.error("Error: Attempted to use monotime in a function"
+                              " that does not supply it.")
+            node['mono_time'] = str(self.mono_time)
 
         self.update_index(DBInterface.NODE_ID_IDX, 'node', node_id, node)
         return node

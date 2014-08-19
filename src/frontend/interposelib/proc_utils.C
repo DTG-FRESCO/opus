@@ -45,6 +45,7 @@ __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
 __thread FuncInfoMessage *ProcUtils::__alt_func_msg_ptr = NULL;
 __thread GenericMessage *ProcUtils::__alt_gen_msg_ptr = NULL;
+__thread AggrMsg *ProcUtils::aggr_msg_obj = NULL;
 
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
@@ -54,6 +55,9 @@ sig_atomic_t ProcUtils::opus_interpose_off = false;
 
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
+
+/** Aggregation flag */
+bool ProcUtils::aggr_on_flag = false;
 
 /**
  * Callback function passed to dl_iterate_phdr.
@@ -258,7 +262,7 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
 {
     try
     {
-        char *preload_path = get_env_val("LD_PRELOAD");
+        char* preload_path = get_env_val("LD_PRELOAD");
 
         LOG_MSG(LOG_DEBUG, "[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
@@ -311,6 +315,61 @@ void ProcUtils::get_formatted_time(string* date_time)
 }
 
 /**
+ * Reads message aggregation flag from environment
+ * and stores the value within the ProcUtils class
+ */
+void ProcUtils::set_msg_aggr_flag()
+{
+    try
+    {
+        char *msg_aggr = get_env_val("OPUS_MSG_AGGR");
+        if (msg_aggr) aggr_on_flag = true;
+    }
+    catch(const std::exception& e)
+    {
+        LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
+    }
+
+}
+
+bool ProcUtils::flush_buffered_data()
+{
+    if (!aggr_msg_obj) return false;
+    return aggr_msg_obj->flush();
+}
+
+
+/**
+ * Buffers FUNCINFO_MSG and sends the messages in a batch
+ */
+bool ProcUtils::buffer_and_send_data(const FuncInfoMessage& buf_func_info_msg)
+{
+    bool ret = true;
+    if (!comm_obj) return false;
+
+    if (!aggr_on_flag)
+        return set_header_and_send(buf_func_info_msg,
+                            PayloadType::FUNCINFO_MSG);
+
+    try
+    {
+        if (!aggr_msg_obj) aggr_msg_obj = new AggrMsg();
+
+        if (!aggr_msg_obj->add_msg(buf_func_info_msg))
+            throw std::runtime_error("add_msg() failed!!");
+    }
+    catch(const std::exception& e)
+    {
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+        disconnect(); // Close the socket with the OPUS backend
+        interpose_off(e.what());
+        ret = false;
+    }
+
+    return ret;
+}
+
+/**
  * Serializes the header and payload data
  * and sends this data to the OPUS backend.
  */
@@ -319,16 +378,12 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
 {
     bool ret = true;
 
-    if (!comm_obj)
-    {
-        ret = false;
-        return ret;
-    }
+    if (!comm_obj) return false;
 
     char *buf = NULL;
 
     int hdr_size = sizeof(header_obj);
-    int pay_size = payload_obj.ByteSize();
+    int pay_size = header_obj.payload_len;
     int total_size = hdr_size + pay_size;
 
     try
@@ -513,6 +568,7 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     start_msg.set_user_name(ProcUtils::get_user_name(getuid()));
     start_msg.set_group_name(ProcUtils::get_group_name(getgid()));
     start_msg.set_ppid(getppid());
+    start_msg.set_start_time(ProcUtils::get_time());
 
     set_command_line(&start_msg, argc, argv);
     if (envp) set_env_vars(&start_msg, envp);

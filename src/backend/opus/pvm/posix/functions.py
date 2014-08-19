@@ -12,7 +12,7 @@ from __future__ import (absolute_import, division,
 import fcntl
 import logging
 import sys
-
+import opuspb
 
 try:
     import yaml
@@ -24,7 +24,7 @@ except ImportError:
 
 from opus import pvm
 from opus.pvm.posix import actions, process, utils
-from opus import common_utils, storage, traversal
+from opus import common_utils, storage, traversal, uds_msg_pb2
 
 
 class MissingMappingError(common_utils.OPUSException):
@@ -35,20 +35,26 @@ class MissingMappingError(common_utils.OPUSException):
         )
 
 
+def _parse_mapping(msg, mapping):
+    '''Given a message and an argument mapping, retrieve the value of that
+    argument.'''
+    args = utils.parse_kvpair_list(msg.args)
+    if mapping[0] == "msg_arg":
+        return args[mapping[1]]
+    elif mapping[0] == "ret_val":
+        return str(msg.ret_val)
+    elif mapping[0] == "const":
+        return str(mapping[1])
+
+
 def wrap_action(action, arg_map):
     '''Converts an item from the ActionMap into a lambda taking
     storage interface, process node and a msg.'''
     def fun(db_iface, proc_node, msg):
         '''Wrapper internal. '''
-        args = utils.parse_kvpair_list(msg.args)
         arg_set = {}
         for k, val in arg_map.items():
-            if val[0] == "msg_arg":
-                arg_set[k] = args[val[1]]
-            elif val[0] == "ret_val":
-                arg_set[k] = str(msg.ret_val)
-            elif val[0] == "const":
-                arg_set[k] = str(val[1])
+            arg_set[k] = _parse_mapping(msg, val)
         return actions.ActionMap.call(action, msg.error_num,
                                       db_iface, proc_node, **arg_set)
     return fun
@@ -57,15 +63,16 @@ def wrap_action(action, arg_map):
 class FuncController(object):
     '''Mapping for function names to definitions.'''
     funcs = {}
+    func_map = {}
 
     @classmethod
     def load(cls, func_file):
         '''Loads a YAML action specification from func_file.'''
         try:
             with open(func_file, "r") as conf:
-                data = yaml.safe_load(conf)
-                for key in data:
-                    cls.register(key, wrap_action(**data[key]))
+                cls.func_map = yaml.safe_load(conf)
+                for func_name, mapping in cls.func_map.items():
+                    cls.register(func_name, wrap_action(**mapping))
         except IOError:
             logging.error("Failed to read in config file.")
             raise
@@ -96,6 +103,118 @@ class FuncController(object):
 
 
 FuncController.load("opus/pvm/posix/pvm.yaml")
+
+
+def get_fd_from_msg(msg):
+    '''Given a function message retrieves the filedescriptor it operates on.'''
+    mapping = FuncController.func_map[msg.func_name]['arg_map']['filedes']
+    return _parse_mapping(msg, mapping)
+
+
+class FdChain(object):
+    '''An object representing a filedescriptor chain.'''
+    def __init__(self):
+        super(FdChain, self).__init__()
+        self.local = None
+        self.chain = common_utils.IndexList(lambda x: int(x['before_time']))
+
+    def __repr__(self):
+        return str(str(self.local), str(self.chain))
+
+
+def load_cache(db_iface, loc_name, proc_node, mono_time):
+    '''Loads the event cache data for a given local node.'''
+    db_iface.set_mono_time_for_msg(mono_time)
+
+    try:
+        utils.proc_get_local(db_iface, proc_node, loc_name)
+    except utils.NoMatchingLocalError:
+        pass
+
+    result = db_iface.query("START s=node(" + str(proc_node.id) + ") "
+                            "MATCH (s)<-[:PROC_OBJ]-(l),"
+                            "(l)-[?:IO_EVENTS]->(m), "
+                            "p=(m)-[:PREV_EVENT*0..]->(n) "
+                            "WHERE l.name = '" + loc_name + "' "
+                            "AND not((n)-[:PREV_EVENT]->()) "
+                            "RETURN l,NODES(p) ORDER BY l.mono_time")
+
+    ret = common_utils.IndexList(lambda x: int(x.local['mono_time']))
+
+    for row in result:
+        chain = FdChain()
+        chain.local = row['l']
+        if row['NODES(p)'] is not None:
+            for node in row['NODES(p)']:
+                chain.chain.insert(0, node)
+        ret.append(chain)
+    return ret
+
+
+def process_aggregate_functions(db_iface, proc_node, msg_list):
+    '''Processes an aggregation message.'''
+    fd_cache = {}
+    for smsg in msg_list:
+        msg = uds_msg_pb2.FuncInfoMessage()
+        msg.ParseFromString(smsg)
+        des = get_fd_from_msg(msg)
+
+        db_iface.set_mono_time_for_msg(msg.begin_time)
+
+        if des not in fd_cache:
+            fd_cache[des] = load_cache(db_iface, des,
+                                       proc_node, msg.begin_time)
+
+        current = fd_cache[des]
+
+        evt = utils.event_from_msg(db_iface, msg)
+
+        j = current.find(evt, key=lambda x: int(x['before_time']))
+
+        if j == 0:
+            logging.error("Misplaced message.")
+            logging.error(evt.__repr__())
+            logging.error(current)
+            logging.error(evt['before_time'])
+            continue
+
+        # J pointed to local after the needed one
+        chain = current[j-1]
+
+        if len(chain.chain) == 0:
+            db_iface.create_relationship(chain.local, evt,
+                                         storage.RelType.IO_EVENTS)
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                          chain.local.id)
+            chain.chain.insert(0, evt)
+        else:
+            i = chain.chain.find(evt)
+
+            if i == 0:
+                db_iface.create_relationship(
+                    chain.chain[0], evt, storage.RelType.PREV_EVENT)
+                chain.chain.insert(0, evt)
+            elif i == len(chain.chain):
+                end = len(chain.chain)
+                db_iface.create_relationship(
+                    evt, chain.chain[end-1], storage.RelType.PREV_EVENT)
+                db_iface.create_relationship(
+                    chain.local, evt, storage.RelType.IO_EVENTS)
+                db_iface.find_and_del_rel(
+                    chain.local, chain.chain[end-1],
+                    storage.RelType.IO_EVENTS)
+                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                              chain.local.id)
+                chain.chain.append(evt)
+            else:
+                db_iface.create_relationship(
+                    chain.chain[i], evt, storage.RelType.PREV_EVENT)
+                db_iface.create_relationship(
+                    evt, chain.chain[i-1], storage.RelType.PREV_EVENT)
+                db_iface.find_and_del_rel(
+                    chain.chain[i], chain.chain[i-1],
+                    storage.RelType.PREV_EVENT)
+                chain.chain.insert(i, evt)
 
 
 @FuncController.dec('vfork')
