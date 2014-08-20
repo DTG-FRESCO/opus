@@ -110,60 +110,69 @@ class ProcStateController(object):
 
     @classmethod
     def __is_forked_process(cls, pid):
-        if pid in cls.proc_map and cls.proc_map[pid] == cls.proc_states.FORK:
-            return True
-        return False
+        return (pid in cls.proc_map and
+                cls.proc_map[pid] == cls.proc_states.FORK)
 
     @classmethod
     def __is_vforked_process(cls, cpid, ppid):
-        if cpid not in cls.proc_map and ppid in cls.proc_map:
-            return True
-        return False
+        return (cpid not in cls.proc_map and ppid in cls.proc_map)
+
+    @classmethod
+    def __handle_normal_process(cls, db_iface, hdr, pay):
+        cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
+
+        proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        expand_proc(db_iface, proc_node, pay)
+
+        for i in range(3):
+            pvm.get_l(db_iface, proc_node, str(i))
+        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+
+    @classmethod
+    def __handle_forked_process(cls, db_iface, hdr, pay):
+        cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
+        proc_node = db_iface.get_node_by_id(cls.PIDMAP[hdr.pid])
+        expand_proc(db_iface, proc_node, pay)
+        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+
+    @classmethod
+    def __handle_vforked_process(cls, db_iface, hdr, pay):
+        cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
+        proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        expand_proc(db_iface, proc_node, pay)
+
+        parent_proc_node_id = cls.PIDMAP[pay.ppid]
+        parent_proc_node = db_iface.get_node_by_id(parent_proc_node_id)
+        db_iface.create_relationship(proc_node, parent_proc_node,
+                                    storage.RelType.PROC_PARENT)
+        clone_file_des(db_iface, parent_proc_node, proc_node)
+        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+
+    @classmethod
+    def __handle_execed_process(cls, db_iface, hdr, pay):
+        proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        expand_proc(db_iface, proc_node, pay)
+
+        old_proc_node_id = cls.PIDMAP[hdr.pid]
+        old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
+        db_iface.create_relationship(proc_node, old_proc_node,
+                                    storage.RelType.PROC_OBJ_PREV)
+        clone_file_des(db_iface, old_proc_node, proc_node)
+        cls.PIDMAP[hdr.pid] = proc_node['node_id']
 
     @classmethod
     def proc_startup(cls, db_iface, hdr, pay):
         '''Handles a process startup message arriving.'''
 
-        proc_node = None
-
         if (hdr.pid not in cls.proc_map) and (pay.ppid not in cls.proc_map):
-            cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
-
-            proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
-            expand_proc(db_iface, proc_node, pay)
-
-            for i in range(3):
-                pvm.get_l(db_iface, proc_node, str(i))
+            cls.__handle_normal_process(db_iface, hdr, pay)
         else:
             if cls.__is_forked_process(hdr.pid):
-                cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
-                proc_node = db_iface.get_node_by_id(cls.PIDMAP[hdr.pid])
-                expand_proc(db_iface, proc_node, pay)
-
+                cls.__handle_forked_process(db_iface, hdr, pay)
             elif cls.__is_vforked_process(hdr.pid, pay.ppid):
-                cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
-                proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
-                expand_proc(db_iface, proc_node, pay)
-
-                parent_proc_node_id = cls.PIDMAP[pay.ppid]
-                parent_proc_node = db_iface.get_node_by_id(parent_proc_node_id)
-
-                db_iface.create_relationship(proc_node, parent_proc_node,
-                                            storage.RelType.PROC_PARENT)
-
-                clone_file_des(db_iface, parent_proc_node, proc_node)
-
+                cls.__handle_vforked_process(db_iface, hdr, pay)
             else: # exec
-                proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
-                expand_proc(db_iface, proc_node, pay)
-
-                old_proc_node_id = cls.PIDMAP[hdr.pid]
-                old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
-                db_iface.create_relationship(proc_node, old_proc_node,
-                                             storage.RelType.PROC_OBJ_PREV)
-                clone_file_des(db_iface, old_proc_node, proc_node)
-
-        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+                cls.__handle_execed_process(db_iface, hdr, pay)
         return True
 
     @classmethod
