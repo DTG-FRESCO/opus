@@ -111,19 +111,10 @@ def get_fd_from_msg(msg):
     return _parse_mapping(msg, mapping)
 
 
-class FdChain(object):
-    '''An object representing a filedescriptor chain.'''
-    def __init__(self):
-        super(FdChain, self).__init__()
-        self.local = None
-        self.chain = common_utils.IndexList(lambda x: int(x['before_time']))
-
-    def __repr__(self):
-        return str(str(self.local), str(self.chain))
-
-
 def load_cache(db_iface, loc_name, proc_node, mono_time):
     '''Loads the event cache data for a given local node.'''
+    logging.debug("Loading IO event cache from the database")
+
     db_iface.set_mono_time_for_msg(mono_time)
 
     try:
@@ -142,7 +133,7 @@ def load_cache(db_iface, loc_name, proc_node, mono_time):
     ret = common_utils.IndexList(lambda x: int(x.local['mono_time']))
 
     for row in result:
-        chain = FdChain()
+        chain = storage.FdChain()
         chain.local = row['l']
         if row['NODES(p)'] is not None:
             for node in row['NODES(p)']:
@@ -153,7 +144,6 @@ def load_cache(db_iface, loc_name, proc_node, mono_time):
 
 def process_aggregate_functions(db_iface, proc_node, msg_list):
     '''Processes an aggregation message.'''
-    fd_cache = {}
     for smsg in msg_list:
         msg = uds_msg_pb2.FuncInfoMessage()
         msg.ParseFromString(smsg)
@@ -161,25 +151,25 @@ def process_aggregate_functions(db_iface, proc_node, msg_list):
 
         db_iface.set_mono_time_for_msg(msg.begin_time)
 
-        if des not in fd_cache:
-            fd_cache[des] = load_cache(db_iface, des,
-                                       proc_node, msg.begin_time)
+        idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                                            (proc_node.id, des))
 
-        current = fd_cache[des]
+        if idx_list is None:
+            idx_list = load_cache(db_iface, des, proc_node, msg.begin_time)
 
         evt = utils.event_from_msg(db_iface, msg)
 
-        j = current.find(evt, key=lambda x: int(x['before_time']))
+        j = idx_list.find(evt, key=lambda x: int(x['before_time']))
 
         if j == 0:
             logging.error("Misplaced message.")
             logging.error(evt.__repr__())
-            logging.error(current)
+            logging.error(idx_list)
             logging.error(evt['before_time'])
             continue
 
         # J pointed to local after the needed one
-        chain = current[j-1]
+        chain = idx_list[j-1]
 
         if len(chain.chain) == 0:
             db_iface.create_relationship(chain.local, evt,
@@ -196,24 +186,27 @@ def process_aggregate_functions(db_iface, proc_node, msg_list):
                 chain.chain.insert(0, evt)
             elif i == len(chain.chain):
                 end = len(chain.chain)
+
+                for tmp_rel in chain.local.IO_EVENTS.outgoing:
+                    db_iface.delete_relationship(tmp_rel)
+
                 db_iface.create_relationship(
                     evt, chain.chain[end-1], storage.RelType.PREV_EVENT)
                 db_iface.create_relationship(
                     chain.local, evt, storage.RelType.IO_EVENTS)
-                db_iface.find_and_del_rel(
-                    chain.local, chain.chain[end-1],
-                    storage.RelType.IO_EVENTS)
+
                 db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
                                               chain.local.id)
                 chain.chain.append(evt)
             else:
+                for tmp_rel in chain.chain[i].PREV_EVENT.outgoing:
+                    db_iface.delete_relationship(tmp_rel)
+
                 db_iface.create_relationship(
                     chain.chain[i], evt, storage.RelType.PREV_EVENT)
                 db_iface.create_relationship(
                     evt, chain.chain[i-1], storage.RelType.PREV_EVENT)
-                db_iface.find_and_del_rel(
-                    chain.chain[i], chain.chain[i-1],
-                    storage.RelType.PREV_EVENT)
+
                 chain.chain.insert(i, evt)
 
 

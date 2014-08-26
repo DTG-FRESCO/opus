@@ -56,7 +56,8 @@ LinkState = common_utils.enum(NONE=0,
 CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
                                 LOCAL_GLOBAL=1,
                                 LAST_EVENT=2,
-                                NODE_BY_ID=3)
+                                NODE_BY_ID=3,
+                                IO_EVENT_CHAIN=4)
 
 
 class UniqueIDException(common_utils.OPUSException):
@@ -74,6 +75,17 @@ class InvalidCacheException(common_utils.OPUSException):
             "Error: Attempted to access cache {0} but it did not "
             "exist.".format(cache)
         )
+
+
+class FdChain(object):
+    '''An object representing a filedescriptor chain.'''
+    def __init__(self):
+        super(FdChain, self).__init__()
+        self.local = None
+        self.chain = common_utils.IndexList(lambda x: int(x['before_time']))
+
+    def __repr__(self):
+        return str(str(self.local), str(self.chain))
 
 
 class CacheManager(object):
@@ -100,6 +112,15 @@ class CacheManager(object):
             return
 
         del self.caches[cache][key]
+
+    def get(self, cache, key):
+        '''Retrieves the cached contents for a given
+        cache and key combination'''
+        if cache not in self.caches:
+            raise InvalidCacheException(CACHE_NAMES.enum_str(cache))
+        if key not in self.caches[cache]:
+            return None
+        return self.caches[cache][key]
 
     def update(self, cache, key, val):
         '''Updates the relevant cache and key combination with
@@ -187,7 +208,8 @@ class DBInterface(StorageIFace):
             self.cache_man = CacheManager([CACHE_NAMES.LOCAL_GLOBAL,
                                            CACHE_NAMES.LAST_EVENT,
                                            CACHE_NAMES.VALID_LOCAL,
-                                           CACHE_NAMES.NODE_BY_ID])
+                                           CACHE_NAMES.NODE_BY_ID,
+                                           CACHE_NAMES.IO_EVENT_CHAIN])
 
             with self.db.transaction:
                 # Unique ID index
