@@ -15,11 +15,8 @@ from opus import cc_msg_pb2 as cc_msg
 
 def exec_cmd(args):
     '''Execute command specified by args.'''
-    host = args.host
-    port = args.port
 
-    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    conn.connect((host, port))
+    helper = cc_utils.CommandConnectionHelper(args.host, args.port)
 
     cmd = cc_msg.CmdCtlMessage()
     cmd.cmd_name = args.cmd
@@ -30,9 +27,7 @@ def exec_cmd(args):
             arg.key = k
             arg.value = str(val)
 
-    cc_utils.send_cc_msg(conn, cmd)
-
-    pay = cc_utils.recv_cc_msg(conn)
+    pay = helper.make_request(cmd)
 
     if isinstance(pay, cc_msg.PSMessageRsp):
         print("Interposed Processes:\n\n"
