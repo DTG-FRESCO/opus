@@ -121,6 +121,20 @@ def update_proc_meta(db_iface, proc_node, meta_name, new_val, timestamp):
                                  storage.RelType.OTHER_META)
 
 
+def update_event_chain_cache(db_iface, loc_node, event_node):
+    '''Finds the correct fd chain object and appends event node to the chain'''
+    proc_node, rel = traversal.get_process_from_local(db_iface, loc_node)
+    idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                                        (proc_node.id, loc_node['name']))
+    if idx_list is None:
+        logging.error("Unable to get cached events for pid: %d and fd: %s" %
+                        (proc_node['pid'], loc_node['name']))
+    else:
+        loc_index = idx_list.find(loc_node, key=lambda x: int(x['mono_time']))
+        fd_chain = idx_list[loc_index - 1]
+        fd_chain.chain.append(event_node)
+
+
 def add_event(db_iface, node, msg):
     '''Adds an event to node, automatically deriving the object type.'''
     rel_type = None
@@ -154,6 +168,10 @@ def add_event(db_iface, node, msg):
     # Update the new event and relation in the event cache
     db_iface.cache_man.update(storage.CACHE_NAMES.LAST_EVENT, node.id,
                               (event_node, new_event_rel))
+
+    # Update IO_EVENT_CHAIN cache
+    if node_type == storage.NodeType.LOCAL:
+        update_event_chain_cache(db_iface, node, event_node)
 
 
 def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):

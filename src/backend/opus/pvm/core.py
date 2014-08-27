@@ -6,7 +6,19 @@ PVM core operations implementations.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import storage, traversal
+from opus import storage, traversal, common_utils
+
+def cache_new_local(db_iface, loc_node, proc_node):
+    idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                                        (proc_node.id, loc_node['name']))
+    if idx_list is None:
+        idx_list = common_utils.IndexList(lambda x: int(x.local['mono_time']))
+
+    fd_chain = storage.FdChain()
+    fd_chain.local = loc_node
+    idx_list.append(fd_chain)
+    db_iface.cache_man.update(storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                    (proc_node.id, loc_node['name']), idx_list)
 
 
 def version_local(db_iface, old_loc_node, glob_node):
@@ -38,6 +50,9 @@ def version_local(db_iface, old_loc_node, glob_node):
 
     db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
                                   (proc_node.id, old_loc_node['name']))
+
+    # Add the new local object node to the IO_EVENT_CHAIN cache
+    cache_new_local(db_iface, new_loc_node, proc_node)
 
     # Change local->process link status to INACTIVE
     rel_link['state'] = storage.LinkState.INACTIVE
@@ -74,7 +89,6 @@ def version_global(db_iface, old_glob_node):
 
     return new_glob_node
 
-
 def get_l(db_iface, proc_node, loc_name):
     '''Performs a PVM get on the local object named 'loc_name' of the process
     identified by proc_node.'''
@@ -85,6 +99,9 @@ def get_l(db_iface, proc_node, loc_name):
 
     loc_node = db_iface.create_node(storage.NodeType.LOCAL)
     loc_node['name'] = loc_name
+
+    # Add the new local object node to the IO_EVENT_CHAIN cache
+    cache_new_local(db_iface, loc_node, proc_node)
 
     # Create a relation from local--->process node
     db_iface.create_relationship(loc_node, proc_node,
