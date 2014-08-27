@@ -5,6 +5,11 @@
 #include "proc_utils.h"
 #include "message_util.h"
 
+/**
+ * Constructor:
+ * 1. Reads and inits aggr msg size.
+ * 2. Inits protobuf object.
+ */
 AggrMsg::AggrMsg()
 {
     cur_msg_size = 0;
@@ -23,12 +28,36 @@ AggrMsg::AggrMsg()
     }
 }
 
+/**
+ * Destructor:
+ * 1. Deletes protobuf object.
+ * 2. Sets aggr msg size to 0.
+ */
+AggrMsg::~AggrMsg()
+{
+    if (aggr_msg)
+    {
+        delete aggr_msg;
+        aggr_msg = NULL;
+    }
+
+    cur_msg_size = 0;
+}
+
+/**
+ * Returns current message size
+ */
 uint64_t AggrMsg::get_cur_msg_size()
 {
     return cur_msg_size;
 }
 
 
+/**
+ * Adds a function information message to the
+ * aggregates message protobuf object and
+ * maintains the message size count.
+ */
 bool AggrMsg::add_msg(const FuncInfoMessage& buf_func_info_msg)
 {
     bool ret = true;
@@ -59,6 +88,9 @@ bool AggrMsg::add_msg(const FuncInfoMessage& buf_func_info_msg)
     return ret;
 }
 
+/**
+ * Sends the aggregated message to the backend.
+ */
 bool AggrMsg::flush()
 {
     bool ret = true;

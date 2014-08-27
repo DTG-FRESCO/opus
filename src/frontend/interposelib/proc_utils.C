@@ -315,6 +315,22 @@ void ProcUtils::get_formatted_time(string* date_time)
 }
 
 /**
+ * Returns current value for message aggregation flag
+ */
+bool ProcUtils::get_msg_aggr_flag()
+{
+    return aggr_on_flag;
+}
+
+/**
+ * Sets the aggregation flag to the supplied value
+ */
+void ProcUtils::set_msg_aggr_flag(const bool flag)
+{
+    aggr_on_flag = flag;
+}
+
+/**
  * Reads message aggregation flag from environment
  * and stores the value within the ProcUtils class
  */
@@ -329,14 +345,31 @@ void ProcUtils::set_msg_aggr_flag()
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
-
 }
 
+/**
+ * Flushes aggregated messages to the backend
+ */
 bool ProcUtils::flush_buffered_data()
 {
+    if (!comm_obj) return false;
+
     if (!aggr_msg_obj) return false;
     return aggr_msg_obj->flush();
 }
+
+/**
+ * Deletes the aggregated message pointer
+ */
+void ProcUtils::discard_aggr_msgs()
+{
+    if (aggr_msg_obj)
+    {
+        delete aggr_msg_obj;
+        aggr_msg_obj = NULL;
+    }
+}
+
 
 
 /**
@@ -841,6 +874,7 @@ void ProcUtils::disconnect()
     {
         delete comm_obj;
         comm_obj = NULL;
+        conn_ref_count = 0;
     }
 }
 

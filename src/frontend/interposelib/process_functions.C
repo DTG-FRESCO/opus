@@ -268,7 +268,10 @@ static inline void exit_program(const char *exit_str, const int status)
         set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
 
         if (ProcUtils::decr_conn_ref_count() == 0)
+        {
+            ProcUtils::flush_buffered_data();
             ProcUtils::disconnect();
+        }
 
         (*exit_ptr)(status);
 
@@ -297,10 +300,10 @@ static inline void set_old_act_data(void* prev, struct sigaction *oldact)
 
 /**
  * Called when a process is forked. The child
- * process closes the inherited UDS connection
- * and opens and new connection.
+ * process must reset some state inherited
+ * from the parent process.
  */
-static void setup_new_uds_connection()
+static void setup_forked_child_process()
 {
     ProcUtils::test_and_set_flag(true);
 
@@ -308,7 +311,8 @@ static void setup_new_uds_connection()
     SignalUtils::reset();
 #endif
     ProcUtils::disconnect(); // Close inherited connection
-    ProcUtils::clear_proto_objects(); // Clear inherited protobug objects
+    ProcUtils::clear_proto_objects(); // Clear inherited protobuf objects
+    ProcUtils::discard_aggr_msgs(); // Discard all inherited aggregation messages
 
     try
     {
@@ -675,7 +679,7 @@ extern "C" pid_t fork(void)
     if (pid == 0)
     {
         /* Child process */
-        setup_new_uds_connection();
+        setup_forked_child_process();
         return pid;
     }
 
