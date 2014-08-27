@@ -237,7 +237,7 @@ def set_rw_lnk(db_iface, loc_node, state):
            (state == storage.LinkState.WRITE and
             glob_loc_rel['state'] == storage.LinkState.READ) or
            glob_loc_rel['state'] == storage.LinkState.RaW):
-            new_state = storage.LinkState.Raw
+            new_state = storage.LinkState.RaW
         else:
             new_state = state
 

@@ -217,14 +217,6 @@ def process_aggregate_functions(db_iface, proc_node, msg_list):
                 chain.chain.insert(i, evt)
 
 
-@FuncController.dec('vfork')
-def posix_vfork(db_iface, proc_node, msg):
-    '''Implementation of vfork in PVM semantics.'''
-    process.ProcStateController.proc_fork(db_iface, proc_node,
-                                          msg.ret_val, msg.begin_time)
-    return proc_node
-
-
 @FuncController.dec('fork')
 def posix_fork(db_iface, proc_node, msg):
     '''Implementation of fork in PVM semantics.'''
