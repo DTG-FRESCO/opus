@@ -92,7 +92,11 @@ class ProcUtils
         static bool is_interpose_off();
         static void interpose_off(const std::string& desc);
 
+        /* Aggregation message related functions */
+        static bool get_msg_aggr_flag();
+        static void set_msg_aggr_flag(const bool flag);
         static void set_msg_aggr_flag();
+        static void discard_aggr_msgs();
 
     private:
         static __thread bool in_func_flag;

@@ -10,6 +10,7 @@ class AggrMsg
 {
     public:
         AggrMsg();
+        ~AggrMsg();
 
         uint64_t get_cur_msg_size();
         bool add_msg(const ::fresco::opus::IPCMessage::FuncInfoMessage&

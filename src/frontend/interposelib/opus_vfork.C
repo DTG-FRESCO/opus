@@ -29,6 +29,7 @@ void* get_vfork_symbol(void)
 void vfork_record_interpose(pid_t pid)
 {
     int errno_value = 0;
+    bool prev_aggr_on_flag = false;
 
     // vfork returned error
     if (pid < 0) errno_value = pid;
@@ -39,6 +40,13 @@ void vfork_record_interpose(pid_t pid)
     {
         // Set the correct pid
         ProcUtils::setpid(ProcUtils::__getpid());
+
+        // Read previous message aggregation flag value
+        prev_aggr_on_flag = ProcUtils::get_msg_aggr_flag();
+
+        // Turn off aggregation
+        ProcUtils::set_msg_aggr_flag(false);
+
         ProcUtils::send_startup_message();
         ProcUtils::test_and_set_flag(false);
         return;
@@ -50,6 +58,9 @@ void vfork_record_interpose(pid_t pid)
     start_time_stack->pop();
 
     uint64_t end_time = ProcUtils::get_time();
+
+    // Set message aggregation flag to the previous state
+    ProcUtils::set_msg_aggr_flag(prev_aggr_on_flag);
 
     // Restore the pid as child might have modified it
     ProcUtils::setpid(getpid());
