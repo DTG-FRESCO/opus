@@ -6,7 +6,9 @@
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <sys/socket.h>
 #include <string>
+
 #include "log.h"
 #include "func_ptr_types.h"
 #include "proc_utils.h"
