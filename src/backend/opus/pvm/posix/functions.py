@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division,
 
 import fcntl
 import logging
+import pkg_resources
 import sys
 import opuspb
 
@@ -69,7 +70,8 @@ class FuncController(object):
     def load(cls, func_file):
         '''Loads a YAML action specification from func_file.'''
         try:
-            with open(func_file, "r") as conf:
+            with pkg_resources.resource_stream("opus.pvm.posix",
+                                               func_file) as conf:
                 cls.func_map = yaml.safe_load(conf)
                 for func_name, mapping in cls.func_map.items():
                     cls.register(func_name, wrap_action(**mapping))
@@ -102,7 +104,7 @@ class FuncController(object):
         return wrapper
 
 
-FuncController.load("opus/pvm/posix/pvm.yaml")
+FuncController.load("pvm.yaml")
 
 
 def get_fd_from_msg(msg):
@@ -152,7 +154,7 @@ def process_aggregate_functions(db_iface, proc_node, msg_list):
         db_iface.set_mono_time_for_msg(msg.begin_time)
 
         idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
-                                            (proc_node.id, des))
+                                          (proc_node.id, des))
 
         if idx_list is None:
             idx_list = load_cache(db_iface, des, proc_node, msg.begin_time)
