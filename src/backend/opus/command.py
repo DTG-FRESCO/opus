@@ -10,7 +10,7 @@ from __future__ import (absolute_import, division,
 import logging
 import jpype
 
-from opus import cc_msg_pb2
+from opus import (cc_msg_pb2, analysis)
 
 
 class CommandControl(object):
@@ -106,6 +106,37 @@ def handle_db_qry(cac, msg):
                 cell.value = row[key]
     except TypeError as exc:
         pass
+
+    return rsp
+
+@CommandControl.register_command_handler("status")
+def handle_status(cac, _):
+    rsp = cc_msg_pb2.StatusMessageRsp()
+
+    # Analyser
+    if cac.daemon_manager.analyser.isAlive():
+        rsp.analyser_status.status = cc_msg_pb2.LIVE
+
+        if isinstance(cac.daemon_manager.analyser, analysis.PVMAnalyser):
+            num_msgs = cac.daemon_manager.analyser.event_orderer.get_queue_size()
+            rsp.analyser_status.num_msgs = num_msgs
+    else:
+        rsp.analyser_status.status = cc_msg_pb2.DEAD
+
+    # Producer
+    if cac.daemon_manager.producer.isAlive():
+        rsp.producer_status = cc_msg_pb2.LIVE
+    else:
+        rsp.producer_status = cc_msg_pb2.DEAD
+
+    # Query Interface
+    if hasattr(cac.daemon_manager, "query_interface"):
+        if cac.daemon_manager.query_interface.isAlive():
+            rsp.query_status = cc_msg_pb2.LIVE
+        else:
+            rsp.query_status = cc_msg_pb2.DEAD
+    else:
+        rsp.query_status = cc_msg_pb2.NOT_PRESENT
 
     return rsp
 

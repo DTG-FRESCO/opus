@@ -12,6 +12,28 @@ import socket
 from opus import cc_utils
 from opus import cc_msg_pb2 as cc_msg
 
+def print_status_rsp(pay):
+    '''Prints status response to stdout'''
+    stat_str_table = {cc_msg.LIVE: "Alive",
+                        cc_msg.DEAD: "Not running",
+                        cc_msg.NOT_PRESENT: "Not present"}
+
+    print("{0:<20} {1:<12}".format("Producer",
+                            stat_str_table[pay.producer_status]))
+
+    if pay.analyser_status.HasField("num_msgs"):
+        num_msgs = pay.analyser_status.num_msgs
+        print("{0:<20} {1:<12} {2:<20}".format("Analyser",
+                            stat_str_table[pay.analyser_status.status],
+                            "(" + str(num_msgs) + " msgs in queue)"))
+    else:
+        print("{0:<20} {1:<12}".format("Analyser",
+                            stat_str_table[pay.analyser_status.status]))
+
+
+    print("{0:<20} {1:<12}".format("Query Interface",
+                            stat_str_table[pay.query_status]))
+
 
 def exec_cmd(args):
     '''Execute command specified by args.'''
@@ -35,6 +57,8 @@ def exec_cmd(args):
               "═════╪══════════════")
         for psdat in pay.ps_data:
             print("%5u│%14u" % (psdat.pid, psdat.thread_count))
+    elif isinstance(pay, cc_msg.StatusMessageRsp):
+        print_status_rsp(pay)
     else:
         print(pay.rsp_data)
 
@@ -47,6 +71,8 @@ def main():
 
     sub_parsers = parser.add_subparsers(title="commands", dest="cmd")
     sub_parsers.add_parser("ps")
+
+    sub_parsers.add_parser("status")
 
     kill_parser = sub_parsers.add_parser("kill")
     kill_parser.add_argument("pid", type=int)

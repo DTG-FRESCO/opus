@@ -5,6 +5,13 @@ enum CC_MSG_TYPE {
     CMDCTLRSP = 2;
     PSRSP = 3;
     QRYRSP = 4;
+    STATRSP = 5;
+}
+
+enum ServiceStatus {
+    LIVE = 1;
+    DEAD = 2;
+    NOT_PRESENT = 3;
 }
 
 message CmdCtlMessage {
@@ -44,4 +51,16 @@ message QueryMessageRsp {
 
     repeated Row rows = 1;
     optional string error = 2;
+}
+
+message StatusMessageRsp {
+
+    message AnalyserStatus {
+        optional ServiceStatus status = 1;
+        optional int64 num_msgs = 2;
+    }
+
+    optional AnalyserStatus analyser_status = 1;
+    optional ServiceStatus producer_status = 2;
+    optional ServiceStatus query_status = 3;
 }

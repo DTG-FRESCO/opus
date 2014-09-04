@@ -47,6 +47,7 @@ def _msg_type_transcode(obj):
         trans_dict[cc_msg_pb2.CMDCTLRSP] = type(cc_msg_pb2.CmdCtlMessageRsp())
         trans_dict[cc_msg_pb2.PSRSP] = type(cc_msg_pb2.PSMessageRsp())
         trans_dict[cc_msg_pb2.QRYRSP] = type(cc_msg_pb2.QueryMessageRsp())
+        trans_dict[cc_msg_pb2.STATRSP] = type(cc_msg_pb2.StatusMessageRsp())
         _msg_type_transcode.trans_dict = trans_dict
     return _msg_type_transcode.trans_dict[obj]
 
