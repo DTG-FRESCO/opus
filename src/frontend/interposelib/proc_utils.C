@@ -17,6 +17,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <linux/limits.h>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>

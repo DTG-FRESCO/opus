@@ -9,6 +9,7 @@
 #include <pwd.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <sys/socket.h>
 #include <string>
 
 #include "log.h"
