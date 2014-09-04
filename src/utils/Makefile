@@ -15,10 +15,15 @@ opus-on:
 	echo '#!/bin/bash' > opus-on
 	echo 'export OPUS_UDS_PATH=$(OPUS_UDS_PATH)' >> opus-on
 	echo 'export LD_PRELOAD="$$LD_PRELOAD $(OPUS_LIB_LOCATION)"' >> opus-on
+	echo 'export OPUS_MSG_AGGR=1' >> opus-on
+	echo 'export OPUS_MAX_AGGR_MSG_SIZE=65536' >> opus-on
 
 opus-off:
 	echo '#!/bin/bash' > opus-off
 	echo 'export LD_PRELOAD=$${LD_PRELOAD#" $(OPUS_LIB_LOCATION)"}' >> opus-off
+	echo 'unset OPUS_UDS_PATH' >> opus-off
+	echo 'unset OPUS_MSG_AGGR' >> opus-off
+	echo 'unset OPUS_MAX_AGGR_MSG_SIZE' >> opus-off
 
 clean:
 	rm "$(PROJ_HOME)/bin/opus-on"
