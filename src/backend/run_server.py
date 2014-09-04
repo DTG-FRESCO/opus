@@ -12,6 +12,7 @@ import argparse
 import logging
 import logging.config
 import sys
+import traceback
 
 try:
     import yaml
@@ -66,5 +67,9 @@ def main():
     daemon_manager.loop()
 
 if __name__ == "__main__":
-    custom_time.patch_custom_monotonic_time()
-    main()
+    try:
+        custom_time.patch_custom_monotonic_time()
+        main()
+    except Exception:
+        logging.critical(traceback.format_exc())
+        raise
