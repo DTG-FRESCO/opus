@@ -12,6 +12,7 @@ import argparse
 import logging
 import logging.config
 import sys
+import traceback
 
 try:
     import yaml
@@ -32,11 +33,13 @@ def init_logging(logging_cfg):
 
 
 def parse_args():
+    '''Parses the arguments to the back-end returning the config file
+    location.'''
     parser = argparse.ArgumentParser(
-                       description='OPUS backend storage and processing system.'
-                                     )
+        description='OPUS backend storage and processing system.')
+
     parser.add_argument('config', default="config.yaml", nargs='?',
-                                  help='Location to load system config from.')
+                        help='Location to load system config from.')
     args = parser.parse_args()
     return args.config
 
@@ -51,7 +54,7 @@ def main():
     conf_file_loc = parse_args()
 
     try:
-        with open(conf_file_loc, "rt") as conf:
+        with open(conf_file_loc, "r") as conf:
             config = yaml.safe_load(conf)
 
         init_logging(config['LOGGING'])
@@ -66,5 +69,9 @@ def main():
     daemon_manager.loop()
 
 if __name__ == "__main__":
-    custom_time.patch_custom_monotonic_time()
-    main()
+    try:
+        custom_time.patch_custom_monotonic_time()
+        main()
+    except Exception:
+        logging.critical(traceback.format_exc())
+        raise
