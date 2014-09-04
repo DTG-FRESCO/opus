@@ -33,11 +33,13 @@ def init_logging(logging_cfg):
 
 
 def parse_args():
+    '''Parses the arguments to the back-end returning the config file
+    location.'''
     parser = argparse.ArgumentParser(
-                       description='OPUS backend storage and processing system.'
-                                     )
+        description='OPUS backend storage and processing system.')
+
     parser.add_argument('config', default="config.yaml", nargs='?',
-                                  help='Location to load system config from.')
+                        help='Location to load system config from.')
     args = parser.parse_args()
     return args.config
 
@@ -52,7 +54,7 @@ def main():
     conf_file_loc = parse_args()
 
     try:
-        with open(conf_file_loc, "rt") as conf:
+        with open(conf_file_loc, "r") as conf:
             config = yaml.safe_load(conf)
 
         init_logging(config['LOGGING'])
