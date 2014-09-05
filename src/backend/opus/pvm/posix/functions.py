@@ -258,7 +258,7 @@ def posix_freopen(db_iface, proc_node, msg):
                              proc_node, args['stream'])
 
     new_loc_node = actions.open_action(db_iface, proc_node,
-                                       args['filename'], str(msg.ret_val))
+                                       args['path'], str(msg.ret_val))
     return new_loc_node
 
 
