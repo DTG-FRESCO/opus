@@ -61,12 +61,13 @@ def query_folder(helper, name):
 
     arg = cmd.args.add()
     arg.key = "qry_str"
-    arg.value = ("START p=node(*) "
-                 "MATCH (p)-[:OTHER_META]->()-[:META_PREV*0..]->(m),"
+    arg.value = ("START g=node:PROC_INDEX('name:*') "
+                 "MATCH (g)-[:LOC_OBJ]->(l)-[:PROC_OBJ]->(p),"
+                 "      (p)-[:OTHER_META]->(m),"
                  "      (p)-[:OTHER_META]->(m1) "
-                 "WHERE m.name = 'cwd' AND m.value = '" + name + "' AND "
+                 "WHERE m.name = 'cwd' AND m.value = \"" + name + "\" AND "
                  "m1.name = 'cmd_args' "
-                 "RETURN m1.value ORDER BY p.timestamp LIMIT 5")
+                 "RETURN m1.value ORDER BY p.timestamp DESC LIMIT 5")
 
     return helper.make_request(cmd)
 
