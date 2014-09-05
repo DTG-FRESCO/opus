@@ -103,7 +103,7 @@ def handle_db_qry(cac, msg):
             for key in keys:
                 cell = cur.cells.add()
                 cell.key = key
-                cell.value = row[key]
+                cell.value = str(row[key])
     except TypeError as exc:
         pass
 
