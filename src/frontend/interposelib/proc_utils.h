@@ -73,6 +73,8 @@ class ProcUtils
                                           char *path_res,
                                           const char* (path_res_func)(const char*, char*));
         static const std::string get_error(const int err_num);
+        static const bool is_opus_fd(const int fd);
+        static const bool is_opus_fd(FILE* fp); 
 
         /* Converts an integer to a string */
         static char* opus_itoa(const int32_t val, char *str);

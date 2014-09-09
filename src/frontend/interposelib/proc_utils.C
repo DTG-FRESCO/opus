@@ -1101,3 +1101,12 @@ const char* ProcUtils::dirfd_get_path(const int fd,
         return path_res_func(path_tmp, path_res);
     }
 }
+
+const bool ProcUtils::is_opus_fd(const int fd){
+    return comm_obj->is_opus_fd(fd);
+}
+
+const bool ProcUtils::is_opus_fd(FILE* fp){
+    int fd = fileno(fp);
+    return fd >= 0 && is_opus_fd(fd);
+}

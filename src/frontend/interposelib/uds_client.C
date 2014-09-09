@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -57,6 +58,8 @@ bool UDSCommClient::connect(const std::string& path)
             else throw UDSCommException(__FILE__, __LINE__,
                         ProcUtils::get_error(errno));
         }
+
+        protect_fd();
 
         memset(&address, 0, sizeof(struct sockaddr_un));
 
@@ -200,4 +203,40 @@ void UDSCommClient::shutdown()
                 __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
     close_connection();
+}
+
+/**
+ * Checks if a given file descriptor is in use by OPUS
+ */
+bool UDSCommClient::is_opus_fd(const int fd){
+    return fd == conn_fd;
+}
+
+/**
+ * Protect file descriptor by copying it to a high range
+ */
+void UDSCommClient::protect_fd(){
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
+                __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    int max_fd;
+    int new_fd;
+
+    max_fd = sysconf(_SC_OPEN_MAX);
+    if(errno != 0 || max_fd < 0){
+        LOG_MSG(LOG_ERROR, "[%s:%d]: failed to elivate file descriptor\n",
+                __FILE__, __LINE__);
+        return;
+    }
+
+//  Reduce max_fd to give a larger range of possible landing sites.
+    max_fd = max_fd * 0.95;
+
+    new_fd = fcntl(conn_fd, F_DUPFD, max_fd);
+    if(new_fd == -1){
+        LOG_MSG(LOG_ERROR, "[%s:%d]: failed to elivate file descriptor\n",
+                __FILE__, __LINE__);
+        return;
+    }
+    ::close(conn_fd);
+    conn_fd = new_fd;
 }
