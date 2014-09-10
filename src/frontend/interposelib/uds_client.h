@@ -20,6 +20,10 @@ class UDSCommClient
         bool send_data(const std::string& data);
         bool send_data(const void* const data, const int data_size);
 
+        bool is_opus_fd(const int fd);
+
+        void protect_fd();
+
     private:
         int conn_fd;
         std::string uds_path;

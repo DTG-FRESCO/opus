@@ -51,6 +51,14 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         {{macros.return_func(func)}}
     }
 
+    {% if "fdprotect" in func.flags -%}
+    if (ProcUtils::is_opus_fd({{func.fd_protect.arg}})){
+        errno = {{func.fd_protect.errno}};
+        ProcUtils::test_and_set_flag(false);
+        return -1;
+    }
+    {%- endif %}
+
     {% for arg in func.args if 'read' in arg.flags -%}
     {%- if arg.type == "FILE *" -%}
     int {{arg.name}}_fd = -1;

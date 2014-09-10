@@ -1,6 +1,9 @@
 - name: close
   ret: "int"
-  flags: []
+  fd_protect:
+    arg: "fd"
+    errno: "EBADF"
+  flags: [fdprotect]
   args:
   - flags: 
       read: ""
@@ -42,7 +45,10 @@
 
 - name: fclose
   ret: "int"
-  flags: []
+  fd_protect:
+    arg: "fp"
+    errno: "EBADF"
+  flags: [fdprotect]
   args:
   - flags:
       read: ""
@@ -845,7 +851,10 @@
 
 - name: dup2
   ret: "int"
-  flags: []
+  fd_protect:
+    arg: "newfd"
+    errno: "EBADF"
+  flags: [fdprotect]
   args:
   - flags:
       read: ""
@@ -860,7 +869,10 @@
 
 - name: dup3
   ret: "int"
-  flags: []
+  fd_protect:
+    arg: "newfd"
+    errno: "EBADF"
+  flags: [fdprotect]
   args:
   - flags:
       read: ""
