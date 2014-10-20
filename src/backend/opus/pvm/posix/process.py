@@ -19,6 +19,11 @@ def create_proc(db_iface, pid, time_stamp):
     # Set properties on the process node
     proc_node['pid'] = pid
     proc_node['timestamp'] = time_stamp
+    proc_node['status'] = storage.PROCESS_STATE.ALIVE
+
+    # Cache the process node by its node_id property
+    db_iface.cache_man.update(storage.CACHE_NAMES.NODE_BY_ID,
+                            proc_node['node_id'], proc_node)
 
     return proc_node
 
@@ -87,6 +92,7 @@ class ProcStateController(object):
 
     proc_map = {}
     PIDMAP = {}
+    pid_proc_nodes_map = {} # PID -> [procnode list]
 
     @classmethod
     def proc_fork(cls, db_iface, p_node, pid, timestamp):
@@ -96,6 +102,7 @@ class ProcStateController(object):
         if pid not in cls.proc_map:
             cls.proc_map[pid] = cls.proc_states.FORK
             new_proc_node = create_proc(db_iface, pid, timestamp)
+            cls.__add_proc_node(pid, new_proc_node)
             db_iface.create_relationship(new_proc_node, p_node,
                                          storage.RelType.PROC_PARENT)
             clone_file_des(db_iface, p_node, new_proc_node)
@@ -107,6 +114,14 @@ class ProcStateController(object):
                             pid,
                             cls.proc_states.enum_str(cls.proc_map[pid]))
             return False
+
+    @classmethod
+    def __add_proc_node(cls, pid, proc_node):
+        '''Maintains a list of process nodes for each pid'''
+        if pid in cls.pid_proc_nodes_map:
+            cls.pid_proc_nodes_map[pid].append(proc_node)
+        else:
+            cls.pid_proc_nodes_map[pid] = [proc_node]
 
     @classmethod
     def __is_forked_process(cls, pid):
@@ -122,6 +137,7 @@ class ProcStateController(object):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
 
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        cls.__add_proc_node(hdr.pid, proc_node)
         expand_proc(db_iface, proc_node, pay)
 
         for i in range(3):
@@ -139,6 +155,7 @@ class ProcStateController(object):
     def __handle_vforked_process(cls, db_iface, hdr, pay):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        cls.__add_proc_node(hdr.pid, proc_node)
         expand_proc(db_iface, proc_node, pay)
 
         parent_proc_node_id = cls.PIDMAP[pay.ppid]
@@ -151,10 +168,13 @@ class ProcStateController(object):
     @classmethod
     def __handle_execed_process(cls, db_iface, hdr, pay):
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
+        cls.__add_proc_node(hdr.pid, proc_node)
         expand_proc(db_iface, proc_node, pay)
 
         old_proc_node_id = cls.PIDMAP[hdr.pid]
         old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
+        old_proc_node['status'] = storage.PROCESS_STATE.DEAD
+
         db_iface.create_relationship(proc_node, old_proc_node,
                                     storage.RelType.PROC_OBJ_PREV)
         clone_file_des(db_iface, old_proc_node, proc_node)
@@ -196,10 +216,46 @@ class ProcStateController(object):
             return False
 
     @classmethod
-    def proc_discon(cls, pid):
+    def __clear_caches(cls, db_iface, pid):
+        if pid not in cls.pid_proc_nodes_map:
+            return
+
+        proc_node_list = cls.pid_proc_nodes_map[pid]
+        for proc_node in proc_node_list:
+            fd_list = []
+            for tmp_rel in proc_node.PROC_OBJ.incoming:
+                tmp_loc = tmp_rel.start
+                if tmp_loc['name'] in fd_list:
+                    continue
+                fd_list.append(tmp_loc['name'])
+
+                # Invalidate all caches
+                db_iface.cache_man.invalidate(
+                                            storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                                            (proc_node.id, tmp_loc['name']))
+                db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                            (proc_node.id, tmp_loc['name']))
+                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
+                                            tmp_loc.id)
+                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                            tmp_loc.id)
+                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                            proc_node.id)
+            proc_node['status'] = storage.PROCESS_STATE.DEAD
+
+        # Invalidate the NODE_BY_ID cache
+        db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID, cls.PIDMAP[pid])
+        del cls.pid_proc_nodes_map[pid]
+
+
+    @classmethod
+    def proc_discon(cls, db_iface, pid):
         '''Handles a process with pid 'pid' disconnecting from the backend.
         Returns True unless the process is unknown to the system, in which
         case it returns False.'''
+
+        cls.__clear_caches(db_iface, pid)
+
         if pid in cls.proc_map:
             if cls.proc_map[pid] == cls.proc_states.EXECED:
                 cls.proc_map[pid] = cls.proc_states.NORMAL

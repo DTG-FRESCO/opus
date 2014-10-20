@@ -60,6 +60,9 @@ CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
                                 NODE_BY_ID=3,
                                 IO_EVENT_CHAIN=4)
 
+# Enum values for process status
+PROCESS_STATE = common_utils.enum(ALIVE=0, DEAD = 1)
+
 
 class UniqueIDException(common_utils.OPUSException):
     '''Exception when unique ID cannot be generated'''
@@ -300,9 +303,6 @@ class DBInterface(StorageIFace):
                 logging.error("Error: Attempted to use monotime in a function"
                               " that does not supply it.")
             node['mono_time'] = str(self.mono_time)
-
-        if node_type == NodeType.PROCESS:
-            self.cache_man.update(CACHE_NAMES.NODE_BY_ID, node_id, node)
         return node
 
     def create_relationship(self, from_node, to_node, rel_type):

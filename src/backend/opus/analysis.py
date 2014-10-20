@@ -212,7 +212,7 @@ class PVMAnalyser(OrderingAnalyser):
                 posix.handle_process(self.db_iface, hdr_obj, pay_obj)
             elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
                 if pay_obj.msg_type == uds_msg.DISCON:
-                    posix.handle_disconnect(hdr_obj.pid)
+                    posix.handle_disconnect(self.db_iface, hdr_obj.pid)
                 elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
                     posix.handle_prefunc(hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.TERM_MSG:
