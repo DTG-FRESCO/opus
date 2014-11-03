@@ -222,12 +222,8 @@ class ProcStateController(object):
 
         proc_node_list = cls.pid_proc_nodes_map[pid]
         for proc_node in proc_node_list:
-            fd_list = []
             for tmp_rel in proc_node.PROC_OBJ.incoming:
                 tmp_loc = tmp_rel.start
-                if tmp_loc['name'] in fd_list:
-                    continue
-                fd_list.append(tmp_loc['name'])
 
                 # Invalidate all caches
                 db_iface.cache_man.invalidate(
@@ -242,9 +238,9 @@ class ProcStateController(object):
                 db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
                                             proc_node.id)
             proc_node['status'] = storage.PROCESS_STATE.DEAD
+            # Invalidate the NODE_BY_ID cache
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID, proc_node['node_id'])
 
-        # Invalidate the NODE_BY_ID cache
-        db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID, cls.PIDMAP[pid])
         del cls.pid_proc_nodes_map[pid]
 
 
