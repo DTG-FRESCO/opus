@@ -27,7 +27,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
  * with arguments for the handler.
  */
 #define HANDLER_BODY(ptr_type, ...)                                 \
-    ProcUtils::test_and_set_flag(true);                             \
+    ProcUtils::inside_opus(true);                                   \
                                                                     \
     bool interpose_off_flag = false;                                \
     FuncInfoMessage *func_msg = NULL;                               \
@@ -58,9 +58,9 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     {                                                               \
         SignalUtils::restore_signal_mask(&old_set);                 \
                                                                     \
-        ProcUtils::test_and_set_flag(interpose_off_flag);           \
+        ProcUtils::inside_opus(interpose_off_flag);                 \
         reinterpret_cast<ptr_type>(real_handler)(__VA_ARGS__);      \
-        ProcUtils::test_and_set_flag(true);                         \
+        ProcUtils::inside_opus(true);                               \
     }                                                               \
     else                                                            \
     {                                                               \
@@ -85,7 +85,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
     delete func_msg;                                                \
     delete gen_msg;                                                 \
                                                                     \
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
 
 
 /**

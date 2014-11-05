@@ -38,7 +38,7 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
         real_fptr = (fptr_type)ProcUtils::get_sym_addr(fname); \
                                                             \
     /* Call function if global flag is true */              \
-    if (ProcUtils::test_and_set_flag(true))                 \
+    if (ProcUtils::inside_opus(true))                       \
     {                                                       \
         CALL_FUNC(int, ret, real_fptr, arg1, __VA_ARGS__);  \
         return ret;                                         \
@@ -78,7 +78,7 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
     arg_kv->set_value(arg1_val);                            \
                                                             \
     comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG); \
-    ProcUtils::test_and_set_flag(!comm_ret);                \
+    ProcUtils::inside_opus(!comm_ret);                      \
     func_msg->Clear();                                      \
     return ret;
 
@@ -127,7 +127,7 @@ struct OPUSThreadData
  */
 static void opus_thread_cleanup_handler(void *cleanup_args)
 {
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
     char tid_buf[MAX_INT32_LEN] = "";
     send_generic_msg(GenMsgType::THREAD_EXIT,
@@ -153,7 +153,7 @@ static void* opus_thread_start_routine(void *args)
                 ProcUtils::get_error(err).c_str());
     }
 
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
     LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
@@ -175,7 +175,7 @@ static void* opus_thread_start_routine(void *args)
         if (send_generic_msg(GenMsgType::THREAD_START,
             ProcUtils::opus_itoa(ProcUtils::gettid(), tid_buf)))
         {
-            ProcUtils::test_and_set_flag(false); // Turn on interposition
+            ProcUtils::inside_opus(false); // Turn on interposition
         }
     }
     catch(const std::exception& e)
@@ -193,7 +193,7 @@ static void* opus_thread_start_routine(void *args)
     }
 
     void *ret = real_handler(real_args);
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
     return ret;
     pthread_cleanup_pop(1); // Added to avoid compilation error
@@ -236,7 +236,7 @@ static inline void exit_program(const char *exit_str, const int status)
     if (!exit_ptr)
         exit_ptr = (_EXIT_POINTER)ProcUtils::get_sym_addr(exit_str);
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         (*exit_ptr)(status);
     }
@@ -276,7 +276,7 @@ static inline void exit_program(const char *exit_str, const int status)
         (*exit_ptr)(status);
 
         // Will never reach here
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         func_msg->Clear();
     }
     else
@@ -305,7 +305,7 @@ static inline void set_old_act_data(void* prev, struct sigaction *oldact)
  */
 static void setup_forked_child_process()
 {
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
 #ifdef CAPTURE_SIGNALS
     SignalUtils::reset();
@@ -324,7 +324,7 @@ static void setup_forked_child_process()
             throw std::runtime_error("ProcUtils::connect failed!!");
 
         ProcUtils::send_startup_message();
-        ProcUtils::test_and_set_flag(false); // Turn on interposition
+        ProcUtils::inside_opus(false); // Turn on interposition
     }
     catch(const std::exception& e)
     {
@@ -418,27 +418,27 @@ static void add_uds_path(std::vector<char*>* env_vec_ptr)
 }
 
 /**
- * Adds the OPUS_INTERPOSE_OFF the list of environment
+ * Adds OPUS_INTERPOSE_MODE to the list of environment
  * variables being passed to the execed program
  */
-static void add_opus_interpose_off(std::vector<char*>* env_vec_ptr)
+static void add_opus_interpose_mode(std::vector<char*>* env_vec_ptr)
 {
     try
     {
-        char *ipose_off_value = ProcUtils::get_env_val("OPUS_INTERPOSE_OFF");
+        char *ipose_mode = ProcUtils::get_env_val("OPUS_INTERPOSE_MODE");
 
-        std::string opus_interpose_off = "OPUS_INTERPOSE_OFF=";
-        opus_interpose_off += std::string(ipose_off_value);
+        std::string opus_interpose_mode = "OPUS_INTERPOSE_MODE=";
+        opus_interpose_mode += std::string(ipose_mode);
 
-        char *env_data = alloc_and_copy(opus_interpose_off);
+        char *env_data = alloc_and_copy(opus_interpose_mode);
         if (!env_data)
         {
-            throw std::runtime_error("Could not add OPUS_INTERPOSE_OFF");
+            throw std::runtime_error("Could not add OPUS_INTERPOSE_MODE");
         }
 
         env_vec_ptr->push_back(env_data);
 
-        LOG_MSG(LOG_DEBUG, "[%s:%d]: Added OPUS_INTERPOSE_OFF: %s\n",
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Added OPUS_INTERPOSE_MODE: %s\n",
                     __FILE__, __LINE__, env_data);
     }
     catch(const std::exception& e)
@@ -502,7 +502,7 @@ static void copy_env_vars(char **envp, std::vector<char*>* env_vec_ptr)
     }
 
     add_uds_path(env_vec_ptr);
-    add_opus_interpose_off(env_vec_ptr);
+    add_opus_interpose_mode(env_vec_ptr);
 }
 
 /**
@@ -658,7 +658,7 @@ extern "C" pid_t fork(void)
     if (!real_fork)
         real_fork = (FORK_POINTER)ProcUtils::get_sym_addr("fork");
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(pid_t, pid, real_fork);
         return pid;
@@ -698,7 +698,7 @@ extern "C" pid_t fork(void)
                 start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
     return pid;
@@ -716,7 +716,7 @@ extern "C" void* dlopen(const char * filename, int flag)
     if (!real_dlopen)
         real_dlopen = (DLOPEN_POINTER)ProcUtils::get_sym_addr("dlopen");
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(void*, handle, real_dlopen, filename, flag);
         return handle;
@@ -747,7 +747,7 @@ extern "C" void* dlopen(const char * filename, int flag)
         comm_ret = set_header_and_send(lib_info_msg, PayloadType::LIBINFO_MSG);
     }
 
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     return handle;
 }
 
@@ -765,7 +765,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
         real_signal = (SIGNAL_POINTER)ProcUtils::get_sym_addr("signal");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(sighandler_t, ret, real_signal, signum, real_handler);
         return ret;
@@ -785,7 +785,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
     if (!SignalUtils::is_signal_valid(signum))
     {
         CALL_FUNC(sighandler_t, ret, real_signal, signum, real_handler);
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         return ret;
     }
 
@@ -822,7 +822,7 @@ extern "C" sighandler_t signal(int signum, sighandler_t real_handler)
         delete sh_obj;
     }
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
     return ret;
 }
 #endif
@@ -845,7 +845,7 @@ extern "C" int sigaction(int signum,
     LOG_MSG(LOG_ERROR, "Inside sigaction %d\n", signum);
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(int, ret, real_sigaction, signum, act, oldact);
         return ret;
@@ -865,7 +865,7 @@ extern "C" int sigaction(int signum,
     if (!SignalUtils::is_signal_valid(signum))
     {
         CALL_FUNC(int, ret, real_sigaction, signum, act, oldact);
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         return ret;
     }
 
@@ -916,7 +916,7 @@ extern "C" int sigaction(int signum,
         delete sh_obj;
     }
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
     return ret;
 }
 #endif
@@ -953,7 +953,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                 (PTHREAD_CREATE_POINTER)ProcUtils::get_sym_addr("pthread_create");
     }
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
         return (*real_pthread_create)(thread, attr, real_handler, real_args);
 
     if (ProcUtils::is_interpose_off())
@@ -997,7 +997,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                         end_time, ret);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
     return ret;
@@ -1018,7 +1018,7 @@ extern "C" void pthread_exit(void *retval)
             (PTHREAD_EXIT_POINTER)ProcUtils::get_sym_addr("pthread_exit");
     }
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
         (*real_pthread_exit)(retval);
 
     if (ProcUtils::is_interpose_off())
@@ -1074,7 +1074,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
         real_sigset = (SIGSET_POINTER)ProcUtils::get_sym_addr("sigset");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
         return ret;
@@ -1093,7 +1093,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
     */
     if (disp == SIG_IGN || disp == SIG_DFL)
     {
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
         return ret;
     }
@@ -1101,7 +1101,7 @@ extern "C" sighandler_t sigset(int sig, sighandler_t disp)
     /* We do not deal with SIG_HOLD */
     CALL_FUNC(sighandler_t, ret, real_sigset, sig, disp);
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
     return ret;
 }
 #endif
@@ -1122,7 +1122,7 @@ extern "C" int sigignore(int sig)
         real_sigignore = (SIGIGNORE_POINTER)ProcUtils::get_sym_addr("sigignore");
 
     /* We are within our own library */
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(int, ret, real_sigignore, sig);
         return ret;
@@ -1147,7 +1147,7 @@ extern "C" int sigignore(int sig)
        Turn on interposition and call sigaction so that
        OPUS can track the current state of this signal.
     */
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
     CALL_FUNC(int, ret, sigaction, sig, &act, NULL);
 
     return ret;

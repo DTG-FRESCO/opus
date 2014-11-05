@@ -31,6 +31,7 @@
 #include "message_util.h"
 #include "messaging.h"
 #include "signal_utils.h"
+#include "common_enums.h"
 
 #define STRINGIFY(value) #value
 
@@ -39,7 +40,7 @@ using std::string;
 using std::vector;
 
 /** Thread local storage */
-__thread bool ProcUtils::in_func_flag = true;
+__thread bool ProcUtils::in_opus_flag = true;
 __thread UDSCommClient *ProcUtils::comm_obj = NULL;
 __thread uint32_t ProcUtils::conn_ref_count = 0;
 __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
@@ -51,8 +52,8 @@ __thread AggrMsg *ProcUtils::aggr_msg_obj = NULL;
 /** process ID */
 pid_t ProcUtils::opus_pid = -1;
 
-/** global interposition off flag */
-sig_atomic_t ProcUtils::opus_interpose_off = false;
+/** global interposition mode flag */
+sig_atomic_t ProcUtils::opus_interpose_mode = OPUS::OPUSMode::OPUS_ON;
 
 /** glibc function name to symbol map */
 std::map<string, void*> *ProcUtils::libc_func_map = NULL;
@@ -454,13 +455,13 @@ bool ProcUtils::serialise_and_send_data(const struct Header& header_obj,
  * also be used to toggle off provenance
  * capture in the frontend.
  */
-bool ProcUtils::test_and_set_flag(const bool value)
+bool ProcUtils::inside_opus(const bool value)
 {
-    bool ret = in_func_flag & value;
+    bool ret = in_opus_flag & value;
 
-    if (value && in_func_flag) return ret;
+    if (value && in_opus_flag) return ret;
 
-    in_func_flag = value;
+    in_opus_flag = value;
     return ret;
 }
 
@@ -1030,11 +1031,13 @@ uint32_t ProcUtils::decr_conn_ref_count()
 }
 
 /**
- * Check if global interpose off flag is set
+ * Check if interposition has been turned off
  */
 bool ProcUtils::is_interpose_off()
 {
-    return opus_interpose_off;
+    if (opus_interpose_mode == OPUS::OPUSMode::OPUS_OFF)
+        return true;
+    return false;
 }
 
 /**
@@ -1044,15 +1047,20 @@ bool ProcUtils::is_interpose_off()
  */
 void ProcUtils::interpose_off(const string& desc)
 {
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
 #ifdef CAPTURE_SIGNALS
-    if (!opus_interpose_off)
+    if (opus_interpose_mode == OPUS::OPUSMode::OPUS_OFF)
         SignalUtils::restore_all_signal_states();
 #endif
 
-    const char *ipos_off_env = "OPUS_INTERPOSE_OFF=1";
-    if (putenv(const_cast<char*>(ipos_off_env)) != 0)
+    const size_t env_buff_len = 32;
+    char env_buff[env_buff_len] = "";
+
+    snprintf(env_buff, env_buff_len,
+            "OPUS_INTERPOSE_MODE=%d", OPUS::OPUSMode::OPUS_OFF);
+
+    if (putenv(env_buff) != 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
                     ProcUtils::get_error(errno).c_str());
@@ -1066,8 +1074,8 @@ void ProcUtils::interpose_off(const string& desc)
         disconnect();
     }
 
-    // atomic operation
-    opus_interpose_off = true;
+    // Set global OPUS interpose mode to OFF
+    opus_interpose_mode = OPUS::OPUSMode::OPUS_OFF;
 }
 
 const char* ProcUtils::get_path_from_fd(const int fd, char *file_path)
@@ -1097,7 +1105,7 @@ const char* ProcUtils::dirfd_get_path(const int fd,
             ProcUtils::get_path_from_fd(fd, path_dir);
         }
         snprintf(path_tmp, PATH_MAX, "%s/%s", path_dir, path);
-        
+
         return path_res_func(path_tmp, path_res);
     }
 }
@@ -1109,4 +1117,14 @@ const bool ProcUtils::is_opus_fd(const int fd){
 const bool ProcUtils::is_opus_fd(FILE* fp){
     int fd = fileno(fp);
     return fd >= 0 && is_opus_fd(fd);
+}
+
+void ProcUtils::set_opus_ipose_mode(const int _mode)
+{
+    opus_interpose_mode = _mode;
+}
+
+const int ProcUtils::get_opus_ipose_mode()
+{
+    return opus_interpose_mode;
 }

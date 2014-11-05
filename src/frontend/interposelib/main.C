@@ -9,6 +9,7 @@
 #include "uds_client.h"
 #include "signal_utils.h"
 #include "functions.h"
+#include "common_enums.h"
 
 __attribute__((section(".init_array")))
     typeof(opus_init) *__opus_init = opus_init;
@@ -17,21 +18,25 @@ __attribute__((section(".fini_array")))
     typeof(opus_fini) *__opus_fini = opus_fini;
 
 
-static bool check_env_opus_interpose_off()
+static OPUS::OPUSMode check_env_opus_interpose_mode()
 {
+    // Default to OPUS_ON
+    OPUS::OPUSMode opus_mode = OPUS::OPUSMode::OPUS_ON;
+
     try
     {
-        char *ipose_off_value = ProcUtils::get_env_val("OPUS_INTERPOSE_OFF");
+        char *mode_str = ProcUtils::get_env_val("OPUS_INTERPOSE_MODE");
 
-        // Return true if OPUS_INTERPOSE_OFF exists
-        if (ipose_off_value) return true;
+        if (mode_str) opus_mode = static_cast<OPUS::OPUSMode>(atoi(mode_str));
+
+        ProcUtils::set_opus_ipose_mode(opus_mode);
     }
     catch(const std::exception& e)
     {
         LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
 
-    return false;
+    return opus_mode;
 }
 
 /**
@@ -42,7 +47,7 @@ static bool check_env_opus_interpose_off()
  */
 void opus_init(int argc, char** argv, char** envp)
 {
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
     Logging::init_logging();
     opus_init_libc_funcs();
@@ -53,10 +58,10 @@ void opus_init(int argc, char** argv, char** envp)
     // Set message aggregation flag
     ProcUtils::set_msg_aggr_flag();
 
-    if (check_env_opus_interpose_off())
+    if (check_env_opus_interpose_mode() == OPUS::OPUSMode::OPUS_OFF)
     {
-        LOG_MSG(LOG_DEBUG, "[%s:%d]: OPUS_INTERPOSE_OFF flag is enabled\n",
-                    __FILE__, __LINE__);
+        LOG_MSG(LOG_DEBUG, "[%s:%d]: Interposition is turned OFF\n",
+                            __FILE__, __LINE__);
         return;
     }
 
@@ -83,7 +88,7 @@ void opus_init(int argc, char** argv, char** envp)
     ProcUtils::send_startup_message(argc, argv, envp);
     ProcUtils::send_loaded_libraries();
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
 }
 
 /**
@@ -92,7 +97,7 @@ void opus_init(int argc, char** argv, char** envp)
  */
 void opus_fini()
 {
-    ProcUtils::test_and_set_flag(true);
+    ProcUtils::inside_opus(true);
 
     LOG_MSG(LOG_DEBUG, "[%s:%d]: PID: %d, TID: %d inside opus_fini\n",
                 __FILE__, __LINE__, ProcUtils::getpid(), ProcUtils::gettid());
@@ -100,5 +105,5 @@ void opus_fini()
     ProcUtils::flush_buffered_data();
 
     ProcUtils::disconnect();
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
 }

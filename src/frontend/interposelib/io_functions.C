@@ -41,7 +41,7 @@ static int __open_internal(const char* pathname, int flags,
     if (!real_open)
         real_open = (T)ProcUtils::get_sym_addr(func_name);
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(int, ret, real_open, pathname, flags, mode);
         return ret;
@@ -92,7 +92,7 @@ static int __open_internal(const char* pathname, int flags,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
     return ret;
@@ -129,7 +129,7 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
     if (!real_openat)
         real_openat = (T)ProcUtils::get_sym_addr(func_name);
 
-    if (ProcUtils::test_and_set_flag(true) || ProcUtils::is_interpose_off())
+    if (ProcUtils::inside_opus(true))
     {
         CALL_FUNC(int, ret, real_openat, dirfd, pathname, flags, mode);
         return ret;
@@ -199,7 +199,7 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
                         start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
     return ret;
@@ -257,7 +257,7 @@ static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt
     }
     va_end(arg);
 
-    if (ProcUtils::test_and_set_flag(true))
+    if (ProcUtils::inside_opus(true))
     {
         FCNTL_CALL_FUNC
         return ret;
@@ -308,7 +308,7 @@ static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt
                       start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
     return ret;

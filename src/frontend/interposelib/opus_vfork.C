@@ -34,7 +34,7 @@ void vfork_record_interpose(pid_t pid)
     // vfork returned error
     if (pid < 0) errno_value = pid;
 
-    if (ProcUtils::test_and_set_flag(true)) return;
+    if (ProcUtils::inside_opus(true)) return;
 
     if (pid == 0) // Child
     {
@@ -48,7 +48,7 @@ void vfork_record_interpose(pid_t pid)
         ProcUtils::set_msg_aggr_flag(false);
 
         ProcUtils::send_startup_message();
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         return;
     }
 
@@ -74,16 +74,16 @@ void vfork_record_interpose(pid_t pid)
             start_time, end_time, errno_value);
 
     bool comm_ret = set_header_and_send(*func_msg, PayloadType::FUNCINFO_MSG);
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
 
-    ProcUtils::test_and_set_flag(false);
+    ProcUtils::inside_opus(false);
 
 }
 
 void push_ret_addr(uint64_t ret_addr)
 {
-    bool prev_state = ProcUtils::test_and_set_flag(true);
+    bool prev_state = ProcUtils::inside_opus(true);
 
     if (!proc_state_stack) proc_state_stack = new std::stack<std::pair<uint64_t, bool> >;
 
@@ -99,6 +99,6 @@ uint64_t pop_ret_addr()
     std::pair<uint64_t, bool> proc_state = proc_state_stack->top();
     proc_state_stack->pop();
 
-    ProcUtils::test_and_set_flag(proc_state.second);
+    ProcUtils::inside_opus(proc_state.second);
     return proc_state.first;
 }

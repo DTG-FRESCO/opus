@@ -26,7 +26,7 @@ class ProcUtils
     public:
         static uint64_t get_time();
         static void get_formatted_time(std::string* date_time);
-        static bool test_and_set_flag(const bool value);
+        static bool inside_opus(const bool value);
 
         static bool serialise_and_send_data(
                     const struct Header& hdr_obj,
@@ -100,13 +100,17 @@ class ProcUtils
         static void set_msg_aggr_flag();
         static void discard_aggr_msgs();
 
+        /* Getter and setter for OPUS interpose mode */
+        static void set_opus_ipose_mode(const int _mode);
+        static const int get_opus_ipose_mode();
+
     private:
-        static __thread bool in_func_flag;
+        static __thread bool in_opus_flag;
         static __thread UDSCommClient *comm_obj;
         static __thread uint32_t conn_ref_count;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
-        static sig_atomic_t opus_interpose_off;
+        static sig_atomic_t opus_interpose_mode;
         static bool aggr_on_flag;
 
         /* Thread local cached message objects */
