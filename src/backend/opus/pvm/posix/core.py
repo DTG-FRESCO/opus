@@ -44,9 +44,9 @@ def handle_process(db_iface, hdr, pay):
     process.ProcStateController.proc_startup(db_iface, hdr, pay)
 
 
-def handle_disconnect(pid):
+def handle_disconnect(db_iface, pid):
     '''Handle the disconnection of a process.'''
-    process.ProcStateController.proc_discon(pid)
+    process.ProcStateController.proc_discon(db_iface, pid)
 
 
 def handle_prefunc(pid, msg):

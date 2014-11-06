@@ -51,6 +51,9 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
         return ret;                                         \
     }                                                       \
                                                             \
+    /* Flush the aggregated messages */                     \
+    ProcUtils::flush_buffered_data();                       \
+                                                            \
     /* Send pre function call generic message */            \
     bool comm_ret = send_pre_func_generic_msg(desc);        \
                                                             \

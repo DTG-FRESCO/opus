@@ -60,6 +60,9 @@ CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
                                 NODE_BY_ID=3,
                                 IO_EVENT_CHAIN=4)
 
+# Enum values for process status
+PROCESS_STATE = common_utils.enum(ALIVE=0, DEAD = 1)
+
 
 class UniqueIDException(common_utils.OPUSException):
     '''Exception when unique ID cannot be generated'''
@@ -193,7 +196,6 @@ class DBInterface(StorageIFace):
     FILE_INDEX = "FILE_INDEX"
     PROC_INDEX = "PROC_INDEX"
     UNIQ_ID_IDX = "UNIQ_ID_IDX"
-    NODE_ID_IDX = "NODE_ID_IDX"
     TIME_INDEX = "TIME_INDEX"
 
     def __init__(self, filename):
@@ -246,14 +248,6 @@ class DBInterface(StorageIFace):
                 else:
                     self.proc_index = self.db.node.indexes.create(
                         DBInterface.PROC_INDEX)
-
-                # Node ID index
-                if self.db.node.indexes.exists(DBInterface.NODE_ID_IDX):
-                    self.node_id_idx = self.db.node.indexes.get(
-                        DBInterface.NODE_ID_IDX)
-                else:
-                    self.node_id_idx = self.db.node.indexes.create(
-                        DBInterface.NODE_ID_IDX)
 
             # Fix for the class load error when using multiple threads
             rows = self.db.query("START n=node(1) RETURN n")
@@ -309,8 +303,6 @@ class DBInterface(StorageIFace):
                 logging.error("Error: Attempted to use monotime in a function"
                               " that does not supply it.")
             node['mono_time'] = str(self.mono_time)
-
-        self.update_index(DBInterface.NODE_ID_IDX, 'node', node_id, node)
         return node
 
     def create_relationship(self, from_node, to_node, rel_type):
@@ -336,8 +328,6 @@ class DBInterface(StorageIFace):
             self.file_index[idx_name][idx_key] = idx_val
         elif idx_type == DBInterface.PROC_INDEX:
             self.proc_index[idx_name][idx_key] = idx_val
-        elif idx_type == DBInterface.NODE_ID_IDX:
-            self.node_id_idx[idx_name][idx_key] = idx_val
 
     def __get_next_id(self):
         '''Returns a unique node ID'''
@@ -365,14 +355,9 @@ class DBInterface(StorageIFace):
         '''Deletes relatioship given a relationship object'''
         rel.delete()
 
-    @CacheManager.dec(CACHE_NAMES.NODE_BY_ID, lambda node_id: node_id)
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
-        node_list = self.node_id_idx['node'][node_id]
-        if len(node_list) == 1:
-            return node_list[0]
-        else:
-            return None
+        return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
 
     def query(self, qry, **kwargs):
         '''Executes query and returns result'''

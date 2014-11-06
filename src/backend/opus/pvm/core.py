@@ -9,6 +9,10 @@ from __future__ import (absolute_import, division,
 from opus import storage, traversal, common_utils
 
 def cache_new_local(db_iface, loc_node, proc_node):
+    '''Updates the IO_EVENT_CHAIN cache with the new local'''
+    if proc_node['status'] == storage.PROCESS_STATE.DEAD:
+        return
+
     idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
                                         (proc_node.id, loc_node['name']))
     if idx_list is None:
