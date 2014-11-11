@@ -342,19 +342,15 @@ class DBInterface(StorageIFace):
     def find_and_del_rel(self, from_node, to_node, rel_type):
         '''Finds a relation of type rel_type between two nodes
         and deletes it'''
-        rows = self.db.query("START from_node=node({from_id}),"
-                             " to_node=node({to_id}) "
-                             "MATCH from_node-[rel:" + rel_type + "]->to_node "
-                             " RETURN rel",
-                             from_id=from_node.id, to_id=to_node.id)
-        for row in rows:
-            rel = row['rel']
-            rel.delete()
+        for rel in from_node.relationships.outgoing:
+            if rel.end.id == to_node.id:
+                rel.delete()
 
     def delete_relationship(self, rel):
         '''Deletes relatioship given a relationship object'''
         rel.delete()
 
+    @CacheManager.dec(CACHE_NAMES.NODE_BY_ID, lambda node_id: node_id)
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
         return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
