@@ -350,7 +350,6 @@ class DBInterface(StorageIFace):
         '''Deletes relatioship given a relationship object'''
         rel.delete()
 
-    @CacheManager.dec(CACHE_NAMES.NODE_BY_ID, lambda node_id: node_id)
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
         return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
