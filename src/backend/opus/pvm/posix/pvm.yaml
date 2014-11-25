@@ -5,24 +5,6 @@ close:
       - msg_arg
       - fd
 
-creat:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - pathname
-    filedes:
-      - ret_val
-
-creat64:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - pathname
-    filedes:
-      - ret_val
-
 fclose:
   action: close
   arg_map:
@@ -43,24 +25,6 @@ fgets:
     filedes: 
       - msg_arg
       - stream
-
-fopen:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - path
-    filedes:
-      - ret_val
-
-fopen64:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - path
-    filedes:
-      - ret_val
 
 fprintf:
   action: write
@@ -124,24 +88,6 @@ getline:
     filedes: 
       - msg_arg
       - stream
-
-open:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - pathname
-    filedes:
-      - ret_val
-
-open64:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - pathname
-    filedes:
-      - ret_val
 
 putc:
   action: write
@@ -465,42 +411,6 @@ unlink:
       - msg_arg
       - pathname
 
-mkstemp:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - templ
-    filedes:
-      - ret_val
-
-mkostemp:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - templ
-    filedes:
-      - ret_val
-
-mkstemps:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - templ
-    filedes:
-      - ret_val
-
-mkostemps:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - templ
-    filedes:
-      - ret_val
-
 __fxstat:
   action: read
   arg_map:
@@ -712,24 +622,6 @@ _exit:
 pthread_create:
   action: event
   arg_map: {}
-
-openat:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - file_path
-    filedes:
-      - ret_val
-
-openat64:
-  action: open
-  arg_map:
-    filename:
-      - msg_arg
-      - file_path
-    filedes:
-      - ret_val
 
 vfork:
   action: event

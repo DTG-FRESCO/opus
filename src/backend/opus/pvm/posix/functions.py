@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division,
 import fcntl
 import logging
 import pkg_resources
+import os
 import sys
 import opuspb
 
@@ -561,3 +562,195 @@ def posix_fcntl(db_iface, proc_node, msg):
             utils.set_link(db_iface, loc_node, storage.LinkState.NONE)
 
     return loc_node
+
+#
+# OPEN FUNCTIONS
+#
+
+
+def parse_fmode(mode):
+    '''Parses a f* function type mode into a linkstate.'''
+    if "r+" in mode or "w+" in mode or "a+" in mode:
+        return storage.LinkState.RaW
+    elif "w" in mode or "a" in mode:
+        return storage.LinkState.WRITE
+    else:
+        return storage.LinkState.READ
+
+
+def parse_omode(mode):
+    '''Parses an open type mode into a linkstate.'''
+    if int(mode) & os.O_RDWR != 0:
+        return storage.LinkState.RaW
+    elif int(mode) & os.O_WRONLY != 0:
+        return storage.LinkState.WRITE
+    else:
+        return storage.LinkState.READ
+
+
+@FuncController.dec('creat')
+@utils.check_message_error_num
+def posix_creat(db_iface, proc_node, msg):
+    '''Implementation of creat in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['pathname'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = storage.LinkState.WRITE
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('creat64')
+@utils.check_message_error_num
+def posix_creat64(db_iface, proc_node, msg):
+    '''Implementation of creat64 in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['pathname'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = storage.LinkState.WRITE
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('fopen')
+@utils.check_message_error_num
+def posix_fopen(db_iface, proc_node, msg):
+    '''Implementation of fopen in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['path'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_fmode(args['mode'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('fopen64')
+@utils.check_message_error_num
+def posix_fopen64(db_iface, proc_node, msg):
+    '''Implementation of fopen64 in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['path'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_fmode(args['mode'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('open')
+@utils.check_message_error_num
+def posix_open(db_iface, proc_node, msg):
+    '''Implementation of open in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['pathname'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('open64')
+@utils.check_message_error_num
+def posix_open64(db_iface, proc_node, msg):
+    '''Implementation of open64 in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['pathname'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('mkstemp')
+@utils.check_message_error_num
+def posix_mkstemp(db_iface, proc_node, msg):
+    '''Implementation of mkstemp in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['templ'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = storage.LinkState.RaW
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('mkostemp')
+@utils.check_message_error_num
+def posix_mkostemp(db_iface, proc_node, msg):
+    '''Implementation of mkostemp in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['templ'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('mkstemps')
+@utils.check_message_error_num
+def posix_mkstemps(db_iface, proc_node, msg):
+    '''Implementation of mkstemps in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['templ'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = storage.LinkState.RaW
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('mkostemps')
+@utils.check_message_error_num
+def posix_mkostemps(db_iface, proc_node, msg):
+    '''Implementation of mkostemps in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['templ'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('openat')
+@utils.check_message_error_num
+def posix_openat(db_iface, proc_node, msg):
+    '''Implementation of openat in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['file_path'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj
+
+
+@FuncController.dec('openat64')
+@utils.check_message_error_num
+def posix_openat64(db_iface, proc_node, msg):
+    '''Implementation of openat64 in PVM semantics.'''
+    args = utils.parse_kvpair_list(msg.args)
+    loc_obj = actions.open_action(db_iface, proc_node,
+                                  args['file_path'], str(msg.ret_val))
+    if proc_node['opus_lite']:
+        state = parse_omode(args['flags'])
+        for rel in loc_obj.LOC_OBJ.incoming:
+            rel['state'] = state
+    return loc_obj

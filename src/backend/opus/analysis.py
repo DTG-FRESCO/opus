@@ -177,10 +177,11 @@ class PVMAnalyser(OrderingAnalyser):
     '''The PVM analyser class implements the core of the PVM model, including
     the significant operations and their interactions with the underlying
     storage system.'''
-    def __init__(self, storage_type, storage_args, *args, **kwargs):
+    def __init__(self, storage_type, storage_args, opus_lite, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
         self.db_iface = common_utils.meta_factory(storage.StorageIFace,
                                                   storage_type, **storage_args)
+        self.opus_lite = opus_lite
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
@@ -209,7 +210,8 @@ class PVMAnalyser(OrderingAnalyser):
             elif hdr_obj.payload_type == uds_msg.AGGREGATION_MSG:
                 posix.handle_bulk_functions(self.db_iface, hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
-                posix.handle_process(self.db_iface, hdr_obj, pay_obj)
+                posix.handle_process(self.db_iface, hdr_obj,
+                                     pay_obj, self.opus_lite)
             elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
                 if pay_obj.msg_type == uds_msg.DISCON:
                     posix.handle_disconnect(self.db_iface, hdr_obj.pid)

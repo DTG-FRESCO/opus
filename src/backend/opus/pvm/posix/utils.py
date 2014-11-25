@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division,
 
 
 import functools
+import logging
 
 from opus import pvm, storage, common_utils, traversal
 
