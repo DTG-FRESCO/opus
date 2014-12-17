@@ -11,7 +11,7 @@ import logging
 import jpype
 
 from opus import (cc_msg_pb2, analysis)
-
+from opus import query
 
 class CommandControl(object):
     '''Command and control core system.'''
@@ -108,6 +108,16 @@ def handle_db_qry(cac, msg):
         pass
 
     return rsp
+
+
+@CommandControl.register_command_handler("exec_qry_method")
+def handle_exec_qry_method(cac, msg):
+    rsp = None
+    if msg.HasField("qry_method"):
+        db_iface = cac.daemon_manager.analyser.db_iface
+        rsp = query.ClientQueryControl.exec_method(db_iface, msg)
+    return rsp
+
 
 @CommandControl.register_command_handler("status")
 def handle_status(cac, _):
