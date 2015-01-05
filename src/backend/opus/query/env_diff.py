@@ -31,11 +31,11 @@ class DictDiffer(object):
         return self.set_past - self.intersect
 
     def changed(self):
-        return set(o for o in self.intersect \
+        return set(o for o in self.intersect
                 if self.past_dict[o] != self.current_dict[o])
 
     def unchanged(self):
-        return set(o for o in self.intersect \
+        return set(o for o in self.intersect
                 if self.past_dict[o] == self.current_dict[o])
 
 

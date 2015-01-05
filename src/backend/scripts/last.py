@@ -19,19 +19,20 @@ def exec_query(args):
 
     helper = cc_utils.CommandConnectionHelper(args.host, args.port)
 
-    filename = os.path.abspath(args.name)
+    filename = args.name
+    if os.path.isfile(filename):
+        filename = os.path.abspath(args.name)
+        filename = os.path.realpath(filename)
 
     if(os.path.isdir(filename) or args.directory) and not args.file:
-        pay = query_folder(helper, filename)
+        result = query_folder(helper, filename)
     else:
-        pay = query_file(helper, filename)
+        result = query_file(helper, filename)
 
-    if pay.HasField("error"):
-        print(pay.error)
+    if result.HasField("error"):
+        print(result.error)
     else:
-        for row in pay.rows:
-            for cell in row.cells:
-                print(cell.value)
+        print(result.rsp_data)
 
 
 def query_file(helper, name):
@@ -39,16 +40,12 @@ def query_file(helper, name):
     print("Last command performed on %s:" % name)
 
     cmd = cc_msg.CmdCtlMessage()
-    cmd.cmd_name = "db_qry"
+    cmd.cmd_name = "exec_qry_method"
+    cmd.qry_method = "query_file"
 
     arg = cmd.args.add()
-    arg.key = "qry_str"
-    arg.value = ("START g1=node:FILE_INDEX('name:" + name + "') "
-                 "MATCH (g1)-[:GLOBAL_OBJ_PREV*0..]->(gn)-[r1:LOC_OBJ]->(l)"
-                 "-[:PROC_OBJ]->(p)-[:OTHER_META]->(m) "
-                 "WHERE m.name = 'cmd_args' AND r1.state in [3,4]"
-                 "RETURN m.value ORDER BY p.timestamp LIMIT 1")
-
+    arg.key = "name"
+    arg.value = name
     return helper.make_request(cmd)
 
 
@@ -57,18 +54,12 @@ def query_folder(helper, name):
     print("Last 5 commands performed in %s:" % name)
 
     cmd = cc_msg.CmdCtlMessage()
-    cmd.cmd_name = "db_qry"
+    cmd.cmd_name = "exec_qry_method"
+    cmd.qry_method = "query_folder"
 
     arg = cmd.args.add()
-    arg.key = "qry_str"
-    arg.value = ("START g=node:PROC_INDEX('name:*') "
-                 "MATCH (g)-[:LOC_OBJ]->(l)-[:PROC_OBJ]->(p),"
-                 "      (p)-[:OTHER_META]->(m),"
-                 "      (p)-[:OTHER_META]->(m1) "
-                 "WHERE m.name = 'cwd' AND m.value = \"" + name + "\" AND "
-                 "m1.name = 'cmd_args' "
-                 "RETURN m1.value ORDER BY p.timestamp DESC LIMIT 5")
-
+    arg.key = "name"
+    arg.value = name
     return helper.make_request(cmd)
 
 

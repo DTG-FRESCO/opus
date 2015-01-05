@@ -41,15 +41,6 @@ message PSMessageRsp {
     repeated PSData ps_data = 1; // Process data
 }
 
-message QueryMessageRsp {
-    message Row {
-        repeated KVPair cells = 1;
-    }
-
-    repeated Row rows = 1;
-    optional string error = 2;
-}
-
 message StatusMessageRsp {
 
     message AnalyserStatus {
