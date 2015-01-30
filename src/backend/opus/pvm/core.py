@@ -8,11 +8,19 @@ from __future__ import (absolute_import, division,
 
 from opus import storage, traversal, common_utils
 
-def cache_new_local(db_iface, loc_node, proc_node):
-    '''Updates the IO_EVENT_CHAIN cache with the new local'''
+def cache_new_local(db_iface, loc_node, proc_node, loc_proc_rel):
+    '''Updates the IO_EVENT_CHAIN and VALID_LOCAL
+    cache with the new local'''
     if proc_node['status'] == storage.PROCESS_STATE.DEAD:
         return
 
+    # Update VALID_LOCAL cache
+    db_iface.cache_man.update(storage.CACHE_NAMES.VALID_LOCAL,
+                                (proc_node.id, loc_node['name']),
+                                (loc_node, loc_proc_rel))
+
+
+    # Update IO_EVENT_CHAIN cache
     idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
                                         (proc_node.id, loc_node['name']))
     if idx_list is None:
@@ -49,14 +57,14 @@ def version_local(db_iface, old_loc_node, glob_node):
                                                            old_loc_node)
 
     # Create link from local to process
-    db_iface.create_relationship(new_loc_node, proc_node,
+    new_rel = db_iface.create_relationship(new_loc_node, proc_node,
                                  storage.RelType.PROC_OBJ)
 
     db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
                                   (proc_node.id, old_loc_node['name']))
 
     # Add the new local object node to the IO_EVENT_CHAIN cache
-    cache_new_local(db_iface, new_loc_node, proc_node)
+    cache_new_local(db_iface, new_loc_node, proc_node, new_rel)
 
     # Change local->process link status to INACTIVE
     rel_link['state'] = storage.LinkState.INACTIVE
@@ -104,12 +112,13 @@ def get_l(db_iface, proc_node, loc_name):
     loc_node = db_iface.create_node(storage.NodeType.LOCAL)
     loc_node['name'] = loc_name
 
-    # Add the new local object node to the IO_EVENT_CHAIN cache
-    cache_new_local(db_iface, loc_node, proc_node)
-
     # Create a relation from local--->process node
-    db_iface.create_relationship(loc_node, proc_node,
+    loc_proc_rel = db_iface.create_relationship(loc_node, proc_node,
                                  storage.RelType.PROC_OBJ)
+
+    # Add the new local object node to the IO_EVENT_CHAIN cache
+    cache_new_local(db_iface, loc_node, proc_node, loc_proc_rel)
+
     return loc_node
 
 
@@ -174,7 +183,7 @@ def bind(db_iface, loc_node, glob_node):
 
 def unbind(db_iface, loc_node, glob_node):
     '''PVM unbind between loc_node and glob_node.'''
-    db_iface.find_and_del_rel(glob_node, loc_node, storage.RelType.LOC_OBJ)
+    db_iface.find_and_del_rel(glob_node, loc_node)
     loc_node['ref_count'] = 0
 
     db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,

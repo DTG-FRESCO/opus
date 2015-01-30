@@ -8,7 +8,6 @@ from __future__ import (absolute_import, division,
 import logging
 from opus import storage
 
-
 def get_latest_glob_version(db_iface, name):
     '''Gets the latest global version for the given name'''
     node = None
@@ -36,13 +35,8 @@ def get_globals_from_local(db_iface, loc_node):
     associated with the local object node'''
     glob_node_link_list = []
 
-    rows = db_iface.query("START loc_node=node({id}) "
-                          "MATCH loc_node<-[rel:LOC_OBJ]-glob_node "
-                          "RETURN glob_node, rel", id=loc_node.id)
-    for row in rows:
-        glob_node = row['glob_node']
-        rel = row['rel']
-        glob_node_link_list.append((glob_node, rel))
+    for tmp_rel in loc_node.LOC_OBJ.incoming:
+        glob_node_link_list.append((tmp_rel.start, tmp_rel))
     return glob_node_link_list
 
 
@@ -51,13 +45,8 @@ def get_locals_from_global(db_iface, glob_node):
     links connected to the given global'''
     loc_node_link_list = []
 
-    rows = db_iface.query("START glob_node=node({id}) "
-                          "MATCH glob_node-[rel:LOC_OBJ]->loc_node "
-                          "RETURN loc_node, rel", id=glob_node.id)
-    for row in rows:
-        loc_node = row['loc_node']
-        rel = row['rel']
-        loc_node_link_list.append((loc_node, rel))
+    for tmp_rel in glob_node.LOC_OBJ.outgoing:
+        loc_node_link_list.append((tmp_rel.end, tmp_rel))
     return loc_node_link_list
 
 
@@ -67,14 +56,9 @@ def get_process_from_local(db_iface, loc_node):
     proc_node = None
     rel = None
 
-    rows = db_iface.query("START loc_node=node({id}) "
-                          "MATCH loc_node-[rel:PROC_OBJ]->proc_node "
-                          "WHERE rel.state <> {state} "
-                          "RETURN proc_node, rel",
-                          id=loc_node.id, state=storage.LinkState.CoT)
-    for row in rows:
-        proc_node = row['proc_node']
-        rel = row['rel']
+    for tmp_rel in loc_node.PROC_OBJ.outgoing:
+        rel = tmp_rel
+        proc_node = tmp_rel.end
     return proc_node, rel
 
 
@@ -99,11 +83,8 @@ def get_next_local_version(db_iface, loc_node):
     '''Gets the next local object version'''
     next_loc_node = None
 
-    rows = db_iface.query("START loc_node=node({id}) "
-                          "MATCH loc_node<-[rel:LOC_OBJ_PREV]-next_loc_node "
-                          "RETURN next_loc_node", id=loc_node.id)
-    for row in rows:
-        next_loc_node = row['next_loc_node']
+    for rel in loc_node.LOC_OBJ_PREV.incoming:
+        next_loc_node = rel.start
     return next_loc_node
 
 
@@ -208,14 +189,15 @@ def get_last_event(db_iface, start_node, rel_type):
     last_event_node = None
     event_rel = None
 
-    rows = db_iface.query("START start_node=node({id}) "
-                          "MATCH start_node-[rel:" + rel_type +
-                          "]->event_node "
-                          "RETURN event_node, rel",
-                          id=start_node.id)
-    for row in rows:
-        last_event_node = row['event_node']
-        event_rel = row['rel']
+    lst = None
+    if rel_type == storage.RelType.IO_EVENTS:
+        lst = start_node.IO_EVENTS.outgoing
+    elif rel_type == storage.RelType.PROC_EVENTS:
+        lst = start_node.PROC_EVENTS.outgoing
+
+    for rel in lst:
+        last_event_node = rel.end
+        event_rel = rel
     return last_event_node, event_rel
 
 
