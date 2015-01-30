@@ -66,3 +66,14 @@ def handle_startup(db_iface, pay):
 def handle_cleanup():
     '''Cleanup all PVM state'''
     process.ProcStateController.clear()
+
+
+def handle_libinfo(db_iface, pid, pay):
+    '''Handle for libinfo message'''
+    proc_node = db_iface.get_node_by_id(
+        process.ProcStateController.resolve_process(pid))
+
+    time_stamp = proc_node['timestamp']
+    for pair in pay.library:
+        utils.add_meta_to_proc(db_iface, proc_node, pair.key, pair.value,
+                                time_stamp, storage.RelType.LIB_META)

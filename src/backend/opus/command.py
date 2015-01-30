@@ -11,7 +11,7 @@ import logging
 import jpype
 
 from opus import (cc_msg_pb2, analysis)
-
+from opus import query
 
 class CommandControl(object):
     '''Command and control core system.'''
@@ -80,34 +80,14 @@ def handle_shutdown(cac, _):
     return rsp
 
 
-@CommandControl.register_command_handler("db_qry")
-def handle_db_qry(cac, msg):
-    rsp = cc_msg_pb2.QueryMessageRsp()
-    qry_str = ""
-
-    for arg in msg.args:
-        if arg.key == "qry_str":
-            qry_str = arg.value
-
-    try:
-        qry_data = cac.daemon_manager.analyser.db_iface.locked_query(qry_str)
-    except jpype.JavaException as exc:
-        logging.error(exc)
-        rsp.error = "Failed to execute query sucessfully."
-        return rsp
-
-    try:
-        keys = qry_data.keys()
-        for row in qry_data:
-            cur = rsp.rows.add()
-            for key in keys:
-                cell = cur.cells.add()
-                cell.key = key
-                cell.value = str(row[key])
-    except TypeError as exc:
-        pass
-
+@CommandControl.register_command_handler("exec_qry_method")
+def handle_exec_qry_method(cac, msg):
+    rsp = None
+    if msg.HasField("qry_method"):
+        db_iface = cac.daemon_manager.analyser.db_iface
+        rsp = query.ClientQueryControl.exec_method(db_iface, msg)
     return rsp
+
 
 @CommandControl.register_command_handler("status")
 def handle_status(cac, _):

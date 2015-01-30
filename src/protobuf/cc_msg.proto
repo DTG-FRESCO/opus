@@ -6,6 +6,7 @@ enum CC_MSG_TYPE {
     PSRSP = 3;
     QRYRSP = 4;
     STATRSP = 5;
+    EXECQRYRSP = 6;
 }
 
 enum ServiceStatus {
@@ -14,15 +15,16 @@ enum ServiceStatus {
     NOT_PRESENT = 3;
 }
 
+message KVPair {
+    optional string key = 1;
+    optional string value = 2;
+}
+
+
 message CmdCtlMessage {
-
-    message KVPair {
-        optional string key = 1;
-        optional string value = 2;
-    }
-
     optional string cmd_name = 1; // opus-ps, opus-kill etc.
-    repeated KVPair args = 2; // list of arg name and value
+    optional string qry_method = 2; // Query method to invoke
+    repeated KVPair args = 3; // list of arg name and value
 }
 
 message CmdCtlMessageRsp {
@@ -39,20 +41,6 @@ message PSMessageRsp {
     repeated PSData ps_data = 1; // Process data
 }
 
-message QueryMessageRsp {
-    message Row {
-        message KVPair {
-            optional string key = 1;
-            optional string value = 2;
-        }
-
-        repeated KVPair cells = 1;
-    }
-
-    repeated Row rows = 1;
-    optional string error = 2;
-}
-
 message StatusMessageRsp {
 
     message AnalyserStatus {
@@ -63,4 +51,10 @@ message StatusMessageRsp {
     optional AnalyserStatus analyser_status = 1;
     optional ServiceStatus producer_status = 2;
     optional ServiceStatus query_status = 3;
+}
+
+message ExecQueryMethodRsp {
+    optional string rsp_data = 1; // Formatted string that can be printed
+    repeated KVPair state_mapping = 2; // For interactive tools
+    optional string error = 3; // In case an error is encountered
 }

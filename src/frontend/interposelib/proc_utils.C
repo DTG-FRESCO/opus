@@ -234,8 +234,16 @@ static inline void set_command_line(StartupMessage* start_msg,
 
     for (int i = 0; i < argc; i++)
     {
-        if (i > 0) cmd_line_str += " ";
-        cmd_line_str +=  argv[i];
+        if (i > 0)
+        {
+            cmd_line_str += " ";
+            cmd_line_str +=  argv[i];
+        }
+        else
+        {
+            char can_path[PATH_MAX + 1] = "";
+            cmd_line_str += ProcUtils::canonicalise_path(argv[i], can_path);
+        }
     }
 
     start_msg->set_cmd_line_args(cmd_line_str);

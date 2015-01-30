@@ -219,3 +219,5 @@ class PVMAnalyser(OrderingAnalyser):
                     posix.handle_prefunc(hdr_obj.pid, pay_obj)
             elif hdr_obj.payload_type == uds_msg.TERM_MSG:
                 posix.handle_startup(self.db_iface, pay_obj)
+            elif hdr_obj.payload_type == uds_msg.LIBINFO_MSG:
+                posix.handle_libinfo(self.db_iface, hdr_obj.pid, pay_obj)
