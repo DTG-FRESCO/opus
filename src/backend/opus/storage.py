@@ -339,7 +339,7 @@ class DBInterface(StorageIFace):
         else:
             raise UniqueIDException()
 
-    def find_and_del_rel(self, from_node, to_node, rel_type):
+    def find_and_del_rel(self, from_node, to_node):
         '''Finds a relation of type rel_type between two nodes
         and deletes it'''
         for rel in from_node.relationships.outgoing:

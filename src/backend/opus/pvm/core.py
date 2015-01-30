@@ -183,7 +183,7 @@ def bind(db_iface, loc_node, glob_node):
 
 def unbind(db_iface, loc_node, glob_node):
     '''PVM unbind between loc_node and glob_node.'''
-    db_iface.find_and_del_rel(glob_node, loc_node, storage.RelType.LOC_OBJ)
+    db_iface.find_and_del_rel(glob_node, loc_node)
     loc_node['ref_count'] = 0
 
     db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
