@@ -6,6 +6,7 @@ using src/frontend/gen-boiler/func.tmpl as a template.
 
 #include "func_ptr_types.h"
 #include "common_macros.h"
+#include "common_enums.h"
 
 {% for func in fn_list if 'nogen' not in func.flags -%}
 extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
@@ -30,7 +31,12 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     va_start(va_args, {{(func.args|last).name}});
     {%- endif %}
 
-    if (ProcUtils::test_and_set_flag(true))
+    {% if "buffer" in func.flags -%}
+    if ((ProcUtils::get_opus_ipose_mode() == OPUS::OPUSMode::OPUS_LITE)
+            || ProcUtils::inside_opus(true))
+    {%- else -%}
+    if (ProcUtils::inside_opus(true))
+    {%- endif %}
     {
         {{macros.fn_call(func)}}
 
@@ -54,7 +60,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% if "fdprotect" in func.flags -%}
     if (ProcUtils::is_opus_fd({{func.fd_protect.arg}})){
         errno = {{func.fd_protect.errno}};
-        ProcUtils::test_and_set_flag(false);
+        ProcUtils::inside_opus(false);
         return -1;
     }
     {%- endif %}
@@ -190,7 +196,7 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
         If the message is successfully sent
         we keep interposition turned on.
     */
-    ProcUtils::test_and_set_flag(!comm_ret);
+    ProcUtils::inside_opus(!comm_ret);
     func_msg->Clear();
     {{macros.return_func(func)}}
 }

@@ -31,9 +31,9 @@
 #define MEM_FUNC_MACRO(libc_func, ...)                              \
     TrackErrno err_obj(errno);                                      \
                                                                     \
-    bool prev_ipose_val = ProcUtils::test_and_set_flag(true);       \
+    bool prev_ipose_val = ProcUtils::inside_opus(true);             \
     CALL_MEM_FUNC(libc_func, __VA_ARGS__);                          \
-    ProcUtils::test_and_set_flag(prev_ipose_val);                   \
+    ProcUtils::inside_opus(prev_ipose_val);                         \
     return ret;
 
 
@@ -61,7 +61,7 @@ extern "C" void free(void* ptr)
 {
     TrackErrno err_obj(errno);
 
-    bool prev_ipose_val = ProcUtils::test_and_set_flag(true);
+    bool prev_ipose_val = ProcUtils::inside_opus(true);
 
     sigset_t old_set;
     SignalUtils::block_all_signals(&old_set);
@@ -71,6 +71,6 @@ extern "C" void free(void* ptr)
     err_obj = errno;
 
     SignalUtils::restore_signal_mask(&old_set);
-    ProcUtils::test_and_set_flag(prev_ipose_val);
+    ProcUtils::inside_opus(prev_ipose_val);
 }
 
