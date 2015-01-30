@@ -28,10 +28,11 @@ def create_proc(db_iface, pid, time_stamp):
     return proc_node
 
 
-def expand_proc(db_iface, proc_node, pay):
+def expand_proc(db_iface, proc_node, pay, opus_lite):
     '''Expand a process node with a binary relation and with meta data
     from a given startup message payload 'pay'.'''
     time_stamp = proc_node['timestamp']
+    proc_node['opus_lite'] = opus_lite
 
     loc_node = actions.touch_action(db_iface, proc_node, pay.exec_name)
     utils.set_link(db_iface, loc_node, storage.LinkState.BIN)
@@ -133,30 +134,30 @@ class ProcStateController(object):
         return (cpid not in cls.proc_map and ppid in cls.proc_map)
 
     @classmethod
-    def __handle_normal_process(cls, db_iface, hdr, pay):
+    def __handle_normal_process(cls, db_iface, hdr, pay, opus_lite):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
 
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
         cls.__add_proc_node(hdr.pid, proc_node)
-        expand_proc(db_iface, proc_node, pay)
+        expand_proc(db_iface, proc_node, pay, opus_lite)
 
         for i in range(3):
             pvm.get_l(db_iface, proc_node, str(i))
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
 
     @classmethod
-    def __handle_forked_process(cls, db_iface, hdr, pay):
+    def __handle_forked_process(cls, db_iface, hdr, pay, opus_lite):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = db_iface.get_node_by_id(cls.PIDMAP[hdr.pid])
-        expand_proc(db_iface, proc_node, pay)
+        expand_proc(db_iface, proc_node, pay, opus_lite)
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
 
     @classmethod
-    def __handle_vforked_process(cls, db_iface, hdr, pay):
+    def __handle_vforked_process(cls, db_iface, hdr, pay, opus_lite):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
         cls.__add_proc_node(hdr.pid, proc_node)
-        expand_proc(db_iface, proc_node, pay)
+        expand_proc(db_iface, proc_node, pay, opus_lite)
 
         parent_proc_node_id = cls.PIDMAP[pay.ppid]
         parent_proc_node = db_iface.get_node_by_id(parent_proc_node_id)
@@ -166,10 +167,10 @@ class ProcStateController(object):
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
 
     @classmethod
-    def __handle_execed_process(cls, db_iface, hdr, pay):
+    def __handle_execed_process(cls, db_iface, hdr, pay, opus_lite):
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
         cls.__add_proc_node(hdr.pid, proc_node)
-        expand_proc(db_iface, proc_node, pay)
+        expand_proc(db_iface, proc_node, pay, opus_lite)
 
         old_proc_node_id = cls.PIDMAP[hdr.pid]
         old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
@@ -181,18 +182,18 @@ class ProcStateController(object):
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
 
     @classmethod
-    def proc_startup(cls, db_iface, hdr, pay):
+    def proc_startup(cls, db_iface, hdr, pay, opus_lite):
         '''Handles a process startup message arriving.'''
 
         if (hdr.pid not in cls.proc_map) and (pay.ppid not in cls.proc_map):
-            cls.__handle_normal_process(db_iface, hdr, pay)
+            cls.__handle_normal_process(db_iface, hdr, pay, opus_lite)
         else:
             if cls.__is_forked_process(hdr.pid):
-                cls.__handle_forked_process(db_iface, hdr, pay)
+                cls.__handle_forked_process(db_iface, hdr, pay, opus_lite)
             elif cls.__is_vforked_process(hdr.pid, pay.ppid):
-                cls.__handle_vforked_process(db_iface, hdr, pay)
+                cls.__handle_vforked_process(db_iface, hdr, pay, opus_lite)
             else: # exec
-                cls.__handle_execed_process(db_iface, hdr, pay)
+                cls.__handle_execed_process(db_iface, hdr, pay, opus_lite)
         return True
 
     @classmethod

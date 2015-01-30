@@ -38,10 +38,10 @@ def handle_bulk_functions(db_iface, pid, msg):
                                           msg.messages)
 
 
-def handle_process(db_iface, hdr, pay):
+def handle_process(db_iface, hdr, pay, opus_lite):
     '''Handle a process startup message.'''
     db_iface.set_mono_time_for_msg(pay.start_time)
-    process.ProcStateController.proc_startup(db_iface, hdr, pay)
+    process.ProcStateController.proc_startup(db_iface, hdr, pay, opus_lite)
 
 
 def handle_disconnect(db_iface, pid):
