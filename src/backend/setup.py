@@ -10,8 +10,11 @@ setup(name='OPUS',
       author_email='tb403@cam.ac.uk, nb466@cam.ac.uk',
       url='',
       ext_modules=[Extension('opuspb',
-      sources=['ext_src/opuspb.c','proto_cpp_src/uds_msg.pb.cc'],
-      include_dirs = [os.environ['PROTO_INC_PATH'], os.environ['PROJ_INCLUDE']],
-      libraries=['protobuf'],
-      library_dirs=[os.environ['PROTO_LIB_PATH']])],
-     )
+                             sources=['ext_src/opuspb.c',
+                                      'proto_cpp_src/uds_msg.pb.cc'],
+                             include_dirs=[os.environ['PROTO_INC_PATH'],
+                                           os.environ['PROJ_INCLUDE']],
+                             libraries=['protobuf'],
+                             library_dirs=[os.environ['PROTO_LIB_PATH']])
+                   ],
+      )
