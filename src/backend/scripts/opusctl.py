@@ -1,4 +1,4 @@
-#! /usr/bin/env python 2.7
+#! /usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 """
 
@@ -82,6 +82,14 @@ CONFIG_SETUP = [
     {'key': 'bash_var_path',
      'def': lambda _: '~/.opus-vars',
      'prompt': 'Choose a location for the OPUS bash variables cfg_file'},
+
+    {'key': 'python_binary',
+     'def': lambda _: '/usr/bin/python2.7',
+     'prompt': 'What is the location of your python 2.7 binary'},
+
+    {'key': 'java_home',
+     'def': lambda _: '/usr/lib/jvm/java-7-common',
+     'prompt': 'Where is your jvm installation'},
 
     {'key': 'debug_mode',
      'def': lambda _: False,
@@ -288,6 +296,8 @@ def is_backend_active(cfg):
 def start_opus_backend(cfg):
     if is_opus_active():
         os.environ['OPUS_INTERPOSE_MODE'] = "0"
+    if 'JAVA_HOME' not in os.environ:
+        os.environ['JAVA_HOME'] = cfg['java_home']
 
     try:
         pid = os.fork()
@@ -307,13 +317,14 @@ def start_opus_backend(cfg):
     except OSError:
         sys.exit(1)
 
-    sys.stdout.flush()
-    sys.stderr.flush()
-    sti = file("/dev/null", 'r')
-    sto = file("/dev/null", 'w')
-    os.dup2(sti.fileno(), sys.stdin.fileno())
-    os.dup2(sto.fileno(), sys.stdout.fileno())
-    os.dup2(sto.fileno(), sys.stderr.fileno())
+    if not cfg['debug_mode']:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        sti = file("/dev/null", 'r')
+        sto = file("/dev/null", 'w')
+        os.dup2(sti.fileno(), sys.stdin.fileno())
+        os.dup2(sto.fileno(), sys.stdout.fileno())
+        os.dup2(sto.fileno(), sys.stderr.fileno())
 
     opus_pid_file = path_normalise(os.path.join(cfg['install_dir'],
                                                 ".pid"))
@@ -333,8 +344,11 @@ def start_opus_backend(cfg):
             p_file = open(opus_pid_file, 'w+')
             p_file.write(pid)
             p_file.close()
-            os.execvp("python", ["python", "-O", run_server_path,
-                                    backend_cfg_path])
+            os.execvp(cfg['python_binary'],
+                      [cfg['python_binary'],
+                       "-O",
+                       run_server_path,
+                       backend_cfg_path])
     except OSError:
         sys.exit(1)
 
