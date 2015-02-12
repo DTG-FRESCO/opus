@@ -29,6 +29,8 @@ Various common tasks you may want to perform with the different parts of the sys
 ### Querying
 * `env_diff_client`
 * `last`
+
 ## Trouble Shooting
+
 ## Helpful Links
 * http://www.cl.cam.ac.uk/research/dtg/fresco/
