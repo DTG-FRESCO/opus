@@ -1,3 +1,8 @@
+MF=Makefile
+
+SUBDIRS :=	scripts
+
+include $(PROJ_HOME)/Maketmpl/dir.mk
 
 .PHONY: opuspb
 
