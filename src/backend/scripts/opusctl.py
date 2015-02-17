@@ -289,8 +289,7 @@ def is_backend_active(cfg):
         return False
 
     cmd_str = ' '.join(opus.cmdline())
-    return (opus.cwd() == path_normalise(cfg['install_dir']) and
-            "run_server.py" in cmd_str)
+    return "run_server.py" in cmd_str
 
 
 def start_opus_backend(cfg):
