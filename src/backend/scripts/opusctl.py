@@ -316,14 +316,15 @@ def start_opus_backend(cfg):
     except OSError:
         sys.exit(1)
 
-    if not cfg['debug_mode']:
-        sys.stdout.flush()
-        sys.stderr.flush()
-        sti = file("/dev/null", 'r')
-        sto = file("/dev/null", 'w')
-        os.dup2(sti.fileno(), sys.stdin.fileno())
-        os.dup2(sto.fileno(), sys.stdout.fileno())
-        os.dup2(sto.fileno(), sys.stderr.fileno())
+    err_log = path_normalise(os.path.join(cfg['install_dir'], "opus_err.log"))
+    sys.stdout.flush()
+    sys.stderr.flush()
+    sti = file("/dev/null", 'r')
+    sto = open(err_log, 'w+')
+    os.dup2(sti.fileno(), sys.stdin.fileno())
+    os.dup2(sto.fileno(), sys.stdout.fileno())
+    os.dup2(sto.fileno(), sys.stderr.fileno())
+    sto.close()
 
     opus_pid_file = path_normalise(os.path.join(cfg['install_dir'],
                                                 ".pid"))
