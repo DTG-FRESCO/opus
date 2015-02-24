@@ -1,0 +1,5 @@
+export PROJ_HOME=$(shell pwd)
+export TOP=$(PROJ_HOME)
+export PROJ_INCLUDE=$(PROJ_HOME)/include
+export OPUS_LIB_NAME=opusinterpose
+export PYTHON=python2.7

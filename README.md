@@ -2,8 +2,9 @@
 ## Introduction
 OPUS is a system for tracking the effects programs have on your system and improving the productivity of your work. It captures the effects programs have using LD_PRELOAD based interposition and stitches this data together into a graph of all the interactions on the system. Then it provides a set of tools that let you query this graph for information.
 ## Installation
-1. `git clone git@gitlab.dtg.cl.cam.ac.uk:fresco-projects/opus.git`
+1. `git clone git@gitlab.dtg.cl.cam.ac.uk:fresco-projects/opus.git ~/.opus`
 1. `./setup.sh`
+1. Open a fresh shell.
 
 ## Common Tasks
 Various common tasks you may want to perform with the different parts of the system.

@@ -3,6 +3,14 @@
 import os
 from distutils.core import setup, Extension
 
+inc_dirs = [os.environ['PROJ_INCLUDE']]
+if 'PROTO_INC_PATH' in os.environ:
+    inc_dirs += [os.environ['PROTO_INC_PATH']]
+
+lib_dirs = []
+if 'PROTO_LIB_PATH' in os.environ:
+    lib_dirs += [os.environ['PROTO_LIB_PATH']]
+
 setup(name='OPUS',
       version='0.0.1',
       description='Observational Provenance in User Space',
@@ -12,9 +20,8 @@ setup(name='OPUS',
       ext_modules=[Extension('opuspb',
                              sources=['ext_src/opuspb.c',
                                       'proto_cpp_src/uds_msg.pb.cc'],
-                             include_dirs=[os.environ['PROTO_INC_PATH'],
-                                           os.environ['PROJ_INCLUDE']],
+                             include_dirs=inc_dirs,
                              libraries=['protobuf'],
-                             library_dirs=[os.environ['PROTO_LIB_PATH']])
+                             library_dirs=lib_dirs)
                    ],
       )

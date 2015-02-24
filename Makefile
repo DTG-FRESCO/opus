@@ -1,3 +1,5 @@
+include make-vars
+
 MF=Makefile
 
 SUBDIRS := src

@@ -1,19 +1,19 @@
 #! /bin/bash
 
 PYTHON=python2.7
-GIT=git
 
 WARN="\x1b[1;31m"
 SUCC="\x1b[1;32m"
 ENDCOL="\x1b[0m"
 
 
-
 GIT_REPO="git@gitlab.dtg.cl.cam.ac.uk:fresco-projects/opus.git"
 
-PY_MODULES=(leveldb google.protobuf.internal jinja2 yaml)
+PY_MODULES=(google.protobuf.internal jinja2 yaml psutil prettytable neo4j pkg_resources)
 
 C_LIBS=(libcrypto.so libprotobuf.so)
+
+PKG_LIST="build-essential python python-yaml python-protobuf libprotobuf8 protobuf-compiler libprotobuf-dev libssl-dev python-jinja2 python-psutil python-prettytable python-jpype python-pip python-dev openjdk-7-jre libprotobuf-c1"
 
 PYTHON_MOD_CHECK="import sys\ntry:\n\timport MOD\nexcept ImportError:\n\tsys.exit(1)"
 
@@ -47,12 +47,14 @@ check_mod(){
 	fi
 }
 
-if [ $# -eq 0 ]
+which "apt-get" >/dev/null
+
+if [ $? -eq 0 ]
 then
-	export PROJ_HOME=$HOME/.opus
+	sudo apt-get update
+	sudo apt-get install $PKG_LIST
+	sudo pip install neo4j-embedded
 else
-	export PROJ_HOME=$(readlink -m $1)
-fi
 
 which $PYTHON >/dev/null
 
@@ -77,21 +79,10 @@ do
 	check_mod $mod
 done
 echo -e "All required python modules found.\n"
+fi
 
-$GIT clone $GIT_REPO $PROJ_HOME
-
-cd $PROJ_HOME
-. ./opus-setup
 make
 
-echo -e "\n\nBuild completed.\n"\
-		"What to do now:\n"\
-		"1. Copy $PROJ_HOME/src/backend/config.yaml.example\n"\
-		"   to $PROJ_HOME/src/backend/config.yaml\n"\
-		"2. Edit the config file to your own preferences.\n"\
-		"3. Start the backed by using $PROJ_HOME/bin/startup.sh\n"\
-		"4. Enable capture for a terminal with the command:\n"\
-		"   . $PROJ_HOME/bin/opus-on\n"\
-		"5. Disable capture by using either of the following commands:\n"\
-		"   . $PROJ_HOME/bin/opus-off\n"\
-		"   export LD_PRELOAD="
+$PYTHON bin/opusctl conf -i
+
+cat /tmp/install-opus >> $HOME/.bashrc
