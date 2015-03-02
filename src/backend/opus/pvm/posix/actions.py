@@ -90,7 +90,10 @@ def close_action(err, db_iface, proc_node, filedes):
     try:
         loc_node = utils.proc_get_local(db_iface, proc_node, filedes)
     except utils.NoMatchingLocalError:
-        return proc_node
+        if err > 0:
+            return proc_node
+        else:
+            raise utils.NoMatchingLocalError(proc_node, filedes)
 
     if err > 0:
         return loc_node
