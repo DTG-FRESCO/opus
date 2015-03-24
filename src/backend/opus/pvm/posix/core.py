@@ -27,9 +27,8 @@ def handle_function(db_iface, pid, msg):
     except functions.MissingMappingError as ex:
         logging.debug(ex)
     except utils.NoMatchingLocalError as e:
-        # Add the event to the process
-        utils.add_event(db_iface, proc_node, msg)
         logging.error(e)
+        logging.error(msg)
 
 
 def handle_bulk_functions(db_iface, pid, msg):
