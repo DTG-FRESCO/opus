@@ -271,7 +271,7 @@ class UDSCommunicationManager(CommunicationManager):
                 entry = rsp.ps_data.add()
                 entry.pid = pid
                 entry.thread_count = len(self.pid_map[pid])
-        elif cmd.cmd_name == "kill":
+        elif cmd.cmd_name == "detach":
             pid = None
             rsp = cc_msg_pb2.CmdCtlMessageRsp()
             for arg in cmd.args:

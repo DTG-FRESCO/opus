@@ -81,7 +81,7 @@ class TCPInterface(CommandInterface):
 
             cc_utils.send_cc_msg(new_conn, rsp)
 
-            if pay.cmd_name == "shutdown" and rsp.rsp_data == "Y":
+            if pay.cmd_name == "stop" and rsp.rsp_data == "Y":
                 break
 
 
@@ -106,16 +106,16 @@ class CMDInterface(CommandInterface, cmd.Cmd):  # pylint: disable=R0904
         for psdat in rsp.ps_data:
             print("%5u│%14u" % (psdat.pid, psdat.thread_count))
 
-    def do_kill(self, args):
+    def do_detach(self, args):
         """Deactivate interposition for the specified process.
 
         Arguments: pid"""
         msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "kill"
+        msg.cmd_name = "detach"
         arg = msg.args.add()
         arg.key = "pid"
         if re.match(r"\A\d*\Z", args) is None:
-            print("Error: Kill takes a single number as an argument.")
+            print("Error: Detach takes a single number as an argument.")
             return False
         arg.value = args
 
@@ -148,12 +148,12 @@ class CMDInterface(CommandInterface, cmd.Cmd):  # pylint: disable=R0904
 
         print(rsp.rsp_data)
 
-    def do_shutdown(self, args):
-        """Shutdown the system.
+    def do_stop(self, args):
+        """Stop the system.
 
         Arguments: None"""
         msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "shutdown"
+        msg.cmd_name = "stop"
         print("Shutting down...")
         rsp = self.command_control.exec_cmd(msg)
 
