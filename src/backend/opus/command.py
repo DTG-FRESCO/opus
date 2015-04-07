@@ -70,7 +70,7 @@ def handle_setan(cac, msg):
     return rsp
 
 
-@CommandControl.register_command_handler("shutdown")
+@CommandControl.register_command_handler("stop")
 def handle_shutdown(cac, _):
     rsp = cc_msg_pb2.CmdCtlMessageRsp()
     if cac.daemon_manager.stop_service():
@@ -122,7 +122,7 @@ def handle_status(cac, _):
 
 
 @CommandControl.register_command_handler("ps")
-@CommandControl.register_command_handler("kill")
+@CommandControl.register_command_handler("detach")
 def forward_to_producer(cac, msg):
     cac.prod_ctrl.write(msg)
     return cac.prod_ctrl.read()
