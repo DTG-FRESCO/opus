@@ -14,8 +14,12 @@ import os
 import os.path
 import sys
 
-from opus import cc_utils
-from opus import cc_msg_pb2 as cc_msg
+OPUS_AVAILABLE = True
+try:
+    from opus import cc_utils
+    from opus import cc_msg_pb2 as cc_msg
+except ImportError as exc:
+    OPUS_AVAILABLE = False
 
 import prettytable
 import psutil
@@ -422,6 +426,11 @@ def handle_server(cfg, cmd, **params):
         if not is_backend_active(cfg):
             print("Server is not running.")
             return
+
+        if not OPUS_AVAILABLE:
+            print("OPUS libraries not available in $PYTHONPATH, "
+                  "please check your environment and try again.")
+            return
         helper = cc_utils.CommandConnectionHelper("localhost",
                                                   int(cfg['cc_port']))
 
@@ -447,7 +456,7 @@ def handle_server(cfg, cmd, **params):
             print(pay.rsp_data)
 
 
-def handle_conf(config):
+def handle_conf(config, install):
     try:
         _, cfg = read_config(config)
     except FailedConfigError:
@@ -461,6 +470,10 @@ def handle_conf(config):
     update_config_subsidiaries(new_cfg)
 
     write_config(new_cfg['master_config'], new_cfg)
+
+    if install:
+        with open("/tmp/install-opus", "w") as handle:
+            handle.write("source " + new_cfg['bash_var_path'])
 
 
 def print_status_rsp(pay):
@@ -500,7 +513,7 @@ def parse_args():
     server_parser = group_parser.add_parser(
         "server",
         help="Commands for controlling the provenance collection server.")
-    group_parser.add_parser(
+    conf_parser = group_parser.add_parser(
         "conf",
         help="Configuration of the OPUS environment.")
 
@@ -551,6 +564,10 @@ def parse_args():
 
     setan_parser = server_cmds.add_parser("setan")
     setan_parser.add_argument("new_an")
+
+    conf_parser.add_argument(
+        "--install", "-i", action='store_true',
+        help="Triggers additional output during the install procedure.")
 
     return parser.parse_args()
 

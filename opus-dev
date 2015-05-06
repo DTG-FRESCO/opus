@@ -1,0 +1,11 @@
+export PROJ_HOME=$PWD
+export TOP=$PROJ_HOME
+export PROJ_INCLUDE=$PROJ_HOME/include
+export PROTO_INC_PATH=/home/nb466/protocolBuffers/include
+export PROTO_LIB_PATH=/home/nb466/protocolBuffers/lib
+export OPUS_UDS_PATH=$PROJ_HOME/src/backend/demo_socket
+export OPUS_LIB_NAME=opusinterpose
+export PYTHON=python2.7
+export LIBC_SRC_PATH=/local/scratch/nik/glibc
+export LIBC_BUILD_PATH=/local/scratch/nik/build/glibc
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
