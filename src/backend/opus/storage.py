@@ -354,6 +354,11 @@ class DBInterface(StorageIFace):
         '''Returns a node object given the ID'''
         return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
 
+    def set_link_state(self, rel_list, status):
+        '''Sets the link state to status'''
+        for rel in rel_list:
+            rel['state'] = status
+
     def query(self, qry, **kwargs):
         '''Executes query and returns result'''
         return self.db.query(qry, **kwargs)

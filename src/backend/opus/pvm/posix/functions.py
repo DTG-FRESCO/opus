@@ -557,9 +557,11 @@ def posix_fcntl(db_iface, proc_node, msg):
                           args['filedes'], str(msg.ret_val))
     if int(args['cmd']) == fcntl.F_SETFD:
         if int(args['arg']) == fcntl.FD_CLOEXEC:
-            utils.set_link(db_iface, loc_node, storage.LinkState.CLOEXEC)
+            db_iface.set_link_state(loc_node.PROC_OBJ.outgoing,
+                                    storage.LinkState.CLOEXEC)
         else:
-            utils.set_link(db_iface, loc_node, storage.LinkState.NONE)
+            db_iface.set_link_state(loc_node.PROC_OBJ.outgoing,
+                                    storage.LinkState.NONE)
 
     return loc_node
 
