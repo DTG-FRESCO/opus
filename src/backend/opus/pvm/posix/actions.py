@@ -181,9 +181,9 @@ def link_action(db_iface, proc_node, orig_name, new_name):
 
     loc_node_rel_list = traversal.get_locals_from_global(db_iface,
                                                          new_glob_node)
-    for l_node, _ in loc_node_rel_list:
+    for l_node, g_l_rel in loc_node_rel_list:
         if l_node['node_id'] != loc_node['node_id']:
-            pvm.version_local(db_iface, l_node, new_o_glob_node)
+            pvm.version_local(db_iface, l_node, new_o_glob_node, g_l_rel)
 
     tmp_name_list = new_glob_node['name']
     orig_name_list = new_o_glob_node['name']

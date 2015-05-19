@@ -33,16 +33,15 @@ def cache_new_local(db_iface, loc_node, proc_node, loc_proc_rel):
                     (proc_node.id, loc_node['name']), idx_list)
 
 
-def version_local(db_iface, old_loc_node, glob_node):
+def version_local(db_iface, old_loc_node, glob_node, glob_loc_rel):
     '''Versions the local object identified by loc_node and associates the
     new local object version with the global object identified by glob_node'''
     # Create a new local object node
     new_loc_node = db_iface.create_node(storage.NodeType.LOCAL)
 
     # Create link from global obj to new local obj
-    db_iface.create_relationship(glob_node, new_loc_node,
-                                 storage.RelType.LOC_OBJ)
-    # NOTE: Should we copy over state (nb466)?
+    new_glob_loc_rel = db_iface.create_relationship(glob_node, new_loc_node,
+                                                storage.RelType.LOC_OBJ)
 
     # Copy over the local name and ref_count
     new_loc_node['name'] = old_loc_node['name']
@@ -55,6 +54,11 @@ def version_local(db_iface, old_loc_node, glob_node):
     # Get process and link from old local
     proc_node, rel_link = traversal.get_process_from_local(db_iface,
                                                            old_loc_node)
+
+    # Copy over state from previous global->local link if mode is OPUS lite
+    if (proc_node.has_key('opus_lite') and proc_node['opus_lite']
+        and glob_loc_rel.has_key('state')):
+        new_glob_loc_rel['state'] = glob_loc_rel['state']
 
     # Create link from local to process
     new_rel = db_iface.create_relationship(new_loc_node, proc_node,
@@ -96,8 +100,8 @@ def version_global(db_iface, old_glob_node):
     # the old global object and link them to the new global object
     loc_node_link_list = traversal.get_locals_from_global(db_iface,
                                                           old_glob_node)
-    for (loc_node, _) in loc_node_link_list:
-        version_local(db_iface, loc_node, new_glob_node)
+    for (loc_node, glob_loc_rel) in loc_node_link_list:
+        version_local(db_iface, loc_node, new_glob_node, glob_loc_rel)
 
     return new_glob_node
 
@@ -169,10 +173,10 @@ def drop_g(db_iface, loc_node, glob_node):
     return new_glob_node, new_loc_node
 
 
-def bind(db_iface, loc_node, glob_node):
+def bind(db_iface, loc_node, glob_node, link_state=None):
     '''PVM bind between loc_node and glob_node.'''
     db_iface.create_relationship(glob_node, loc_node,
-                                 storage.RelType.LOC_OBJ)
+                                 storage.RelType.LOC_OBJ, link_state)
     db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
                                   loc_node.id)
     ref_count = 0

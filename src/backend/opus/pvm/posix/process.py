@@ -81,8 +81,19 @@ def clone_file_des(db_iface, old_proc_node, new_proc_node):
         # Find the newest valid version of the global object
         glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
         if glob_node is not None:
+            # If in OPUS lite mode, copy over link state from parent
+            old_state = None
+            if old_proc_node.has_key('opus_lite') and old_proc_node['opus_lite']:
+                glob_loc_rel = traversal.get_rel_to_dest(db_iface,
+                                                glob_node.LOC_OBJ.outgoing,
+                                                loc_node)
+                if glob_loc_rel is not None:
+                    old_state = glob_loc_rel['state']
+
             new_glob_node = pvm.version_global(db_iface, glob_node)
-            pvm.bind(db_iface, new_loc_node, new_glob_node)
+            pvm.bind(db_iface, new_loc_node, new_glob_node, old_state)
+
+
 
 
 class ProcStateController(object):
