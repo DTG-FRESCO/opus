@@ -98,6 +98,10 @@ def close_action(err, db_iface, proc_node, filedes):
     if err > 0:
         return loc_node
 
+    return close_action_helper(db_iface, loc_node)
+
+
+def close_action_helper(db_iface, loc_node):
     glob_node_list = traversal.get_globals_from_local(db_iface, loc_node)
     if len(glob_node_list) > 0:
         glob_node, _ = glob_node_list[0]

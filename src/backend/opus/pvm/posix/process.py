@@ -78,6 +78,9 @@ def clone_file_des(db_iface, old_proc_node, new_proc_node):
             continue
         new_loc_node = pvm.get_l(db_iface, new_proc_node, loc_node['name'])
 
+        if old_proc_node['status'] == storage.PROCESS_STATE.DEAD:
+            loc_node = actions.close_action_helper(db_iface, loc_node)
+
         # Find the newest valid version of the global object
         glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
         if glob_node is not None:
@@ -92,7 +95,6 @@ def clone_file_des(db_iface, old_proc_node, new_proc_node):
 
             new_glob_node = pvm.version_global(db_iface, glob_node)
             pvm.bind(db_iface, new_loc_node, new_glob_node, old_state)
-
 
 
 
@@ -251,9 +253,29 @@ class ProcStateController(object):
                                             proc_node.id)
             proc_node['status'] = storage.PROCESS_STATE.DEAD
             # Invalidate the NODE_BY_ID cache
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID, proc_node['node_id'])
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID,
+                                            proc_node['node_id'])
 
-        del cls.pid_proc_nodes_map[pid]
+
+    @classmethod
+    def __close_all_open_fds(cls, db_iface, pid):
+        '''Closes all open file descriptors during process exit
+        and applies the relevant PVM operations'''
+        if pid not in cls.pid_proc_nodes_map:
+            return
+
+        proc_node_list = cls.pid_proc_nodes_map[pid]
+        for proc_node in proc_node_list:
+            if proc_node['status'] == storage.PROCESS_STATE.ALIVE:
+                continue
+
+            loc_node_link_list = traversal.get_locals_from_process(db_iface,
+                                                                proc_node)
+            for (loc_node, rel_link) in loc_node_link_list:
+                if rel_link['state'] in [storage.LinkState.CLOSED,
+                                        storage.LinkState.CLOEXEC]:
+                    continue
+                loc_node = actions.close_action_helper(db_iface, loc_node)
 
 
     @classmethod
@@ -269,6 +291,8 @@ class ProcStateController(object):
                 cls.proc_map[pid] = cls.proc_states.NORMAL
                 return True
             else:
+                cls.__close_all_open_fds(db_iface, pid)
+                del cls.pid_proc_nodes_map[pid]
                 del cls.PIDMAP[pid]
                 del cls.proc_map[pid]
         else:

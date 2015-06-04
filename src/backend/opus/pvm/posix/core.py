@@ -47,8 +47,9 @@ def handle_process(db_iface, hdr, pay, opus_lite):
     process.ProcStateController.proc_startup(db_iface, hdr, pay, opus_lite)
 
 
-def handle_disconnect(db_iface, pid):
+def handle_disconnect(db_iface, hdr, pid):
     '''Handle the disconnection of a process.'''
+    db_iface.set_mono_time_for_msg(hdr.timestamp)
     process.ProcStateController.proc_discon(db_iface, pid)
 
 
