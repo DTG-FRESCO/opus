@@ -114,28 +114,35 @@ def check_proc_bin_mod(db_iface, prog_name, proc_node1, proc_node2):
     qry += " and r2.state in [{bin}]"
     qry += " and proc_node.sys_time >= " + str(start_date)
     qry += " and proc_node.sys_time <= " + str(end_date)
-    qry += " RETURN bin_glob_node, glob_node, proc_node"
+    qry += " RETURN distinct head(bin_glob_node.name) as mod_program, "
+    qry += " head(glob_node.name) as bin_name, proc_node"
 
     result = db_iface.locked_query(qry, w=storage.LinkState.WRITE,
                 rw=storage.LinkState.RaW, bin=storage.LinkState.BIN)
     for row in result:
-        bin_glob_node = row['bin_glob_node']
-        glob_node = row['glob_node']
+        #bin_glob_node = row['bin_glob_node']
+        #glob_node = row['glob_node']
+        bin_name = row['bin_name']
+        mod_program = row['mod_program']
         proc_node = row['proc_node']
         cmd_args_node = None
         for tmp_rel in proc_node.OTHER_META.outgoing:
             if tmp_rel.end['name'] != "cmd_args":
                 continue
             cmd_args_node = tmp_rel.end
-        prog_list.append((glob_node, bin_glob_node, cmd_args_node))
+        #prog_list.append((glob_node, bin_glob_node, cmd_args_node))
+        prog_list.append((mod_program, bin_name, cmd_args_node['value'], proc_node['sys_time']))
     return prog_list
 
 
 def print_diffs(dict1, dict2):
     diff = DictDiffer(dict2, dict1)
 
+    result = ""
+
     added = None
-    result = "Added:\n"
+    header = "Added:\n"
+    #result = "Added:\n"
     for elem in diff.added():
         added = PrettyTable(["Key", "Value"])
         added.align["key"] = "l"
@@ -143,11 +150,12 @@ def print_diffs(dict1, dict2):
         added.align["Value"] = "l"
         added.add_row([elem, textwrap.fill(dict2[elem], 50)])
     if added is not None:
-        result += str(added)
+        result += header + str(added)
         result += "\n"
 
     removed = None
-    result += "Removed:\n"
+    header = "Removed:\n"
+    #result += "Removed:\n"
     for elem in diff.removed():
         removed = PrettyTable(["Key", "Value"])
         removed.align["key"] = "l"
@@ -155,11 +163,12 @@ def print_diffs(dict1, dict2):
         removed.align["Value"] = "l"
         removed.add_row([elem, textwrap.fill(dict1[elem], 50)])
     if removed is not None:
-        result += str(removed)
+        result += header + str(removed)
         result += "\n"
 
     changed = None
-    result += "Changed:\n"
+    header = "Changed:\n"
+    #result += "Changed:\n"
     for elem in diff.changed():
         changed = PrettyTable(["Key", "From", "To"])
         changed.align["key"] = "l"
@@ -169,7 +178,7 @@ def print_diffs(dict1, dict2):
         changed.add_row([elem, textwrap.fill(dict1[elem], 50),
                         textwrap.fill(dict2[elem], 50)])
     if changed is not None:
-        result += str(changed)
+        result += header + str(changed)
         result += "\n"
     result += "\n"
     return result
@@ -287,12 +296,14 @@ def get_diffs(db_iface, msg):
                                         proc_node1, proc_node2)
         mod_hist = PrettyTable(["Modified By", "Modified At"])
         mod_hist.align["Modified By"] = "l"
-        for glob_node, bin_glob_node, cmd_args_node in prog_list:
-            prog_bin_name = glob_node['name'][0]
-            mod_program = bin_glob_node['name'][0]
-            cmd_line = cmd_args_node['value']
-            mod_hist.add_row([textwrap.fill(mod_program, 40),
-                        get_date_time_str(glob_node['sys_time'])])
+        #for glob_node, bin_glob_node, cmd_args_node in prog_list:
+        for mod_program, bin_name, cmd_line, sys_time in prog_list:
+            #prog_bin_name = glob_node['name'][0]
+            #mod_program = bin_glob_node['name'][0]
+            #cmd_line = cmd_args_node['value']
+            #mod_hist.add_row([textwrap.fill(mod_program, 40),
+            #            get_date_time_str(glob_node['sys_time'])])
+            mod_hist.add_row([textwrap.fill(mod_program, 40), get_date_time_str(sys_time)])
         result += str(mod_hist)
         result += "\n\n"
 

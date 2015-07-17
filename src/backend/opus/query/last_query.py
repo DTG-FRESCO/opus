@@ -12,6 +12,7 @@ def query_file(db_iface, msg):
     last command that modified the file'''
     file_name = None
     rsp = cc_msg_pb2.ExecQueryMethodRsp()
+    result_limit = "10" # Default
 
     for arg in msg.args:
         if arg.key == "name":
@@ -27,14 +28,15 @@ def query_file(db_iface, msg):
                  "-[:PROC_OBJ]->(p)-[:OTHER_META]->(m) "
                  "WHERE m.name = 'cmd_args' AND r1.state in [3,4] "
                  "AND m.value <> '' "
-                 "RETURN m.value as val, p ORDER BY p.sys_time DESC LIMIT 1")
+                 "RETURN distinct p, m.value as val "
+                 "ORDER BY p.sys_time DESC LIMIT " + result_limit)
     result = ""
     for row in rows:
         proc = row['p']
         dtime = datetime.datetime.fromtimestamp(
                     proc['sys_time']).strftime('%Y-%m-%d %H:%M:%S')
-        result += dtime + " - " + row['val']
-        result += "\n"
+        result += "[%s]: %s" % (dtime, row['val'])
+        result += "\n\n"
 
     rsp.rsp_data = result
     return rsp
@@ -45,7 +47,7 @@ def query_folder(db_iface, msg):
     '''Given a folder name, this method returns the last N executed
     commands from that folder as current working directory'''
     folder_name = None
-    result_limit = "5" # Default
+    result_limit = "20" # Default
 
     rsp = cc_msg_pb2.ExecQueryMethodRsp()
 

@@ -54,6 +54,7 @@ class TCPInterface(CommandInterface):
                     "Failed to read whitelist.")
 
         self.host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.host_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         try:
             self.host_sock.bind((listen_addr, listen_port))
