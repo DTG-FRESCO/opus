@@ -213,3 +213,14 @@ def get_rel(db_iface, src_node, rel_type):
         rel = row['rel']
         rel_list.append(rel)
     return rel_list
+
+def get_rel_to_dest(db_iface, rel_list, dest_node):
+    '''Returns the correct relationship link to the
+    destination node'''
+    rel = None
+
+    for tmp_rel in rel_list:
+        if tmp_rel.end.id == dest_node.id:
+            rel = tmp_rel
+            break
+    return rel

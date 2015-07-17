@@ -201,9 +201,15 @@ def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
     i_glob_node_link_list = traversal.get_globals_from_local(db_iface,
                                                              i_loc_node)
     if len(i_glob_node_link_list) == 1:
-        i_glob_node, _ = i_glob_node_link_list[0]
+        i_glob_node, i_glob_loc_rel = i_glob_node_link_list[0]
+
+        # Copy over state from input fd link
+        old_state = None
+        if proc_node.has_key('opus_lite') and proc_node['opus_lite']:
+            old_state = i_glob_loc_rel['state']
+
         new_glob_node = pvm.version_global(db_iface, i_glob_node)
-        pvm.bind(db_iface, o_loc_node, new_glob_node)
+        pvm.bind(db_iface, o_loc_node, new_glob_node, old_state)
 
 
 def process_put_env(db_iface, proc_node, env, overwrite):
@@ -292,7 +298,14 @@ def process_rw_pair(db_iface, proc_node, msg):
     # Get a global object ID and bind both read and write fds
     new_glob_node = db_iface.create_node(storage.NodeType.GLOBAL)
 
-    pvm.bind(db_iface, loc_node1, new_glob_node)
+    # In OPUS lite mode, tag read and write on the link
+    read_state = None
+    write_state = None
+    if proc_node.has_key('opus_lite') and proc_node['opus_lite']:
+        read_state = storage.LinkState.READ
+        write_state = storage.LinkState.WRITE
+
+    pvm.bind(db_iface, loc_node1, new_glob_node, read_state)
     add_event(db_iface, loc_node1, msg)
-    pvm.bind(db_iface, loc_node2, new_glob_node)
+    pvm.bind(db_iface, loc_node2, new_glob_node, write_state)
     return loc_node2

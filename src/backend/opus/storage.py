@@ -305,10 +305,13 @@ class DBInterface(StorageIFace):
             node['mono_time'] = str(self.mono_time)
         return node
 
-    def create_relationship(self, from_node, to_node, rel_type):
+    def create_relationship(self, from_node, to_node, rel_type, state=None):
         '''Creates a relationship of given type'''
         rel = from_node.relationships.create(rel_type, to_node)
-        rel['state'] = LinkState.NONE
+        if state is not None:
+            rel['state'] = state
+        else:
+            rel['state'] = LinkState.NONE
         return rel
 
     def update_time_index(self, idx_type, sys_time_val, glob_node):
@@ -353,6 +356,11 @@ class DBInterface(StorageIFace):
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
         return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
+
+    def set_link_state(self, rel_list, status):
+        '''Sets the link state to status'''
+        for rel in rel_list:
+            rel['state'] = status
 
     def query(self, qry, **kwargs):
         '''Executes query and returns result'''
