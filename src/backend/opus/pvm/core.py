@@ -6,7 +6,7 @@ PVM core operations implementations.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import storage, traversal, common_utils
+from .. import storage, traversal, common_utils
 
 def cache_new_local(db_iface, loc_node, proc_node, loc_proc_rel):
     '''Updates the IO_EVENT_CHAIN and VALID_LOCAL

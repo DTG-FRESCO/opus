@@ -11,24 +11,8 @@ from __future__ import (absolute_import, division,
 import functools
 import logging
 
-from opus import pvm, storage, common_utils, traversal
-
-
-class InvalidNodeTypeException(common_utils.OPUSException):
-    '''exception for Invalid node types.'''
-    def __init__(self, node_type):
-        super(InvalidNodeTypeException, self).__init__(
-            "Error: Tried to assign an event to a node of type %d, "
-            "expected Local or Process." % node_type)
-
-
-class NoMatchingLocalError(common_utils.OPUSException):
-    '''Failed to find a local object matching the supplied name.'''
-    def __init__(self, proc_node, name):
-        super(NoMatchingLocalError, self).__init__(
-            "Error: Failed to find local %s in process %d" % (name,
-                                                              proc_node.id)
-        )
+from ... import pvm, storage, traversal
+from ...exception import NoMatchingLocalError, InvalidNodeTypeException
 
 
 def parse_kvpair_list(args):

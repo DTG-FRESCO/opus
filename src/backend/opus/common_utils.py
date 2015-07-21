@@ -14,30 +14,12 @@ import threading
 import functools
 import time
 
-from opus import uds_msg_pb2
+from . import uds_msg_pb2
+from .exception import InvalidTagException
 
 
 # Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
-
-
-class OPUSException(Exception):
-    '''Simple exception handling class'''
-    def __init__(self, msg):
-        '''Initialize message'''
-        super(OPUSException, self).__init__()
-        self.msg = msg
-
-    def __str__(self):
-        '''Return message'''
-        return self.msg
-
-
-class InvalidTagException(OPUSException):
-    '''Exception class to handle invalid tags'''
-    def __init__(self, tag):
-        '''Set the message in the base class'''
-        super(InvalidTagException, self).__init__("Invalid tag: %s" % tag)
 
 
 class FixedDict(object):  # pylint: disable=R0903

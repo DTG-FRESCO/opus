@@ -1,9 +1,8 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (cc_msg_pb2)
-from opus.query import client_query
-from opus import storage, query_interface
+from . import client_query
+from .. import storage, query_interface
 
 import datetime
 

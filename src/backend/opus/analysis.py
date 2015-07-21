@@ -16,9 +16,9 @@ import time
 import opuspb  # pylint: disable=W0611
 
 
-from opus import common_utils, storage, order, messaging
-from opus import uds_msg_pb2 as uds_msg
-from opus.pvm import posix
+from . import common_utils, storage, order, messaging
+from . import uds_msg_pb2 as uds_msg
+from .pvm import posix
 
 
 class Analyser(threading.Thread):

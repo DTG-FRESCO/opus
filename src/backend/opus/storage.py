@@ -12,7 +12,8 @@ import logging
 import threading
 import time
 
-from opus import common_utils
+from . import common_utils
+from .exception import InvalidCacheException, UniqueIDException
 from neo4j import GraphDatabase
 
 # Enum values for node types
@@ -62,23 +63,6 @@ CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
 
 # Enum values for process status
 PROCESS_STATE = common_utils.enum(ALIVE=0, DEAD = 1)
-
-
-class UniqueIDException(common_utils.OPUSException):
-    '''Exception when unique ID cannot be generated'''
-    def __init__(self):
-        super(UniqueIDException, self).__init__(
-            "Error: Unique ID generation error"
-        )
-
-
-class InvalidCacheException(common_utils.OPUSException):
-    '''Exception when unique ID cannot be generated'''
-    def __init__(self, cache):
-        super(InvalidCacheException, self).__init__(
-            "Error: Attempted to access cache {0} but it did not "
-            "exist.".format(cache)
-        )
 
 
 class FdChain(object):

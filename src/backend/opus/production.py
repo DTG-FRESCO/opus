@@ -20,7 +20,7 @@ import threading
 import time
 import opuspb  # pylint: disable=W0611
 
-from opus import (cc_msg_pb2, common_utils, messaging, uds_msg_pb2)
+from . import (common_utils, messaging, uds_msg_pb2)
 
 
 def unlink_uds_path(path):

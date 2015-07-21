@@ -9,8 +9,8 @@ from __future__ import (absolute_import, division,
 
 import logging
 
-from opus.pvm.posix import functions, process, utils
-from opus import storage
+from . import functions, process, utils
+from ... import storage
 
 
 def handle_function(db_iface, pid, msg):

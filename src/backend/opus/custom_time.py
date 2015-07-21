@@ -13,7 +13,7 @@ import ctypes
 import errno
 import logging
 
-from opus import common_utils
+from . import common_utils
 
 
 CLOCK_CONSTANT = common_utils.enum(CLOCK_MONOTONIC=1,

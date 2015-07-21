@@ -6,7 +6,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import logging
-from opus import storage
+from . import storage
 
 def get_latest_glob_version(db_iface, name):
     '''Gets the latest global version for the given name'''

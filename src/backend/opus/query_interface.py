@@ -8,15 +8,8 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import os
-from opus import common_utils, storage
-
-
-class InvalidQueryException(common_utils.OPUSException):
-    '''Exception when unique ID cannot be generated'''
-    def __init__(self):
-        super(InvalidQueryException, self).__init__(
-            "Error: Invalid Query"
-        )
+from . import storage
+from .exception import InvalidQueryException
 
 
 def splitpath(path, maxdepth=50):

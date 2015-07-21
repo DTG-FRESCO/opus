@@ -6,22 +6,15 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (analysis, cc_utils, command, command_interface,
-                  common_utils, production, messaging)
-from opus import uds_msg_pb2 as uds_msg
+from . import (analysis, cc_utils, command, command_interface,
+               common_utils, production, messaging)
+from . import uds_msg_pb2 as uds_msg
+from .exception import InvalidConfigFileException
 
 import logging
 import os
 import os.path
 import time
-
-
-class InvalidConfigFileException(common_utils.OPUSException):
-    '''Error in the formatting or content of the systems config file.'''
-    def __init__(self):
-        super(InvalidConfigFileException, self).__init__(
-            "Error: Failed to load config file."
-        )
 
 
 def _safe_read_config(cfg, section, key):

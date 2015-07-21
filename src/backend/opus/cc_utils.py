@@ -11,7 +11,7 @@ import os
 import socket
 import struct
 
-from opus import cc_msg_pb2, common_utils
+from .exception import BackendConnectionError
 
 CC_HDR = struct.Struct(str("@I"))
 
@@ -77,13 +77,6 @@ def recv_cc_msg(sock):
     pay_buf = __recv(sock, pay_len)
     pay = json.loads(pay_buf)
     return pay
-
-
-class BackendConnectionError(common_utils.OPUSException):
-    '''Exception class for a failure of a script to make communication with
-    the backend.'''
-    def __init__(self, msg):
-        super(BackendConnectionError, self).__init__(msg)
 
 
 class CommandConnectionHelper(object):

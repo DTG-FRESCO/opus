@@ -7,11 +7,8 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
-import logging
-import jpype
+from . import query
 
-from opus import (cc_msg_pb2, analysis)
-from opus import query
 
 class CommandControl(object):
     '''Command and control core system.'''

@@ -11,14 +11,8 @@ import random
 import select
 import socket
 
-from . import cc_utils, common_utils
-
-
-class CommandInterfaceStartupError(common_utils.OPUSException):
-    '''Exception indicating that the command interface has failed to
-    initialise.'''
-    def __init__(self, *args, **kwargs):
-        super(CommandInterfaceStartupError, self).__init__(*args, **kwargs)
+from . import cc_utils
+from .exception import CommandInterfaceStartupError
 
 
 class CommandInterface(object):
@@ -48,7 +42,7 @@ class TCPInterface(CommandInterface):
             except IOError:
                 logging.error("Failed to read specified whitelist file %s",
                               whitelist_location)
-                raise CommandIntercfaceStartupError(
+                raise CommandInterfaceStartupError(
                     "Failed to read whitelist.")
 
         self.host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
