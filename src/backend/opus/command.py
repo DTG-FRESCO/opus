@@ -37,12 +37,10 @@ class CommandControl(object):
     def exec_cmd(self, msg):
         '''Executes a command message that it has recieved, producing a
         response message.'''
-        if msg.cmd_name in self.command_handlers:
-            return self.command_handlers[msg.cmd_name](self, msg)
+        if msg['cmd'] in self.command_handlers:
+            return self.command_handlers[msg['cmd']](self, msg)
         else:
-            rsp = cc_msg_pb2.CmdCtlMessageRsp()
-            rsp.rsp_data = "Invalid command name."
-            return rsp
+            return {"success": False, "msg": "Invalid command name."}
 
     def run(self):
         '''Engages the systems processing loop.'''
@@ -51,72 +49,62 @@ class CommandControl(object):
 
 @CommandControl.register_command_handler("getan")
 def handle_getan(cac, _):
-    rsp = cc_msg_pb2.CmdCtlMessageRsp()
-    rsp.rsp_data = cac.daemon_manager.get_analyser()
-    return rsp
+    return {"success": True,
+            "msg": cac.daemon_manager.get_analyser()}
 
 
 @CommandControl.register_command_handler("setan")
 def handle_setan(cac, msg):
-    rsp = cc_msg_pb2.CmdCtlMessageRsp()
-    new_an = None
-    for arg in msg.args:
-        if arg.key == "new_an":
-            new_an = arg.value
-    if new_an is None:
-        rsp.rsp_data = "Invalid set of arguments for setan command."
+    if "new_an" not in msg:
+        return {"success": False,
+                "msg": "Invalid set of arguments for setan command."}
     else:
-        rsp.rsp_data = cac.daemon_manager.set_analyser(new_an)
-    return rsp
+        return {"success": True,
+                "msg": cac.daemon_manager.set_analyser(msg['new_an'])}
 
 
 @CommandControl.register_command_handler("stop")
 def handle_shutdown(cac, _):
-    rsp = cc_msg_pb2.CmdCtlMessageRsp()
-    if cac.daemon_manager.stop_service():
-        rsp.rsp_data = "Y"
-    else:
-        rsp.rsp_data = "N"
-    return rsp
+    return {"success": cac.daemon_manager.stop_service()}
 
 
 @CommandControl.register_command_handler("exec_qry_method")
 def handle_exec_qry_method(cac, msg):
-    rsp = None
-    if msg.HasField("qry_method"):
-        db_iface = cac.daemon_manager.analyser.db_iface
-        rsp = query.ClientQueryControl.exec_method(db_iface, msg)
-    return rsp
+    db_iface = cac.daemon_manager.analyser.db_iface
+    return query.ClientQueryControl.exec_method(db_iface, msg)
 
 
 @CommandControl.register_command_handler("status")
 def handle_status(cac, _):
-    rsp = cc_msg_pb2.StatusMessageRsp()
+    rsp = {"success": True, 'analyser': {}, 'producer': {}, 'query': {}}
 
     # Analyser
     if cac.daemon_manager.analyser.isAlive():
-        rsp.analyser_status.status = cc_msg_pb2.LIVE
+        rsp['analyser']['status'] = "Alive"
 
-        if isinstance(cac.daemon_manager.analyser, analysis.PVMAnalyser):
-            num_msgs = cac.daemon_manager.analyser.event_orderer.get_queue_size()
-            rsp.analyser_status.num_msgs = num_msgs
+        try:
+            analyser = cac.daemon_manager.analyser
+            num_msgs = analyser.event_orderer.get_queue_size()
+            rsp['analyser']['num_msgs'] = num_msgs
+        except AttributeError:
+            pass  # Analyser not an ordering analyser
     else:
-        rsp.analyser_status.status = cc_msg_pb2.DEAD
+        rsp['analyser']['status'] = "Dead"
 
     # Producer
     if cac.daemon_manager.producer.isAlive():
-        rsp.producer_status = cc_msg_pb2.LIVE
+        rsp['producer']['status'] = "Alive"
     else:
-        rsp.producer_status = cc_msg_pb2.DEAD
+        rsp['producer']['status'] = "Dead"
 
     # Query Interface
     if hasattr(cac.daemon_manager, "query_interface"):
         if cac.daemon_manager.query_interface.isAlive():
-            rsp.query_status = cc_msg_pb2.LIVE
+            rsp['query']['status'] = "Alive"
         else:
-            rsp.query_status = cc_msg_pb2.DEAD
+            rsp['query']['status'] = "Dead"
     else:
-        rsp.query_status = cc_msg_pb2.NOT_PRESENT
+        rsp['query']['status'] = "Not Present"
 
     return rsp
 

@@ -17,7 +17,6 @@ import sys
 OPUS_AVAILABLE = True
 try:
     from opus import cc_utils
-    from opus import cc_msg_pb2 as cc_msg
 except ImportError as exc:
     OPUS_AVAILABLE = False
 
@@ -394,7 +393,7 @@ def handle_launch(cfg, binary, arguments):
 
 
 @auto_read_config
-def handle_exclude(cfg, binary, arguments):
+def handle_exclude(_, binary, arguments):
     if is_opus_active():
         os.environ['OPUS_INTERPOSE_MODE'] = "0"
     else:
@@ -434,26 +433,27 @@ def handle_server(cfg, cmd, **params):
         helper = cc_utils.CommandConnectionHelper("localhost",
                                                   int(cfg['cc_port']))
 
-        cmd_msg = cc_msg.CmdCtlMessage()
-        cmd_msg.cmd_name = cmd
+        msg = {"cmd": cmd}
+        msg.update(params)
+        pay = helper.make_request(msg)
 
-        for k, val in params:
-            arg = cmd_msg.args.add()
-            arg.key = k
-            arg.value = str(val)
-
-        pay = helper.make_request(cmd_msg)
-
-        if isinstance(pay, cc_msg.PSMessageRsp):
+        if cmd == "stop":
+            if pay['success']:
+                print("Server stopped successfully.")
+            else:
+                print("Server stop failed.")
+        elif not pay['success']:
+            print(pay['msg'])
+        elif cmd == "ps":
             tab = prettytable.PrettyTable(['Pid', 'Thread Count'])
             print("Interposed Processes:\n\n")
-            for psdat in pay.ps_data:
-                tab.add_row([psdat.pid, psdat.thread_count])
+            for pid, count in pay['pid_map'].items():
+                tab.add_row([pid, count])
             print(tab)
-        elif isinstance(pay, cc_msg.StatusMessageRsp):
+        elif cmd == "status":
             print_status_rsp(pay)
         else:
-            print(pay.rsp_data)
+            print(pay['msg'])
 
 
 def handle_conf(config, install):
@@ -478,26 +478,18 @@ def handle_conf(config, install):
 
 def print_status_rsp(pay):
     '''Prints status response to stdout'''
-    stat_str_table = {cc_msg.LIVE: "Alive",
-                      cc_msg.DEAD: "Not running",
-                      cc_msg.NOT_PRESENT: "Not present"}
 
-    print("{0:<20} {1:<12}".format("Producer",
-                                   stat_str_table[pay.producer_status]))
+    print("{0:<20} {1:<12}".format("Producer", pay['producer']['status']))
 
-    if pay.analyser_status.HasField("num_msgs"):
-        num_msgs = pay.analyser_status.num_msgs
+    if 'num_msgs' in pay['analyser']:
         print("{0:<20} {1:<12} {2:<20}".format(
             "Analyser",
-            stat_str_table[pay.analyser_status.status],
-            "(" + str(num_msgs) + " msgs in queue)"))
+            pay['analyser']['status'],
+            "(" + str(pay['analyser']['num_msgs']) + " msgs in queue)"))
     else:
-        print("{0:<20} {1:<12}".format(
-            "Analyser",
-            stat_str_table[pay.analyser_status.status]))
+        print("{0:<20} {1:<12}".format("Analyser", pay['analyser']['status']))
 
-    print("{0:<20} {1:<12}".format("Query Interface",
-                                   stat_str_table[pay.query_status]))
+    print("{0:<20} {1:<12}".format("Query Interface", pay['query']['status']))
 
 
 def parse_args():
@@ -575,7 +567,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    params = {k: v for k, v in args._get_kwargs() if k != 'group'}
+    params = {k: v
+              for k, v in args._get_kwargs()  # pylint: disable=W0212
+              if k != 'group'}
 
     try:
         if args.group == "process":

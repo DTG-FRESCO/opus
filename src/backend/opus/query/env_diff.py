@@ -5,10 +5,8 @@ from opus import (cc_msg_pb2)
 from opus.query import client_query
 from opus import storage, query_interface
 
-import os
 import datetime
-import textwrap
-from prettytable import PrettyTable
+
 
 class DictDiffer(object):
     """
@@ -20,9 +18,9 @@ class DictDiffer(object):
     """
     def __init__(self, current_dict, past_dict):
         self.current_dict, self.past_dict = current_dict, past_dict
-        self.set_current, self.set_past = set(current_dict.keys()), \
-                                            set(past_dict.keys())
-        self.intersect = self.set_current.intersection(self.set_past)
+        self.set_current, self.set_past = (set(current_dict.keys()),
+                                           set(past_dict.keys()))
+        self.intersect = self.set_current & self.set_past
 
     def added(self):
         return self.set_current - self.intersect
@@ -32,11 +30,11 @@ class DictDiffer(object):
 
     def changed(self):
         return set(o for o in self.intersect
-                if self.past_dict[o] != self.current_dict[o])
+                   if self.past_dict[o] != self.current_dict[o])
 
     def unchanged(self):
         return set(o for o in self.intersect
-                if self.past_dict[o] == self.current_dict[o])
+                   if self.past_dict[o] == self.current_dict[o])
 
 
 def convert_to_dict(meta_lst):
@@ -47,7 +45,8 @@ def convert_to_dict(meta_lst):
 
 
 def get_date_time_str(sys_time):
-    return datetime.datetime.fromtimestamp(sys_time).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.fromtimestamp(sys_time).strftime(
+        '%Y-%m-%d %H:%M:%S')
 
 
 def get_proc_from_binary(db_iface, prog_name, start_date, end_date):
@@ -67,7 +66,7 @@ def get_proc_from_binary(db_iface, prog_name, start_date, end_date):
     rows = db_iface.locked_query(qry)
     for row in rows:
         proc_node = row['proc_node']
-        if proc_node.PROC_PARENT.outgoing: # This is a child process, ignore it
+        if proc_node.PROC_PARENT.outgoing:  # This is a child process ignore it
             continue
         proc_list.append(proc_node)
     return proc_list
@@ -92,8 +91,6 @@ def get_meta_data(db_iface, proc_node, rel_type):
 def check_proc_bin_mod(db_iface, prog_name, proc_node1, proc_node2):
     '''Returns the process(es) that wrote to the binary
     between two process invocations'''
-    prog_list = []
-
     start_date = proc_node1['sys_time']
     end_date = proc_node2['sys_time']
 
@@ -105,7 +102,7 @@ def check_proc_bin_mod(db_iface, prog_name, proc_node1, proc_node2):
     else:
         time_idx_qry = ""
     qry = qry % (storage.DBInterface.FILE_INDEX, time_idx_qry,
-                query_interface.__construct_name_idx_qry(prog_name))
+                 query_interface.__construct_name_idx_qry(prog_name))
     qry += " MATCH glob_node-[r1:LOC_OBJ]->loc_node1,"
     qry += " loc_node1-[:PROC_OBJ]->proc_node,"
     qry += " proc_node<-[:PROC_OBJ]-loc_node2,"
@@ -117,199 +114,105 @@ def check_proc_bin_mod(db_iface, prog_name, proc_node1, proc_node2):
     qry += " RETURN distinct head(bin_glob_node.name) as mod_program, "
     qry += " head(glob_node.name) as bin_name, proc_node"
 
-    result = db_iface.locked_query(qry, w=storage.LinkState.WRITE,
-                rw=storage.LinkState.RaW, bin=storage.LinkState.BIN)
-    for row in result:
-        #bin_glob_node = row['bin_glob_node']
-        #glob_node = row['glob_node']
-        bin_name = row['bin_name']
-        mod_program = row['mod_program']
-        proc_node = row['proc_node']
-        cmd_args_node = None
-        for tmp_rel in proc_node.OTHER_META.outgoing:
-            if tmp_rel.end['name'] != "cmd_args":
-                continue
-            cmd_args_node = tmp_rel.end
-        #prog_list.append((glob_node, bin_glob_node, cmd_args_node))
-        prog_list.append((mod_program, bin_name, cmd_args_node['value'], proc_node['sys_time']))
-    return prog_list
+    result = db_iface.locked_query(qry,
+                                   w=storage.LinkState.WRITE,
+                                   rw=storage.LinkState.RaW,
+                                   bin=storage.LinkState.BIN)
+    return [{'prog': row['mod_program'],
+             'date': get_date_time_str(row['proc_node']['sys_time'])}
+            for row in result]
 
 
-def print_diffs(dict1, dict2):
+def get_diff(dict1, dict2):
     diff = DictDiffer(dict2, dict1)
 
-    result = ""
-
-    added = None
-    header = "Added:\n"
-    #result = "Added:\n"
-    for elem in diff.added():
-        added = PrettyTable(["Key", "Value"])
-        added.align["key"] = "l"
-        added.padding_width = 1
-        added.align["Value"] = "l"
-        added.add_row([elem, textwrap.fill(dict2[elem], 50)])
-    if added is not None:
-        result += header + str(added)
-        result += "\n"
-
-    removed = None
-    header = "Removed:\n"
-    #result += "Removed:\n"
-    for elem in diff.removed():
-        removed = PrettyTable(["Key", "Value"])
-        removed.align["key"] = "l"
-        removed.padding_width = 1
-        removed.align["Value"] = "l"
-        removed.add_row([elem, textwrap.fill(dict1[elem], 50)])
-    if removed is not None:
-        result += header + str(removed)
-        result += "\n"
-
-    changed = None
-    header = "Changed:\n"
-    #result += "Changed:\n"
-    for elem in diff.changed():
-        changed = PrettyTable(["Key", "From", "To"])
-        changed.align["key"] = "l"
-        changed.padding_width = 1
-        changed.align["From"] = "l"
-        changed.align["To"] = "l"
-        changed.add_row([elem, textwrap.fill(dict1[elem], 50),
-                        textwrap.fill(dict2[elem], 50)])
-    if changed is not None:
-        result += header + str(changed)
-        result += "\n"
-    result += "\n"
-    return result
+    return {'added': [{'name': elem, 'value': dict2[elem]}
+                      for elem in diff.added()],
+            'removed': [{'name': elem, 'value': dict1[elem]}
+                        for elem in diff.removed()],
+            'changed': [{'name': elem,
+                         'from': dict1[elem],
+                         'to': dict2[elem]}
+                        for elem in diff.changed()]}
 
 
 def diff_other_meta(db_iface, proc_node1, proc_node2):
-    result = "Differences in Resource limits, command line and user information:\n"
     other_meta_dict1 = convert_to_dict(get_meta_data(db_iface, proc_node1,
-                                            storage.RelType.OTHER_META))
+                                       storage.RelType.OTHER_META))
     other_meta_dict2 = convert_to_dict(get_meta_data(db_iface, proc_node2,
-                                            storage.RelType.OTHER_META))
-    result += print_diffs(other_meta_dict1, other_meta_dict2)
-    return result
+                                       storage.RelType.OTHER_META))
+    return get_diff(other_meta_dict1, other_meta_dict2)
 
 
 def diff_env_meta(db_iface, proc_node1, proc_node2):
-    result = "Differences in Environment variables:\n"
     env_meta_dict1 = convert_to_dict(get_meta_data(db_iface, proc_node1,
-                                            storage.RelType.ENV_META))
+                                     storage.RelType.ENV_META))
     env_meta_dict2 = convert_to_dict(get_meta_data(db_iface, proc_node2,
-                                            storage.RelType.ENV_META))
-    result += print_diffs(env_meta_dict1, env_meta_dict2)
-    return result
+                                     storage.RelType.ENV_META))
+    return get_diff(env_meta_dict1, env_meta_dict2)
 
 
 def diff_lib_meta(db_iface, proc_node1, proc_node2):
-    result = "Differences in libraries linked by program:\n"
     lib_meta_dict1 = convert_to_dict(get_meta_data(db_iface, proc_node1,
-                                            storage.RelType.LIB_META))
+                                     storage.RelType.LIB_META))
     lib_meta_dict2 = convert_to_dict(get_meta_data(db_iface, proc_node2,
-                                            storage.RelType.LIB_META))
-    result += print_diffs(lib_meta_dict1, lib_meta_dict2)
-    return result
+                                     storage.RelType.LIB_META))
+    return get_diff(lib_meta_dict1, lib_meta_dict2)
 
 
 @client_query.ClientQueryControl.register_query_method("get_execs")
-def get_execs(db_iface, msg):
-    rsp = cc_msg_pb2.ExecQueryMethodRsp()
-
-    prog_name = None
-    start_date = None
-    end_date = None
-
-    for arg in msg.args:
-        if arg.key == "prog_name":
-            prog_name = arg.value
-        elif arg.key == "start_date":
-            start_date = arg.value
-        elif arg.key == "end_date":
-            end_date = arg.value
-
-    proc_list = get_proc_from_binary(db_iface, prog_name, start_date, end_date)
+def get_execs(db_iface, args):
+    if 'prog_name' not in args:
+        return {"success": False,
+                "msg": "Missing program name."}
+    proc_list = get_proc_from_binary(db_iface,
+                                     args['prog_name'],
+                                     args.get('start_date', None),
+                                     args.get('end_date', None))
     if len(proc_list) == 0:
-        rsp.error = "Could not find any execution instances" \
-                    " for this binary and dates combination"
-        return rsp
+        return {"success": False,
+                "msg": "Could not find any execution instances"
+                       " for this binary and dates combination"}
     elif len(proc_list) == 1:
-        rsp.error = "Found only one execution instance"
+        return {"success": False,
+                "msg": "Found only one execution instance"}
 
+    rsp = {"success": True,
+           "data": [],
+           "mapping": {}}
 
-    exec_id = 0
-    exec_hist = PrettyTable(["ExecID", "Binary", "PID", "Date", "Command"])
-    exec_hist.align["ExecID"] = "l"
-    exec_hist.align["Binary"] = "l"
-    exec_hist.align["Command"] = "l"
-    for proc_node in proc_list:
-        exec_id = exec_id + 1
-        date_time = get_date_time_str(proc_node['sys_time'])
+    for exec_id, proc_node in enumerate(proc_list, 1):
+        rsp['mapping'][str(exec_id)] = str(proc_node.id)
+        rsp['data'] += [{'exec_id': exec_id,
+                         'prog_name': args['prog_name'],
+                         'pid': proc_node['pid'],
+                         'date': get_date_time_str(proc_node['sys_time']),
+                         'cmd_line': [node['value']
+                                      for node in get_meta_data(
+                                          db_iface,
+                                          proc_node,
+                                          storage.RelType.OTHER_META)
+                                      if node['name'] == 'cmd_args'][0]
+                         }]
 
-        cmd_line = ""
-        other_meta_lst = get_meta_data(db_iface, proc_node,
-                                storage.RelType.OTHER_META)
-        for other_meta_node in other_meta_lst:
-            if other_meta_node['name'] == "cmd_args":
-                cmd_line = other_meta_node['value']
-                exec_hist.add_row([exec_id, textwrap.fill(prog_name, 40),
-                    proc_node['pid'], date_time, textwrap.fill(cmd_line, 40)])
-                mapping = rsp.state_mapping.add()
-                mapping.key = str(exec_id)
-                mapping.value = str(proc_node.id)
-
-    rsp.rsp_data = str(exec_hist)
     return rsp
 
 
 @client_query.ClientQueryControl.register_query_method("get_diffs")
-def get_diffs(db_iface, msg):
+def get_diffs(db_iface, args):
     '''Given two process node IDs, we can get the diffs between
     the environments of the process'''
-    proc_node1 = None
-    proc_node2 = None
-    prog_name = None
+    if not all(n in args for n in ('node_id1', 'node_id2', 'prog_name')):
+        return {"success": False,
+                "msg": "Could not get process nodes"}
+    proc_node1 = db_iface.db.node[int(args['node_id1'])]
+    proc_node2 = db_iface.db.node[int(args['node_id2'])]
 
-    rsp = cc_msg_pb2.ExecQueryMethodRsp()
-
-    for arg in msg.args:
-        if arg.key == "node_id1":
-            node_id1 = int(arg.value)
-            proc_node1 = db_iface.db.node[node_id1]
-        elif arg.key == "node_id2":
-            node_id2 = int(arg.value)
-            proc_node2 = db_iface.db.node[node_id2]
-        elif arg.key == "prog_name":
-            prog_name = arg.value
-
-    if proc_node1 is None or proc_node2 is None:
-        rsp.error = "Could not get process nodes"
-        return rsp
-
-    result = "\n"
-
-    if prog_name is not None:
-        result += "Modifications to binary \"%s\":\n" % (prog_name)
-        prog_list = check_proc_bin_mod(db_iface, prog_name,
-                                        proc_node1, proc_node2)
-        mod_hist = PrettyTable(["Modified By", "Modified At"])
-        mod_hist.align["Modified By"] = "l"
-        #for glob_node, bin_glob_node, cmd_args_node in prog_list:
-        for mod_program, bin_name, cmd_line, sys_time in prog_list:
-            #prog_bin_name = glob_node['name'][0]
-            #mod_program = bin_glob_node['name'][0]
-            #cmd_line = cmd_args_node['value']
-            #mod_hist.add_row([textwrap.fill(mod_program, 40),
-            #            get_date_time_str(glob_node['sys_time'])])
-            mod_hist.add_row([textwrap.fill(mod_program, 40), get_date_time_str(sys_time)])
-        result += str(mod_hist)
-        result += "\n\n"
-
-    result += diff_other_meta(db_iface, proc_node1, proc_node2)
-    result += diff_env_meta(db_iface, proc_node1, proc_node2)
-    result += diff_lib_meta(db_iface, proc_node1, proc_node2)
-
-    rsp.rsp_data = result
-    return rsp
+    return {"success": True,
+            "bin_mods": check_proc_bin_mod(db_iface,
+                                           args['prog_name'],
+                                           proc_node1,
+                                           proc_node2),
+            "other_meta": diff_other_meta(db_iface, proc_node1, proc_node2),
+            "env_meta": diff_env_meta(db_iface, proc_node1, proc_node2),
+            "lib_meta": diff_lib_meta(db_iface, proc_node1, proc_node2)}

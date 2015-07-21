@@ -5,15 +5,13 @@ Interfaces to the CommandControl system.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-
-import cmd
 import logging
-import re
-import readline  # pylint: disable=W0611
+import md5
+import random
 import select
 import socket
 
-from opus import cc_msg_pb2, cc_utils, common_utils
+from . import cc_utils, common_utils
 
 
 class CommandInterfaceStartupError(common_utils.OPUSException):
@@ -78,92 +76,19 @@ class TCPInterface(CommandInterface):
 
             pay = cc_utils.recv_cc_msg(new_conn)
 
-            rsp = self.command_control.exec_cmd(pay)
+            try:
+                rsp = self.command_control.exec_cmd(pay)
+            except Exception as exe:
+                errorid = md5.new(str(random.getrandbits(128))).hexdigest()
+                logging.error("Exception occurred processing command.\n"
+                              "Errorid:{}\n"
+                              "Command:\n{}\n"
+                              "Exception:\n{}".format(errorid, pay, exe))
+                rsp = {"success": False,
+                       "msg": "Command failed due to an unhandled exception. "
+                              "Errorid:{}".format(errorid)}
 
             cc_utils.send_cc_msg(new_conn, rsp)
 
-            if pay.cmd_name == "stop" and rsp.rsp_data == "Y":
+            if pay['cmd'] == "stop" and rsp['success']:
                 break
-
-
-class CMDInterface(CommandInterface, cmd.Cmd):  # pylint: disable=R0904
-    '''Command line interface for command and control module.'''
-    def __init__(self, *args, **kwargs):
-        super(CMDInterface, self).__init__(*args, **kwargs)
-        cmd.Cmd.__init__(self)
-        self.prompt = ">"
-
-    def do_ps(self, args):
-        """List all processes currently being interposed by the OPUS system.
-
-        Arguments: None"""
-        msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "ps"
-
-        rsp = self.command_control.exec_cmd(msg)
-        print("Interposed Processes:\n\n"
-              " Pid │ Thread Count\n"
-              "═════╪══════════════")
-        for psdat in rsp.ps_data:
-            print("%5u│%14u" % (psdat.pid, psdat.thread_count))
-
-    def do_detach(self, args):
-        """Deactivate interposition for the specified process.
-
-        Arguments: pid"""
-        msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "detach"
-        arg = msg.args.add()
-        arg.key = "pid"
-        if re.match(r"\A\d*\Z", args) is None:
-            print("Error: Detach takes a single number as an argument.")
-            return False
-        arg.value = args
-
-        rsp = self.command_control.exec_cmd(msg)
-
-        print(rsp.rsp_data)
-
-    def do_getan(self, args):
-        """Return the current analyser.
-
-        Arguments: None"""
-        msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "getan"
-
-        rsp = self.command_control.exec_cmd(msg)
-
-        print(rsp.rsp_data)
-
-    def do_setan(self, args):
-        """Switch the current analyser for the specified one.
-
-        Arguments: new_analyser_type"""
-        msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "setan"
-        arg = msg.args.add()
-        arg.key = "new_an"
-        arg.value = args
-
-        rsp = self.command_control.exec_cmd(msg)
-
-        print(rsp.rsp_data)
-
-    def do_stop(self, args):
-        """Stop the system.
-
-        Arguments: None"""
-        msg = cc_msg_pb2.CmdCtlMessage()
-        msg.cmd_name = "stop"
-        print("Shutting down...")
-        rsp = self.command_control.exec_cmd(msg)
-
-        if rsp.rsp_data == "Y":
-            print("System successfully shutdown.")
-            return True
-        else:
-            print("Error: failed to shutdown correctly.")
-            return False
-
-    def run(self):
-        self.cmdloop()
