@@ -8,8 +8,8 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 
-from opus import pvm, storage, traversal
-from opus.pvm.posix import utils
+from ... import pvm, storage, traversal
+from . import utils
 
 
 class ActionMap(object):

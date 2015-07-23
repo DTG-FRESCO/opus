@@ -20,7 +20,7 @@ import threading
 import time
 import opuspb  # pylint: disable=W0611
 
-from opus import (cc_msg_pb2, common_utils, messaging, uds_msg_pb2)
+from . import (common_utils, messaging, uds_msg_pb2)
 
 
 def unlink_uds_path(path):
@@ -87,7 +87,7 @@ class SockReader(object):
 
         # Read header
         if self.header is None:
-            remaining_len =  messaging.Header.length - len(self.buf_data)
+            remaining_len = messaging.Header.length - len(self.buf_data)
 
             status_code = self.__fill_buffer(remaining_len)
             if status_code != UDSCommunicationManager.StatusCode.success:
@@ -100,10 +100,10 @@ class SockReader(object):
                 if __debug__:
                     logging.debug("Header: %s", self.header.__str__())
 
-
         # Account for header data already present
         hdr_len = messaging.Header.length
-        remaining_len = self.header.payload_len - (len(self.buf_data) - hdr_len)
+        remaining_len = self.header.payload_len - (len(self.buf_data) -
+                                                   hdr_len)
 
         # Read the payload
         status_code = self.__fill_buffer(remaining_len)
@@ -129,13 +129,11 @@ class SockReader(object):
 
         return status_code, hdr_buf, pay_buf
 
-
     def __fill_buffer(self, remaining_len):
         '''Calls receive and appends buffer'''
         tmp_buf, status_code = self.__receive(self.sock_obj, remaining_len)
         self.buf_data += tmp_buf
         return status_code
-
 
     def __receive(self, sock_obj, size):
         '''Receives data for a given size from a socket'''
@@ -166,7 +164,6 @@ class SockReader(object):
             size -= len(data)
         return buf, status_code
 
-
     def get_sock_obj(self):
         '''Returns socket object'''
         return self.sock_obj
@@ -174,7 +171,6 @@ class SockReader(object):
     def close(self):
         '''Closes the underlying socket object'''
         self.sock_obj.close()
-
 
 
 class CommunicationManager(object):
@@ -197,7 +193,6 @@ class UDSCommunicationManager(CommunicationManager):
     StatusCode = common_utils.enum(success=0,
                                    close_connection=100,
                                    try_again_later=101)
-
 
     def __init__(self, uds_path, ctrl_sock,
                  max_conn=10, select_timeout=5.0,
@@ -230,7 +225,6 @@ class UDSCommunicationManager(CommunicationManager):
         self.epoll.register(self.control_sock.r_pipe,
                             select.EPOLLIN | select.EPOLLERR)
 
-
     def do_poll(self):
         '''Returns a list of tuples for all ready file descriptors'''
         ret_list = []  # List of tuples of form (header, payload)
@@ -261,35 +255,28 @@ class UDSCommunicationManager(CommunicationManager):
                 self.__handle_close_connection(sock_obj, ret_list)
         return ret_list
 
-
     def __handle_command(self, ret_list):
         '''Handles a command message from the command and control system.'''
         cmd = self.control_sock.read()
-        if cmd.cmd_name == "ps":
-            rsp = cc_msg_pb2.PSMessageRsp()
-            for pid in self.pid_map:
-                entry = rsp.ps_data.add()
-                entry.pid = pid
-                entry.thread_count = len(self.pid_map[pid])
-        elif cmd.cmd_name == "detach":
-            pid = None
-            rsp = cc_msg_pb2.CmdCtlMessageRsp()
-            for arg in cmd.args:
-                if arg.key == "pid":
-                    pid = int(arg.value)
-            if pid is None or pid not in self.pid_map:
-                rsp.rsp_data = "No valid pid argument supplied."
+        if cmd['cmd'] == "ps":
+            rsp = {"success": True,
+                   "pid_map": {pid: len(threads)
+                               for pid, threads in self.pid_map.items()}}
+        elif cmd['cmd'] == "detach":
+            if 'pid' not in cmd or cmd['pid'] not in self.pid_map:
+                rsp = {"success": False,
+                       "msg": "No valid pid argument supplied."}
             else:
-                sock_objs = self.pid_map[pid][:]
+                sock_objs = self.pid_map[cmd['pid']][:]
                 for sock in sock_objs:
                     self.__handle_close_connection(sock, ret_list)
-                rsp.rsp_data = ("Success. %d connections closed." %
-                                len(sock_objs))
+                rsp = {"success": True,
+                       "msg": "Success. %d connections closed." %
+                       len(sock_objs)}
         else:
-            rsp = cc_msg_pb2.CmdCtlMessageRsp()
-            rsp.rsp_data = "%s is not a valid command." % cmd.cmd_name
+            rsp = {"success": False,
+                   "msg": "%s is not a valid command." % cmd['cmd']}
         self.control_sock.write(rsp)
-
 
     def __handle_client(self, sock_obj, ret_list):
         '''Receives data from client or closes the client connection'''
@@ -305,7 +292,6 @@ class UDSCommunicationManager(CommunicationManager):
         elif status_code == self.StatusCode.try_again_later:
             if __debug__:
                 logging.debug("Will try again later")
-
 
     def __handle_close_connection(self, sock_obj, ret_list):
         '''Handles close event or hang up event on the client socket'''
@@ -325,7 +311,6 @@ class UDSCommunicationManager(CommunicationManager):
             logging.debug('closing socket: %d', sock_obj.fileno())
         sock_obj.close()
 
-
     def __handle_new_connection(self):
         '''Accepts and adds the new connection to the fd list'''
         client_fd, _ = self.server_socket.accept()
@@ -338,14 +323,13 @@ class UDSCommunicationManager(CommunicationManager):
         self.epoll.register(client_fd.fileno(),
                             select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP)
 
-        sock_rdr = SockReader(client_fd) # Instantiate a SockReader object
+        sock_rdr = SockReader(client_fd)  # Instantiate a SockReader object
         self.input_client_map[client_fd.fileno()] = sock_rdr
 
         if pid in self.pid_map:
             self.pid_map[pid] += [client_fd]
         else:
             self.pid_map[pid] = [client_fd]
-
 
     def close(self):
         '''Close all connections and cleanup'''

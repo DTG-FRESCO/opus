@@ -6,50 +6,14 @@ Utilities for manipulation of command control messages.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import json
 import os
 import socket
 import struct
 
-from opus import cc_msg_pb2, common_utils
+from .exception import BackendConnectionError
 
-
-CC_HDR = struct.Struct(str("@II"))
-
-
-class BiDict(object):  # pylint: disable=R0903
-    '''Implements a one-to-one mapping.'''
-    def __init__(self):
-        self.dict = {}
-
-    def __getitem__(self, key):
-        '''Retrieve the value associated with key.'''
-        return self.dict[key]
-
-    def __setitem__(self, key, value):
-        '''Set the pair key and value.'''
-        self.dict[key] = value
-        self.dict[value] = key
-
-    def __delitem__(self, key):
-        '''Remove the pair including key.'''
-        self.dict.pop(self.dict.pop(key))
-
-    def __len__(self):
-        '''Return the length of the dict.'''
-        return len(self.dict)
-
-
-def _msg_type_transcode(obj):
-    '''Transform between either a message class or a message enum value.'''
-    if not hasattr(_msg_type_transcode, "trans_dict"):
-        trans_dict = BiDict()
-        trans_dict[cc_msg_pb2.CMDCTL] = type(cc_msg_pb2.CmdCtlMessage())
-        trans_dict[cc_msg_pb2.CMDCTLRSP] = type(cc_msg_pb2.CmdCtlMessageRsp())
-        trans_dict[cc_msg_pb2.PSRSP] = type(cc_msg_pb2.PSMessageRsp())
-        trans_dict[cc_msg_pb2.STATRSP] = type(cc_msg_pb2.StatusMessageRsp())
-        trans_dict[cc_msg_pb2.EXECQRYRSP] = type(cc_msg_pb2.ExecQueryMethodRsp())
-        _msg_type_transcode.trans_dict = trans_dict
-    return _msg_type_transcode.trans_dict[obj]
+CC_HDR = struct.Struct(str("@I"))
 
 
 class RWPipePair(object):
@@ -62,17 +26,15 @@ class RWPipePair(object):
     def read(self):
         '''Reads a single message from the read pipe.'''
         hdr_buf = os.read(self.r_pipe, CC_HDR.size)
-        pay_len, pay_type = CC_HDR.unpack(hdr_buf)
+        pay_len = CC_HDR.unpack(hdr_buf)[0]
         pay_buf = os.read(self.r_pipe, pay_len)
-        pay_cls = _msg_type_transcode(pay_type)
-        return pay_cls.FromString(pay_buf)
+        return json.loads(pay_buf)
 
     def write(self, msg):
         '''Write a single message to the write pipe.'''
-        msg_len = msg.ByteSize()
-        msg_type = _msg_type_transcode(type(msg))
-        buf = CC_HDR.pack(msg_len, msg_type)
-        buf += msg.SerializeToString()
+        msg_txt = json.dumps(msg)
+        buf = CC_HDR.pack(len(msg_txt))
+        buf += msg_txt
         os.write(self.w_pipe, buf)
 
     @classmethod
@@ -88,10 +50,9 @@ class RWPipePair(object):
 
 def send_cc_msg(sock, msg):
     '''Sends a command control message over the socket sock.'''
-    msg_len = msg.ByteSize()
-    msg_type = _msg_type_transcode(type(msg))
-    buf = CC_HDR.pack(msg_len, msg_type)
-    buf += msg.SerializeToString()
+    msg_txt = json.dumps(msg)
+    buf = CC_HDR.pack(len(msg_txt))
+    buf += msg_txt
     sock.send(buf)
 
 
@@ -112,18 +73,10 @@ def __recv(sock, data_len):
 def recv_cc_msg(sock):
     '''Receives a single command control message from the given socket sock.'''
     hdr_buf = __recv(sock, CC_HDR.size)
-    pay_len, pay_type = CC_HDR.unpack(hdr_buf)
+    pay_len = CC_HDR.unpack(hdr_buf)[0]
     pay_buf = __recv(sock, pay_len)
-    pay_cls = _msg_type_transcode(pay_type)
-    pay = pay_cls.FromString(str(pay_buf))
+    pay = json.loads(pay_buf)
     return pay
-
-
-class BackendConnectionError(common_utils.OPUSException):
-    '''Exception class for a failure of a script to make communication with
-    the backend.'''
-    def __init__(self, msg):
-        super(BackendConnectionError, self).__init__(msg)
 
 
 class CommandConnectionHelper(object):

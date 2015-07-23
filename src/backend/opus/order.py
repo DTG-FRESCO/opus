@@ -9,16 +9,7 @@ import Queue
 import threading
 import time
 
-from opus import common_utils
-
-
-class QueueClearingException(common_utils.OPUSException):
-    '''Exception raised when attempting to put an item into a queue that is
-    being cleared.'''
-    def __init__(self):
-        super(QueueClearingException, self).__init__(
-            "Cannot insert message, queue clearing."
-        )
+from .exception import QueueClearingException
 
 
 def _cur_time():

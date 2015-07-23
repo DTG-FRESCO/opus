@@ -8,8 +8,8 @@ from __future__ import (absolute_import, division,
 
 import logging
 
-from opus import common_utils, pvm, storage, traversal
-from opus.pvm.posix import actions, utils
+from ... import common_utils, pvm, storage, traversal
+from . import actions, utils
 
 
 def create_proc(db_iface, pid, time_stamp):

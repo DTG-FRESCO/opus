@@ -24,17 +24,10 @@ except ImportError:
     sys.exit(1)
 
 
-from opus import pvm
-from opus.pvm.posix import actions, process, utils
-from opus import common_utils, storage, traversal, uds_msg_pb2
-
-
-class MissingMappingError(common_utils.OPUSException):
-    '''Failed to find a mapping for a given function.'''
-    def __init__(self):
-        super(MissingMappingError, self).__init__(
-            "Error: Failed to find a function mapping."
-        )
+from ... import pvm
+from . import actions, process, utils
+from ... import common_utils, storage, traversal, uds_msg_pb2
+from ...exception import MissingMappingError
 
 
 def _parse_mapping(msg, mapping):
