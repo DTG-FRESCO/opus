@@ -346,12 +346,12 @@ def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
     rec_list_for_upload = sorted(set(rec_list_for_upload))
 
     tmp_dir = tempfile.mkdtemp()
-    code_dir = tmp_dir + "/epsrc_pkg/code"
-    data_dir = tmp_dir + "/epsrc_pkg/data"
+    code_dir = os.path.join(tmp_dir, "epsrc_pkg", "code")
+    data_dir = os.path.join(tmp_dir, "epsrc_pkg", "data")
     os.makedirs(code_dir)
     os.makedirs(data_dir)
 
-    epsrc_pkg = dest_dir + "/epsrc_pkg." + cur_time
+    epsrc_pkg = os.path.join(dest_dir, "epsrc_pkg." + cur_time)
 
     file_map = {'src_code': {}, 'data': {}}
 
@@ -381,7 +381,6 @@ def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
             render_data['summary'][k] += [{'dir': dir,
                                            'files': [f for f in dir_files]}]
 
-    cur_dir = os.getcwd()
     archive_file = shutil.make_archive(epsrc_pkg, 'gztar', tmp_dir)
     shutil.rmtree(tmp_dir)
 
@@ -405,7 +404,7 @@ def get_opus_scripts_dir():
             with open(config_path, "r") as cfg_file:
                 cfg_file.readline().rstrip() # First line not needed
                 cfg = yaml.load(cfg_file.read())
-            opus_scripts_path = cfg['install_dir'] + "/src/backend/scripts"
+            opus_scripts_path = os.path.join(cfg['install_dir'], "src", "backend", "scripts")
             opus_scripts_path = os.path.abspath(os.path.expanduser(opus_scripts_path))
             return opus_scripts_path
         except [yaml.error.YAMLError, IOError]:
@@ -440,9 +439,10 @@ def main():
         print("Error: Could not find OPUS install path")
         return
 
-    workflow_script_dir = opus_scripts_dir + "/workflow"
+    workflow_script_dir = os.path.join(opus_scripts_dir, "workflow")
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(workflow_script_dir))
-    epsrc_report = args.dest + "/epsrc_report." + cur_time + ".html"
+    report_file_name = "epsrc_report." + cur_time + ".html"
+    epsrc_report = os.path.join(args.dest, report_file_name)
     try:
         with open(epsrc_report, "wt") as epsrc_file:
             epsrc_tmpl = env.get_template("epsrc.tmpl")

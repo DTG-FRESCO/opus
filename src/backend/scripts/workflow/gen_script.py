@@ -94,13 +94,13 @@ def main():
         return
 
     cur_time = wfh.get_cur_time()
-    script_name = args.dest + "/workflow." + cur_time + ".sh"
+    script_name = os.path.join(args.dest, "workflow." + cur_time + ".sh")
     script_file = open(script_name, 'w')
     script_file.write("#!/bin/bash\n")
 
-    desc = "# This is a automatically generated script\n"
-    desc += "# that produces the fille:\n"
-    desc += "#\t" + args.file_name + "\n"
+    desc = ("# This is an auto generated script.\n"
+            "# The script produces the file:\n"
+            "#    " + args.file_name + "\n")
     script_file.write(desc + "\n")
 
     script_file.write("set -e\n")
