@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+  <title>EPSRC Report</title>
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+
+  <!-- Optional theme -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+
+<style type="text/css">
+:target{
+    border: 2px solid #D4D4D4;
+    background-color: yellow;
+}
+
+ul.LinkedList { display: block; }
+/*ul.LinkedList ul{ display: none; }*/
+.HandCursorStyle { cursor: pointer; cursor: hand; }  /* For IE */
+</style>
+
+  <script type="text/JavaScript">
+    // Add this to the onload event of the BODY element
+    function addEvents() {
+      activateTree(document.getElementById("LinkedList1"));
+    }
+
+    // This function traverses the list and add links 
+    // to nested list items
+    function activateTree(oList) {
+      // Collapse the tree
+      for (var i=0; i < oList.getElementsByTagName("ul").length; i++) {
+        oList.getElementsByTagName("ul")[i].style.display="none";            
+      }                                                                  
+      // Add the click-event handler to the list items
+      if (oList.addEventListener) {
+        oList.addEventListener("click", toggleBranch, false);
+      } else if (oList.attachEvent) { // For IE
+        oList.attachEvent("onclick", toggleBranch);
+      }
+      // Make the nested items look like links
+      addLinksToBranches(oList);
+    }
+
+    // This is the click-event handler
+    function toggleBranch(event) {
+      var oBranch, cSubBranches;
+      if (event.target) {
+        oBranch = event.target;
+      } else if (event.srcElement) { // For IE
+        oBranch = event.srcElement;
+      }
+      cSubBranches = oBranch.getElementsByTagName("ul");
+      if (cSubBranches.length > 0) {
+        if (cSubBranches[0].style.display == "block") {
+          cSubBranches[0].style.display = "none";
+        } else {
+          cSubBranches[0].style.display = "block";
+        }
+      }
+    }
+
+    // This function makes nested list items look like links
+    function addLinksToBranches(oList) {
+      var cBranches = oList.getElementsByTagName("li");
+      var i, n, cSubBranches;
+      if (cBranches.length > 0) {
+        for (i=0, n = cBranches.length; i < n; i++) {
+          cSubBranches = cBranches[i].getElementsByTagName("ul");
+          if (cSubBranches.length > 0) {
+            addLinksToBranches(cSubBranches[0]);
+            cBranches[i].className = "HandCursorStyle";
+            cBranches[i].style.color = "black";
+            cSubBranches[0].style.color = "black";
+            cSubBranches[0].style.cursor = "auto";
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+
+<body>
+  <div class="container">
+
+  <h2><u>Summary</u></h2>
+  <ul id="LinkedList1" class="LinkedList">
+
+{% if file_list.summary.src_code -%}
+    <li>Code
+      <ul>
+{% for attr in file_list.summary.src_code %}
+{% if attr.dir %}
+        <li>{{attr.dir}}
+          <ul>
+{% for f in attr.files %}
+            <li>{{f}}</li>
+{% endfor %}
+          </ul>
+        </li>
+{%- endif -%}
+{% endfor %}
+      </ul>
+    </li>
+{%- endif -%}
+
+{% if file_list.summary.data -%}
+    <li>Data
+      <ul>
+{% for attr in file_list.summary.data %}
+{% if attr.dir %}
+        <li>{{attr.dir}}
+          <ul>
+{% for f in attr.files %}
+            <li>{{f}}</li>
+{% endfor %}
+          </ul>
+        </li>
+{%- endif -%}
+{% endfor %}
+      </ul>
+    </li>
+{%- endif -%}
+  </ul>
+
+  <hr size=10 width=400 align=LEFT noshade>
+  
+  <h2><u>Details</u></h2>
+
+{% for file in file_list.files -%}
+  <hr noshade>
+
+  <div>
+    <h3><a id="{{file.name}}">{{file.name}}</a></h3>
+
+    <b>When</b>: {{file.when}}<br/>
+    <b>Used Files</b>:
+{% if file.used -%}
+    <ul id="LinkedList2" class="LinkedList">
+{% for attr in file.used %}
+{% if attr.dir %}
+      <li>{{attr.dir}}
+        <ul>
+{% for f in attr.files %}
+          <li>
+{% if 'link' in f %}
+            <a href="#{{attr.dir}}/{{f.name}}">{{f.name}}</a> ({{f.tag}})
+{%- else -%}
+            {{f.name}} ({{f.tag}})
+{%- endif -%}
+          </li>
+{% endfor %}
+        </ul>
+      </li>
+{%- endif -%}
+{% endfor %}
+    </ul>
+{%- endif -%}
+
+    <details>
+      <summary><b>{{file.how}}</b></summary>
+
+      <div style="margin-left:20px;">
+        <u>cwd:</u>&nbsp;{{file.where}}<br>
+
+{% if file.sys_meta -%}
+        <u>System Info:</u>
+        <div style="margin-left:20px;">
+{% for kv_pair in file.sys_meta -%}
+          {{kv_pair.name}} - {{kv_pair.value}}<br>
+{% endfor %}
+        </div>
+{%- endif -%}
+
+{% if file.env_meta -%}
+        <u>Environment Info:</u>
+        <div style="margin-left:20px;">
+{% for kv_pair in file.env_meta -%}
+          {{kv_pair.name}} - {{kv_pair.value}}<br>
+{% endfor %}
+        </div>
+{%- endif -%}
+
+{% if file.env_meta -%}
+        <u>Library Info:</u>
+        <div style="margin-left:20px;">
+{% for kv_pair in file.lib_meta -%}
+          {{kv_pair.name}}<br>
+{% endfor %}
+        </div>
+{%- endif -%}
+      </div>
+    </details>
+  </div>
+{% endfor %}
+</div>
+</body>
+</html>
