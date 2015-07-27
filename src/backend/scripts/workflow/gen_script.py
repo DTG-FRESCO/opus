@@ -8,16 +8,14 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import os
-import sys
 import datetime
-import pickle
-import subprocess
 import argparse
 from termcolor import colored
 
 import workflow_helper as wfh
 
 visited_list = []
+
 
 def get_date_time_str(sys_time):
     return datetime.datetime.fromtimestamp(sys_time).strftime(
@@ -82,12 +80,13 @@ def scriptise(proc_tree_map, script_file):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="This program retrieves the" \
-                    " workflow used to produce the queried file "
-                    " and generates a script to reproduce the file")
+    parser = argparse.ArgumentParser(description="This program retrieves the "
+                                     "workflow used to produce the queried "
+                                     "file and generates a script to "
+                                     "reproduce the file")
 
     args = wfh.parse_command_line(parser)
-    proc_tree_map, queried_file = wfh.make_workflow_qry(args)
+    proc_tree_map, _ = wfh.make_workflow_qry(args)
 
     if proc_tree_map is None:
         print("Could not retrieve process tree map")

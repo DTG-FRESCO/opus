@@ -8,11 +8,8 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import os
-import sys
-import pickle
 import subprocess
 import argparse
-from termcolor import colored
 
 import workflow_helper as wfh
 
@@ -43,7 +40,7 @@ def check_f(f, dot_fh):
         return
     printed_list.append(f)
     dot_fh.write("    \"%s\" [label=\"%s\", color=palegreen];\n" %
-                 (f,os.path.basename(f)))
+                 (f, os.path.basename(f)))
 
 
 def collapse_children(level, node_id, p_map, new_p_map, tkey=None):
@@ -54,7 +51,6 @@ def collapse_children(level, node_id, p_map, new_p_map, tkey=None):
     if len(p_map[node_id]['cmd_args']) > 0:
         if level == 1:  # User initiated command
             tkey = node_id
-            global bash_children
             if tkey not in bash_children:
                 bash_children.append(tkey)
 
@@ -102,7 +98,7 @@ def collapse(p_map):
             fl.sort()
             visited_list.append(key)
             for node_id in fl:
-                pid = collapse_children(level + 1, node_id, p_map, new_p_map)
+                collapse_children(level + 1, node_id, p_map, new_p_map)
             global bash_children
             if "bash" in p_map[key]['cmd_args']:
                 new_p_map[key]['forked'] = bash_children
@@ -196,12 +192,13 @@ def print_tree(p_map, dot_fh):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="This program retrieves the" \
-                    " workflow used to produce the queried file "
-                    " and generates a tree view of the workflow")
+    parser = argparse.ArgumentParser(description="This program retrieves the "
+                                     "workflow used to produce the queried "
+                                     "file and generates a tree view of the "
+                                     "workflow")
 
     args = wfh.parse_command_line(parser)
-    proc_tree_map, queried_file = wfh.make_workflow_qry(args)
+    proc_tree_map, _ = wfh.make_workflow_qry(args)
 
     if proc_tree_map is None:
         print("Could not retrieve process tree map")

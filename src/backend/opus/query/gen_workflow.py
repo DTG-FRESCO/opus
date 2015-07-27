@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division,
 from . import client_query
 from .. import storage
 
-import sys
 import os
 import datetime
 import cPickle as pickle
@@ -28,11 +27,12 @@ end_filters = ['.sh_history', '.bashrc', 'logilab_common-0.61.0-nspkg.pth',
                '.cache', '.config']
 dir_filters = ['.matplotlib']
 
+
 class GlobData:
     proc_list = []
     file_hist_list = []
     visited_list = []
-    printed_list = [] # NOTE: not needed
+    printed_list = []  # NOTE: not needed
     queried_file = ""
     queried_file_last_modified_time = 0
 
@@ -142,18 +142,17 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
     env_meta = get_meta(proc_node.ENV_META)
     lib_meta = get_meta(proc_node.LIB_META)
 
-    qry = "START"
-    qry += " proc_node=node(" + str(proc_node.id) + ")"
-    qry += " MATCH proc_node<-[:PROC_OBJ]-loc_node,"
-    qry += " loc_node<-[rel:LOC_OBJ]-glob_node"
-    qry += " where rel.state in [{r},{w},{rw},{b}]"
-    qry += " return glob_node, rel"
-    qry += " order by glob_node.node_id desc"
-
-    rows = db_iface.locked_query(qry, r=storage.LinkState.READ,
-                                w=storage.LinkState.WRITE,
-                                rw=storage.LinkState.RaW,
-                                b=storage.LinkState.BIN)
+    rows = db_iface.locked_query(
+        "START proc_node=node(" + str(proc_node.id) + ") "
+        "MATCH proc_node<-[:PROC_OBJ]-loc_node, "
+        "loc_node<-[rel:LOC_OBJ]-glob_node "
+        "WHERE rel.state in [{r},{w},{rw},{b}] "
+        "RETURN glob_node, rel "
+        "ORDER BY glob_node.node_id desc",
+        r=storage.LinkState.READ,
+        w=storage.LinkState.WRITE,
+        rw=storage.LinkState.RaW,
+        b=storage.LinkState.BIN)
     for row in rows:
         glob_node = row['glob_node']
         rel = row['rel']
@@ -176,23 +175,23 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
     if proc_node.id not in proc_tree_map:
         proc_tree_map[proc_node.id] = {'forked': [], 'execed': []}
     proc_tree_map[proc_node.id].update({'pid': proc_node['pid'],
-                                             'sys_time': proc_node['sys_time'],
-                                             'cwd': cwd,
-                                             'cmd_args': cmd_args,
-                                             'sys_meta': sys_meta,
-                                             'env_meta': env_meta,
-                                             'lib_meta': lib_meta,
-                                             'write_files': write_files,
-                                             'read_files': read_files,
-                                             'read_write_files': read_write_files,
-                                             'executed_files': executed_files})
+                                        'sys_time': proc_node['sys_time'],
+                                        'cwd': cwd,
+                                        'cmd_args': cmd_args,
+                                        'sys_meta': sys_meta,
+                                        'env_meta': env_meta,
+                                        'lib_meta': lib_meta,
+                                        'write_files': write_files,
+                                        'read_files': read_files,
+                                        'read_write_files': read_write_files,
+                                        'executed_files': executed_files})
 
     # TODO: Change this to traverse up
     if proc_node.PROC_PARENT.outgoing:
         for r1 in proc_node.PROC_PARENT.outgoing:
             if r1.end.id not in proc_tree_map:
                 proc_tree_map[r1.end.id] = {'pid': proc_node['pid'],
-                                                 'forked': [proc_node.id]}
+                                            'forked': [proc_node.id]}
             else:
                 proc_tree_map[r1.end.id]['forked'].append(proc_node.id)
 
@@ -202,7 +201,7 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
         for r1 in proc_node.PROC_OBJ_PREV.outgoing:
             if r1.end.id not in proc_tree_map:
                 proc_tree_map[r1.end.id] = {'pid': proc_node['pid'],
-                                                 'execed': [proc_node.id]}
+                                            'execed': [proc_node.id]}
             else:
                 proc_tree_map[r1.end.id]['execed'].append(proc_node.id)
 
@@ -227,20 +226,17 @@ def get_write_history(db_iface, file_name, proc_tree_map):
     GlobData.file_hist_list.append(file_name)
     logging.debug("Getting write histories for: %s", file_name)
 
-    qry = "START "
-    qry += "file_glob_node=node:FILE_INDEX('name:\"" + file_name + "\"') "
-    qry += "MATCH file_glob_node-[rel1:LOC_OBJ]->file_loc_node,  "
-    qry += "file_loc_node-[:PROC_OBJ]->proc_node "
-    qry += "WHERE rel1.state in [{w},{rw}] "
-    qry += "RETURN distinct proc_node "
-    qry += "ORDER by proc_node.node_id DESC"
+    rows = db_iface.locked_query(
+        "START file_glob_node=node:FILE_INDEX('name:\"" + file_name + "\"') "
+        "MATCH file_glob_node-[rel1:LOC_OBJ]->file_loc_node,  "
+        "file_loc_node-[:PROC_OBJ]->proc_node "
+        "WHERE rel1.state in [{w},{rw}] "
+        "RETURN distinct proc_node "
+        "ORDER by proc_node.node_id DESC",
+        w=storage.LinkState.WRITE,
+        rw=storage.LinkState.RaW)
 
-    rows = db_iface.locked_query(qry, w=storage.LinkState.WRITE,
-                                    rw=storage.LinkState.RaW)
-
-    rows_avail = False
     for row in rows:
-        rows_avail = True
         proc_node = row['proc_node']
 
         if file_name == GlobData.queried_file:
@@ -287,7 +283,6 @@ def get_all_processes(db_iface, proc_tree_map):
     proc_nodes = sorted(set(proc_nodes))
     for node_id in proc_nodes:
         proc_node = db_iface.db.node[node_id]
-        cmd_args = get_command_args(proc_node)
         descend_down_proc_tree(db_iface, proc_node, proc_tree_map)
 
 
@@ -393,7 +388,7 @@ def gen_workflow(db_iface, args):
         regen = args['regen']
 
     file_hash = get_hash(file_name) + ".procmap"
-    if regen == False and os.path.isfile(file_hash):
+    if not regen and os.path.isfile(file_hash):
         return {"success": True,
                 "proc_tree_map": pickle.dumps(load_proc_tree_map(file_hash))}
 

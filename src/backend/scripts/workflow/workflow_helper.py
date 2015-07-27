@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division,
 from opus import cc_utils
 
 import cPickle as pickle
-import argparse
 import time
 import datetime
 
@@ -27,8 +26,9 @@ def parse_command_line(parser):
                         help="Full path of the file to be queried", type=str)
     parser.add_argument('--regen', action='store_true', default=False)
     parser.add_argument('--dest',
-                help="Destination directory for files produced by the program",
-                type=str, default=".")
+                        help="Destination directory for files produced by the "
+                        "program",
+                        type=str, default=".")
 
     args = parser.parse_args()
     return args
@@ -49,10 +49,10 @@ def make_workflow_qry(args):
         regen = args.regen
 
     cmd = {'cmd': 'exec_qry_method',
-            'qry_method': 'gen_workflow',
-            'qry_args': {'file_name': file_name,
-                            'regen': regen}
-            }
+           'qry_method': 'gen_workflow',
+           'qry_args': {'file_name': file_name,
+                        'regen': regen}
+           }
 
     result = sync_send_message(args, cmd)
     if not result['success']:
@@ -62,4 +62,3 @@ def make_workflow_qry(args):
             proc_tree_map = pickle.loads(str(result['proc_tree_map']))
 
     return proc_tree_map, file_name
-

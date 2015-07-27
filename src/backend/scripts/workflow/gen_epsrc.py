@@ -8,7 +8,6 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import os
-import sys
 import datetime
 import yaml
 import jinja2
@@ -29,8 +28,10 @@ src_code_extns = ['.py', '.c', '.cpp', '.C', '.sh', '.pl']
 start_filters = ['/tmp/']
 end_filters = ['.cls', '.aux', '.cache']
 
+
 class FailedOpusPath(Exception):
     pass
+
 
 class FileTypes(object):
     BINARY = "bin"
@@ -49,7 +50,6 @@ def check_filter(file_name):
 
 
 def check_src_bin_data(f):
-    global exec_list
     if f in exec_list or ".so" in f:
         return FileTypes.BINARY
 
@@ -112,7 +112,7 @@ def filter_env_meta(env_meta_map):
 
 
 def get_children(level, node_id, proc_tree_map, yaml_map,
-                 level_cmd, yaml_key=0, how_str=""):
+                 level_cmd, yaml_key=0):
     if node_id in visited_list:
         return
     visited_list.append(node_id)
@@ -158,13 +158,15 @@ def get_children(level, node_id, proc_tree_map, yaml_map,
             sys_meta = filter_sys_meta(proc_tree_map[node_id]['sys_meta'])
             env_meta = filter_env_meta(proc_tree_map[node_id]['env_meta'])
 
-            yaml_map[yaml_key] = {'when': date_time_str, 'cmd': level_cmd,
-                                  'sys_meta': sys_meta,
-                                  'env_meta': env_meta,
-                                  'lib_meta': proc_tree_map[node_id]['lib_meta'],
-                                  'used': used_list,
-                                  'where': cwd,
-                                  'produced': produced_list}
+            yaml_map[yaml_key] = {
+                'when': date_time_str,
+                'cmd': level_cmd,
+                'sys_meta': sys_meta,
+                'env_meta': env_meta,
+                'lib_meta': proc_tree_map[node_id]['lib_meta'],
+                'used': used_list,
+                'where': cwd,
+                'produced': produced_list}
         else:
             yaml_map[yaml_key]['cmd'] = level_cmd
 
@@ -241,8 +243,6 @@ def gen_yaml_file(proc_tree_map, queried_file):
         if 'forked' in proc_tree_map[key]:
             fl = proc_tree_map[key]['forked']
             fl.sort()
-            date_time_str = get_date_time_str(
-                proc_tree_map[key]['sys_time'])
 
             visited_list.append(key)
             for node_id in fl:
@@ -298,16 +298,16 @@ def gen_yaml_file(proc_tree_map, queried_file):
                         continue
                     group_common_dir(uf, dir_file_map)
 
-                for dir in sorted(dir_file_map.keys()):
-                    file_lst = dir_file_map[dir]
-                    used_elm = {"dir": dir,
+                for dir_name in sorted(dir_file_map.keys()):
+                    file_lst = dir_file_map[dir_name]
+                    used_elm = {"dir": dir_name,
                                 "files": []}
                     for filex in file_lst:
                         tag = check_src_bin_data(filex)
-                        rec_list_for_upload.append(dir + "/" + filex)
+                        rec_list_for_upload.append(dir_name + "/" + filex)
 
                         file_elm = {'name': filex}
-                        if is_produced_elsewhere((dir + "/" + filex),
+                        if is_produced_elsewhere((dir_name + "/" + filex),
                                                  produced_file_map, key):
                             file_elm['link'] = ""
                             file_elm['tag'] = tag
@@ -322,24 +322,23 @@ def gen_yaml_file(proc_tree_map, queried_file):
 def group_common_dir(file_path, dir_file_map):
     tokens = file_path.split('/')
     fname = tokens.pop()
-    dir = '/'.join(tokens)
+    dir_name = '/'.join(tokens)
 
-    if dir in dir_file_map:
-        dir_file_map[dir].append(fname)
+    if dir_name in dir_file_map:
+        dir_file_map[dir_name].append(fname)
     else:
-        dir_file_map[dir] = [fname]
-
+        dir_file_map[dir_name] = [fname]
 
 
 def add_file_to_map(file_map, first_key, f):
     tokens = f.split('/')
     fname = tokens.pop()
-    dir = '/'.join(tokens)
+    dir_name = '/'.join(tokens)
 
-    if dir in file_map[first_key]:
-        file_map[first_key][dir].append(fname)
+    if dir_name in file_map[first_key]:
+        file_map[first_key][dir_name].append(fname)
     else:
-        file_map[first_key][dir] = [fname]
+        file_map[first_key][dir_name] = [fname]
 
 
 def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
@@ -377,8 +376,8 @@ def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
                    "files": files_data}
     for k in file_map.keys():
         render_data['summary'][k] = []
-        for dir, dir_files in file_map[k].iteritems():
-            render_data['summary'][k] += [{'dir': dir,
+        for dir_name, dir_files in file_map[k].iteritems():
+            render_data['summary'][k] += [{'dir': dir_name,
                                            'files': [f for f in dir_files]}]
 
     archive_file = shutil.make_archive(epsrc_pkg, 'gztar', tmp_dir)
@@ -402,10 +401,14 @@ def get_opus_scripts_dir():
     if os.path.exists(config_path):
         try:
             with open(config_path, "r") as cfg_file:
-                cfg_file.readline().rstrip() # First line not needed
+                cfg_file.readline().rstrip()  # First line not needed
                 cfg = yaml.load(cfg_file.read())
-            opus_scripts_path = os.path.join(cfg['install_dir'], "src", "backend", "scripts")
-            opus_scripts_path = os.path.abspath(os.path.expanduser(opus_scripts_path))
+            opus_scripts_path = os.path.join(cfg['install_dir'],
+                                             "src",
+                                             "backend",
+                                             "scripts")
+            opus_scripts_path = os.path.abspath(
+                os.path.expanduser(opus_scripts_path))
             return opus_scripts_path
         except [yaml.error.YAMLError, IOError]:
             raise FailedOpusPath()
@@ -414,9 +417,10 @@ def get_opus_scripts_dir():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="This program retrieves the" \
-                    " workflow used to produce the queried file "
-                    " and generates a report for the EPSRC open data compliance")
+    parser = argparse.ArgumentParser(description="This program retrieves the "
+                                     "workflow used to produce the queried "
+                                     "file and generates a report for the "
+                                     "EPSRC open data compliance")
 
     args = wfh.parse_command_line(parser)
     proc_tree_map, queried_file = wfh.make_workflow_qry(args)
@@ -440,7 +444,8 @@ def main():
         return
 
     workflow_script_dir = os.path.join(opus_scripts_dir, "workflow")
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(workflow_script_dir))
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(
+        workflow_script_dir))
     report_file_name = "epsrc_report." + cur_time + ".html"
     epsrc_report = os.path.join(args.dest, report_file_name)
     try:
