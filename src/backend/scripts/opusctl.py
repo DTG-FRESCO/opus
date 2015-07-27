@@ -393,9 +393,22 @@ def handle_launch(cfg, binary, arguments):
 
 
 @auto_read_config
-def handle_exclude(_, binary, arguments):
+def handle_exclude(cfg, binary, arguments):
     if is_opus_active():
-        os.environ['OPUS_INTERPOSE_MODE'] = "0"
+        del os.environ['OPUS_INTERPOSE_MODE']
+        del os.environ['OPUS_UDS_PATH']
+        del os.environ['OPUS_MSG_AGGR']
+        del os.environ['OPUS_MAX_AGGR_MSG_SIZE']
+        del os.environ['OPUS_LOG_LEVEL']
+        opus_preload_lib = path_normalise(os.path.join(cfg['install_dir'],
+                                                       'lib',
+                                                       'libopusinterpose.so'))
+        if os.environ['LD_PRELOAD'] == opus_preload_lib:
+            del os.environ['LD_PRELOAD']
+        else:
+            os.environ['LD_PRELOAD'] = os.environ['LD_PRELOAD'].replace(
+                opus_preload_lib, ""
+            ).strip()
     else:
         print("OPUS is not active.")
     os.execvp(binary, [binary] + arguments)
