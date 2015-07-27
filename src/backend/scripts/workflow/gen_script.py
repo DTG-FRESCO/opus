@@ -81,16 +81,6 @@ def scriptise(proc_tree_map, script_file):
                                 script_file, current_dir)
 
 
-def regen_workflow(queried_file):
-    if not os.path.isfile("get_workflow.py"):
-        print("Error! Workflow generation program not available")
-        return False
-
-    print("Gathering workflow for %s" % colored(queried_file, 'green'))
-    subprocess.call(['./get_workflow.py', queried_file])
-    return True
-
-
 def main():
     parser = argparse.ArgumentParser(description="This program retrieves the" \
                     " workflow used to produce the queried file "
@@ -103,9 +93,16 @@ def main():
         print("Could not retrieve process tree map")
         return
 
-    script_name = "canonical_script.sh"
+    cur_time = wfh.get_cur_time()
+    script_name = args.dest + "/workflow." + cur_time + ".sh"
     script_file = open(script_name, 'w')
     script_file.write("#!/bin/bash\n")
+
+    desc = "# This is a automatically generated script\n"
+    desc += "# that produces the fille:\n"
+    desc += "#\t" + args.file_name + "\n"
+    script_file.write(desc + "\n")
+
     script_file.write("set -e\n")
     script_file.write("set -x\n")
     scriptise(proc_tree_map, script_file)

@@ -13,8 +13,9 @@ import datetime
 import yaml
 import jinja2
 import webbrowser
-import subprocess
 import argparse
+import shutil
+import tempfile
 from termcolor import colored
 
 import workflow_helper as wfh
@@ -329,15 +330,6 @@ def group_common_dir(file_path, dir_file_map):
         dir_file_map[dir] = [fname]
 
 
-def regen_workflow(queried_file):
-    if not os.path.isfile("get_workflow.py"):
-        print("Error! Workflow generation program not available")
-        return False
-
-    print("Gathering workflow for \"%s\"" % colored(queried_file, 'green'))
-    subprocess.call(['./get_workflow.py', queried_file])
-    return True
-
 
 def add_file_to_map(file_map, first_key, f):
     tokens = f.split('/')
@@ -350,15 +342,16 @@ def add_file_to_map(file_map, first_key, f):
         file_map[first_key][dir] = [fname]
 
 
-def package_code_data(rec_list_for_upload, files_data):
+def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
     rec_list_for_upload = sorted(set(rec_list_for_upload))
 
-    subprocess.call(['rm', '-rf', 'epsrc_pkg'])
-    subprocess.call(['mkdir', 'epsrc_pkg'])
-    subprocess.call(['mkdir', 'epsrc_pkg/code'])
-    subprocess.call(['mkdir', 'epsrc_pkg/data'])
+    tmp_dir = tempfile.mkdtemp()
+    code_dir = tmp_dir + "/epsrc_pkg/code"
+    data_dir = tmp_dir + "/epsrc_pkg/data"
+    os.makedirs(code_dir)
+    os.makedirs(data_dir)
 
-    epsrc_pkg = "epsrc_pkg.tar.gz"
+    epsrc_pkg = dest_dir + "/epsrc_pkg." + cur_time
 
     file_map = {'src_code': {}, 'data': {}}
 
@@ -375,10 +368,10 @@ def package_code_data(rec_list_for_upload, files_data):
             continue
         elif tag == FileTypes.SOURCECODDE:
             add_file_to_map(file_map, 'src_code', f)
-            subprocess.call(['cp', '-f', f, 'epsrc_pkg/code'])
+            shutil.copy(f, code_dir)
         else:
             add_file_to_map(file_map, 'data', f)
-            subprocess.call(['cp', '-f', f, 'epsrc_pkg/data'])
+            shutil.copy(f, data_dir)
 
     render_data = {"summary": {},
                    "files": files_data}
@@ -388,15 +381,16 @@ def package_code_data(rec_list_for_upload, files_data):
             render_data['summary'][k] += [{'dir': dir,
                                            'files': [f for f in dir_files]}]
 
-    subprocess.call(['tar', '-cvzf', epsrc_pkg, 'epsrc_pkg'])
-    subprocess.call(['rm', '-rf', 'epsrc_pkg'])
+    cur_dir = os.getcwd()
+    archive_file = shutil.make_archive(epsrc_pkg, 'gztar', tmp_dir)
+    shutil.rmtree(tmp_dir)
 
-    if not os.path.isfile(epsrc_pkg):
+    if not os.path.isfile(archive_file):
         print("Could not create EPSRC archive")
         return
 
     print("Successfully created EPSRC archive file %s" %
-          colored(epsrc_pkg, 'red'))
+          colored(archive_file, 'red'))
     return render_data
 
 
@@ -427,6 +421,7 @@ def main():
 
     args = wfh.parse_command_line(parser)
     proc_tree_map, queried_file = wfh.make_workflow_qry(args)
+    cur_time = wfh.get_cur_time()
 
     if proc_tree_map is None:
         print("Could not retrieve process tree map")
@@ -436,7 +431,8 @@ def main():
 
     files_data, rec_list_for_upload = gen_yaml_file(proc_tree_map,
                                                     queried_file)
-    render_data = package_code_data(rec_list_for_upload, files_data)
+    render_data = package_code_data(rec_list_for_upload, files_data,
+                                    args.dest, cur_time)
 
     try:
         opus_scripts_dir = get_opus_scripts_dir()
@@ -446,7 +442,7 @@ def main():
 
     workflow_script_dir = opus_scripts_dir + "/workflow"
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(workflow_script_dir))
-    epsrc_report = "epsrc.html"
+    epsrc_report = args.dest + "/epsrc_report." + cur_time + ".html"
     try:
         with open(epsrc_report, "wt") as epsrc_file:
             epsrc_tmpl = env.get_template("epsrc.tmpl")

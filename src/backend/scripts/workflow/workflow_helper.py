@@ -11,6 +11,13 @@ from opus import cc_utils
 
 import cPickle as pickle
 import argparse
+import time
+import datetime
+
+
+def get_cur_time():
+    return datetime.datetime.fromtimestamp(time.time()).strftime(
+        '%d%m%Y-%H:%M:%S')
 
 
 def parse_command_line(parser):
@@ -19,6 +26,9 @@ def parse_command_line(parser):
     parser.add_argument("file_name",
                         help="Full path of the file to be queried", type=str)
     parser.add_argument('--regen', action='store_true', default=False)
+    parser.add_argument('--dest',
+                help="Destination directory for files produced by the program",
+                type=str, default=".")
 
     args = parser.parse_args()
     return args
