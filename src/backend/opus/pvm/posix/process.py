@@ -187,12 +187,22 @@ class ProcStateController(object):
 
         old_proc_node_id = cls.PIDMAP[hdr.pid]
         old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
+
+        # Set the old process node state to dead
         old_proc_node['status'] = storage.PROCESS_STATE.DEAD
 
         db_iface.create_relationship(proc_node, old_proc_node,
                                     storage.RelType.PROC_OBJ_PREV)
         clone_file_des(db_iface, old_proc_node, proc_node)
         cls.PIDMAP[hdr.pid] = proc_node['node_id']
+
+        # Clear the previous process object cache
+        cls.__clear_process_cache(db_iface, old_proc_node)
+
+        # Remove the previous process node from pid_proc_nodes_map
+        if old_proc_node in cls.pid_proc_nodes_map[hdr.pid]:
+            cls.pid_proc_nodes_map[hdr.pid].remove(old_proc_node)
+
 
     @classmethod
     def proc_startup(cls, db_iface, hdr, pay, opus_lite):
@@ -214,6 +224,7 @@ class ProcStateController(object):
         '''Handles a process with pid 'pid' executing an exec function.
         Returns True if this succeeds and returns False if this violates
         the state system.'''
+
         if pid in cls.proc_map:
             if cls.proc_map[pid] == cls.proc_states.NORMAL:
                 cls.proc_map[pid] = cls.proc_states.EXECED
@@ -230,31 +241,36 @@ class ProcStateController(object):
             return False
 
     @classmethod
+    def __clear_process_cache(cls, db_iface, proc_node):
+        for tmp_rel in proc_node.PROC_OBJ.incoming:
+            tmp_loc = tmp_rel.start
+
+            # Invalidate all caches
+            db_iface.cache_man.invalidate(
+                                        storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                                        (proc_node.id, tmp_loc['name']))
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
+                                        (proc_node.id, tmp_loc['name']))
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
+                                        tmp_loc.id)
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                        tmp_loc.id)
+            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
+                                        proc_node.id)
+
+        # Invalidate the NODE_BY_ID cache
+        db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID,
+                                        proc_node['node_id'])
+
+
+    @classmethod
     def __clear_caches(cls, db_iface, pid):
         if pid not in cls.pid_proc_nodes_map:
             return
 
-        proc_node_list = cls.pid_proc_nodes_map[pid]
-        for proc_node in proc_node_list:
-            for tmp_rel in proc_node.PROC_OBJ.incoming:
-                tmp_loc = tmp_rel.start
-
-                # Invalidate all caches
-                db_iface.cache_man.invalidate(
-                                            storage.CACHE_NAMES.IO_EVENT_CHAIN,
-                                            (proc_node.id, tmp_loc['name']))
-                db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
-                                            (proc_node.id, tmp_loc['name']))
-                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
-                                            tmp_loc.id)
-                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
-                                            tmp_loc.id)
-                db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
-                                            proc_node.id)
+        for proc_node in cls.pid_proc_nodes_map[pid]:
+            cls.__clear_process_cache(db_iface, proc_node)
             proc_node['status'] = storage.PROCESS_STATE.DEAD
-            # Invalidate the NODE_BY_ID cache
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID,
-                                            proc_node['node_id'])
 
 
     @classmethod
@@ -264,8 +280,7 @@ class ProcStateController(object):
         if pid not in cls.pid_proc_nodes_map:
             return
 
-        proc_node_list = cls.pid_proc_nodes_map[pid]
-        for proc_node in proc_node_list:
+        for proc_node in cls.pid_proc_nodes_map[pid]:
             if proc_node['status'] == storage.PROCESS_STATE.ALIVE:
                 continue
 
@@ -284,13 +299,12 @@ class ProcStateController(object):
         Returns True unless the process is unknown to the system, in which
         case it returns False.'''
 
-        cls.__clear_caches(db_iface, pid)
-
         if pid in cls.proc_map:
             if cls.proc_map[pid] == cls.proc_states.EXECED:
                 cls.proc_map[pid] = cls.proc_states.NORMAL
                 return True
             else:
+                cls.__clear_caches(db_iface, pid)
                 cls.__close_all_open_fds(db_iface, pid)
                 del cls.pid_proc_nodes_map[pid]
                 del cls.PIDMAP[pid]
