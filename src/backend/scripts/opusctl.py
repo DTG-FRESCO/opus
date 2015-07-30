@@ -108,7 +108,7 @@ export OPUS_MASTER_CONFIG={conf_loc}
 """
 
 
-BACKEND_CONFIG_TEMPLATE = """\
+SERVER_CONFIG_TEMPLATE = """\
 LOGGING:
   version: 1
   formatters:
@@ -222,7 +222,7 @@ def load_config(config_path=CONFIG_PATH):
 def update_config_subsidiaries(cfg):
     print("Config file modified, applying...")
     generate_bash_var_file(cfg)
-    generate_backend_cfg_file(cfg)
+    generate_server_cfg_file(cfg)
     print("Application complete.")
 
 
@@ -268,9 +268,9 @@ def generate_bash_var_file(cfg):
         )
 
 
-def generate_backend_cfg_file(cfg):
-    backend_cfg_path = path_normalise(os.path.join(cfg['install_dir'],
-                                                   "opus-cfg.yaml"))
+def generate_server_cfg_file(cfg):
+    server_cfg_path = path_normalise(os.path.join(cfg['install_dir'],
+                                                  "opus-cfg.yaml"))
 
     log_level = "DEBUG" if cfg['debug_mode'] else "ERROR"
     log_file = path_normalise(os.path.join(cfg['install_dir'], "opus.log"))
@@ -279,9 +279,9 @@ def generate_backend_cfg_file(cfg):
     touch_file = path_normalise(os.path.join(cfg['install_dir'], ".opus-live"))
     cc_port = cfg['cc_port']
 
-    with open(backend_cfg_path, "w") as backend_cfg:
-        backend_cfg.write(
-            BACKEND_CONFIG_TEMPLATE.format(
+    with open(server_cfg_path, "w") as server_cfg:
+        server_cfg.write(
+            SERVER_CONFIG_TEMPLATE.format(
                 log_level=log_level,
                 log_file=log_file,
                 uds_sock=uds_sock,
@@ -290,7 +290,7 @@ def generate_backend_cfg_file(cfg):
                 cc_port=cc_port))
 
 
-def is_backend_active(cfg):
+def is_server_active(cfg):
     opus_pid_file = path_normalise(os.path.join(cfg['install_dir'], ".pid"))
     try:
         with open(opus_pid_file, "r") as p_file:
@@ -314,47 +314,47 @@ def elapsed(reset=False):
         return time.time() - elapsed.start
 
 
-def monitor_backend_startup(cfg):
+def monitor_server_startup(cfg):
     if not OPUS_AVAILABLE:
         print("OPUS libraries not available in $PYTHONPATH, "
               "please check your environment and try again.")
-        print("Unable to check OPUS backend startup status.")
-        print("Assuming backend has started.")
+        print("Unable to check OPUS server startup status.")
+        print("Assuming server has started.")
         return True
     elapsed(reset=True)
     time.sleep(0.1)
     while elapsed() < 20:
-        backend_active = is_backend_active(cfg)
+        server_active = is_server_active(cfg)
         try:
             helper = cc_utils.CommandConnectionHelper("localhost",
                                                       int(cfg['cc_port']))
             helper.make_request({'cmd': 'status'})
-            backend_responsive = True
+            server_responsive = True
         except exception.BackendConnectionError:
-            backend_responsive = False
+            server_responsive = False
 
         yes = colored("yes", "green")
         no = colored("no", "red")
 
         print("\rServer Active: %s  Server Responsive: %s" %
-              ((yes if backend_active else no),
-               (yes if backend_responsive else no)),
+              ((yes if server_active else no),
+               (yes if server_responsive else no)),
               end="")
-        if not(backend_active or backend_responsive):
+        if not(server_active or server_responsive):
             break
 
-        if backend_active and backend_responsive:
-            print("\nBackend sucessfully started.")
+        if server_active and server_responsive:
+            print("\nServer sucessfully started.")
             return True
         time.sleep(0.1)
-    print("\nBackend startup failed, check the %s and %s error logs for "
+    print("\nServer startup failed, check the %s and %s error logs for "
           "information." % (os.path.join(cfg['install_dir'], "opus_err.log"),
                             os.path.join(cfg['install_dir'], "opus.log")))
     return False
 
 
-def start_opus_backend(cfg):
-    print("Attempting to start OPUS backend.")
+def start_opus_server(cfg):
+    print("Attempting to start OPUS server.")
     if is_opus_active():
         os.environ['OPUS_INTERPOSE_MODE'] = "0"
     if 'JAVA_HOME' not in os.environ:
@@ -363,7 +363,7 @@ def start_opus_backend(cfg):
     try:
         pid = os.fork()
         if pid > 0:
-            return monitor_backend_startup(cfg)
+            return monitor_server_startup(cfg)
     except OSError:
         sys.exit(1)
 
@@ -391,8 +391,8 @@ def start_opus_backend(cfg):
     opus_pid_file = path_normalise(os.path.join(cfg['install_dir'],
                                                 ".pid"))
 
-    backend_cfg_path = path_normalise(os.path.join(cfg['install_dir'],
-                                                   "opus-cfg.yaml"))
+    server_cfg_path = path_normalise(os.path.join(cfg['install_dir'],
+                                                  "opus-cfg.yaml"))
     run_server_path = path_normalise(os.path.join(cfg['install_dir'],
                                                   "src", "backend",
                                                   "run_server.py"))
@@ -410,7 +410,7 @@ def start_opus_backend(cfg):
                       [cfg['python_binary'],
                        "-O",
                        run_server_path,
-                       backend_cfg_path])
+                       server_cfg_path])
     except OSError:
         sys.exit(1)
 
@@ -419,8 +419,8 @@ def start_opus_backend(cfg):
 
 @auto_read_config
 def handle_launch(cfg, binary, arguments):
-    if not is_backend_active(cfg):
-        if not start_opus_backend(cfg):
+    if not is_server_active(cfg):
+        if not start_opus_server(cfg):
             print("Aborting command launch.")
             return
 
@@ -466,11 +466,11 @@ def handle_exclude(cfg, binary, arguments):
 
 
 def handle_start(cfg):
-    '''Starts OPUS backend.'''
-    if not is_backend_active(cfg):
-        start_opus_backend(cfg)
+    '''Starts OPUS server.'''
+    if not is_server_active(cfg):
+        start_opus_server(cfg)
     else:
-        print("OPUS backend already running.")
+        print("OPUS server already running.")
 
 
 def handle_process(cmd, **params):
@@ -485,7 +485,7 @@ def handle_server(cfg, cmd, **params):
     if cmd == "start":
         handle_start(cfg=cfg, **params)
     else:
-        if not is_backend_active(cfg):
+        if not is_server_active(cfg):
             print("Server is not running.")
             return
 
