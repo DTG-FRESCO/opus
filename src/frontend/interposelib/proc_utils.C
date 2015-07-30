@@ -1119,6 +1119,7 @@ const char* ProcUtils::dirfd_get_path(const int fd,
 }
 
 const bool ProcUtils::is_opus_fd(const int fd){
+    if (!comm_obj) return false;
     return comm_obj->is_opus_fd(fd);
 }
 
