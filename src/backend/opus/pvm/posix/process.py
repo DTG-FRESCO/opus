@@ -181,6 +181,7 @@ class ProcStateController(object):
 
     @classmethod
     def __handle_execed_process(cls, db_iface, hdr, pay, opus_lite):
+        cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
         cls.__add_proc_node(hdr.pid, proc_node)
         expand_proc(db_iface, proc_node, pay, opus_lite)
