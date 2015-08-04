@@ -247,20 +247,29 @@ class ProcStateController(object):
 
             # Invalidate all caches
             db_iface.cache_man.invalidate(
-                                        storage.CACHE_NAMES.IO_EVENT_CHAIN,
-                                        (proc_node.id, tmp_loc['name']))
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.VALID_LOCAL,
-                                        (proc_node.id, tmp_loc['name']))
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LOCAL_GLOBAL,
-                                        tmp_loc.id)
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
-                                        tmp_loc.id)
-            db_iface.cache_man.invalidate(storage.CACHE_NAMES.LAST_EVENT,
-                                        proc_node.id)
+                storage.CACHE_NAMES.IO_EVENT_CHAIN,
+                (proc_node.id, tmp_loc['name']))
+
+            db_iface.cache_man.invalidate(
+                storage.CACHE_NAMES.VALID_LOCAL,
+                (proc_node.id, tmp_loc['name']))
+
+            db_iface.cache_man.invalidate(
+                storage.CACHE_NAMES.LOCAL_GLOBAL,
+                tmp_loc.id)
+
+            db_iface.cache_man.invalidate(
+                storage.CACHE_NAMES.LAST_EVENT,
+                tmp_loc.id)
+
+            db_iface.cache_man.invalidate(
+                storage.CACHE_NAMES.LAST_EVENT,
+                proc_node.id)
 
         # Invalidate the NODE_BY_ID cache
-        db_iface.cache_man.invalidate(storage.CACHE_NAMES.NODE_BY_ID,
-                                        proc_node['node_id'])
+        db_iface.cache_man.invalidate(
+            storage.CACHE_NAMES.NODE_BY_ID,
+            proc_node['node_id'])
 
 
     @classmethod
