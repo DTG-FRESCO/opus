@@ -539,6 +539,26 @@ def handle_conf(config, install):
             handle.write("source " + new_cfg['bash_var_path'])
 
 
+def handle_util(cmd, **params):
+    if cmd == "ps-line":
+        handle_ps_line(**params)
+
+
+@auto_read_config
+def handle_ps_line(cfg):
+    term_status = is_opus_active()
+    server_status = is_backend_active(cfg)
+    symbol = u"●"
+    if server_status:
+        if term_status:
+            color = "green"
+        else:
+            color = "yellow"
+    else:
+        color = "red"
+    print(colored(symbol, color).encode("utf-8"), end="")
+
+
 def print_status_rsp(pay):
     '''Prints status response to stdout'''
 
@@ -571,6 +591,9 @@ def parse_args():
     conf_parser = group_parser.add_parser(
         "conf",
         help="Configuration of the OPUS environment.")
+    util_parser = group_parser.add_parser(
+        "util",
+        help="Utility functions for OPUS.")
 
     proc_cmds = proc_parser.add_subparsers(dest="cmd")
 
@@ -624,6 +647,12 @@ def parse_args():
         "--install", "-i", action='store_true',
         help="Triggers additional output during the install procedure.")
 
+    util_cmds = util_parser.add_subparsers(dest="cmd")
+    util_cmds.add_parser(
+        "ps-line",
+        help="Provides a $PS line component for indicating the "
+             "status of OPUS.")
+
     return parser.parse_args()
 
 
@@ -641,6 +670,8 @@ def main():
             handle_server(**params)
         elif args.group == "conf":
             handle_conf(**params)
+        elif args.group == "util":
+            handle_util(**params)
     except FailedConfigError:
         print("Failed to execute command due to insufficient configuration. "
               "Please run the '{} conf' command "
