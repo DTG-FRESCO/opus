@@ -115,6 +115,9 @@ class OrderingAnalyser(Analyser):
 
     def do_shutdown(self):
         '''Clear the event orderer and then shutdown the processing thread.'''
+        if not self.isAlive():
+            return True
+
         if __debug__:
             logging.debug("M:Shutting down analyser.")
             logging.debug("M:Starting queue flush.")
