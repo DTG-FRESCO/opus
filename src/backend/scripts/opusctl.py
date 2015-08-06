@@ -52,6 +52,9 @@ def path_normalise(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
+PS_SYMBOL = u"●"
+
+
 DEFAULT_CONFIG_PATH = "~/.opus-cfg"
 
 if 'OPUS_MASTER_CONFIG' in os.environ:
@@ -548,7 +551,6 @@ def handle_util(cmd, **params):
 def handle_ps_line(cfg):
     term_status = is_opus_active()
     server_status = is_backend_active(cfg)
-    symbol = u"●"
     if server_status:
         if term_status:
             color = "green"
@@ -556,7 +558,7 @@ def handle_ps_line(cfg):
             color = "yellow"
     else:
         color = "red"
-    print(colored(symbol, color).encode("utf-8"), end="")
+    print(colored(PS_SYMBOL, color).encode("utf-8"), end="")
 
 
 def print_status_rsp(pay):
@@ -650,8 +652,14 @@ def parse_args():
     util_cmds = util_parser.add_subparsers(dest="cmd")
     util_cmds.add_parser(
         "ps-line",
-        help="Provides a $PS line component for indicating the "
-             "status of OPUS.")
+        help=(u"Provides a $PS line component for indicating the status "
+              u"of OPUS. "
+              u"{} : Server running and current session interposed. "
+              u"{} : Server running but no session interposition. "
+              u"{} : Server offline.").format(colored(PS_SYMBOL, "green"),
+                                              colored(PS_SYMBOL, "yellow"),
+                                              colored(PS_SYMBOL, "red")
+                                              ).encode("utf-8"))
 
     return parser.parse_args()
 
