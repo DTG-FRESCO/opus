@@ -550,7 +550,7 @@ def handle_util(cmd, **params):
 @auto_read_config
 def handle_ps_line(cfg):
     term_status = is_opus_active()
-    server_status = is_backend_active(cfg)
+    server_status = is_server_active(cfg)
     if server_status:
         if term_status:
             color = "green"
