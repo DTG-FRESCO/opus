@@ -15,16 +15,16 @@ import os.path
 import sys
 import time
 
+import prettytable
+import psutil
+import yaml
+from termcolor import colored, COLORS
+
 OPUS_AVAILABLE = True
 try:
     from opus import cc_utils, exception
 except ImportError as exc:
     OPUS_AVAILABLE = False
-
-import prettytable
-import psutil
-import yaml
-from termcolor import colored
 
 
 class OPUSctlError(Exception):
@@ -548,17 +548,21 @@ def handle_util(cmd, **params):
 
 
 @auto_read_config
-def handle_ps_line(cfg):
+def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
+                   symbol, fmt_str):
     term_status = is_opus_active()
     server_status = is_server_active(cfg)
     if server_status:
         if term_status:
-            color = "green"
+            color = inter_color
         else:
-            color = "yellow"
+            color = no_inter_color
     else:
-        color = "red"
-    print(colored(PS_SYMBOL, color).encode("utf-8"), end="")
+        color = offline_color
+    print(fmt_str.replace("{}",
+                          colored(symbol, color)
+                          ).encode("utf-8"),
+          end="")
 
 
 def print_status_rsp(pay):
@@ -650,16 +654,31 @@ def parse_args():
         help="Triggers additional output during the install procedure.")
 
     util_cmds = util_parser.add_subparsers(dest="cmd")
-    util_cmds.add_parser(
+    ps_line_parser = util_cmds.add_parser(
         "ps-line",
         help=(u"Provides a $PS line component for indicating the status "
               u"of OPUS. "
               u"{} : Server running and current session interposed. "
               u"{} : Server running but no session interposition. "
               u"{} : Server offline.").format(colored(PS_SYMBOL, "green"),
-                                              colored(PS_SYMBOL, "yellow"),
-                                              colored(PS_SYMBOL, "red")
+                                              colored(PS_SYMBOL, "red"),
+                                              colored(PS_SYMBOL, "white")
                                               ).encode("utf-8"))
+    ps_line_parser.add_argument("--offline-color", choices=COLORS.keys(),
+                                default="white", help="Color to render the "
+                                "symbol in when the server is offline.")
+    ps_line_parser.add_argument("--no-inter-color", choices=COLORS.keys(),
+                                default="red", help="Color to render the "
+                                "symbol in when the session is not "
+                                "interposed.")
+    ps_line_parser.add_argument("--inter-color", choices=COLORS.keys(),
+                                default="green", help="Color to render the "
+                                "symbol in when the session is interposed.")
+    ps_line_parser.add_argument("--symbol", default=PS_SYMBOL,
+                                help="Symbol to print.")
+    ps_line_parser.add_argument("--format", dest="fmt_str", default="{}",
+                                help='Output, {} is replaced with the '
+                                "symbol appropriatly coloured.")
 
     return parser.parse_args()
 
