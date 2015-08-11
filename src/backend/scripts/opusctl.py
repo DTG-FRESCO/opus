@@ -519,10 +519,17 @@ def handle_server(cfg, cmd, **params):
         elif not pay['success']:
             print(pay['msg'])
         elif cmd == "ps":
-            tab = prettytable.PrettyTable(['Pid', 'Thread Count'])
+            tab = prettytable.PrettyTable(['Pid',
+                                           'Command Line',
+                                           'Thread Count'])
             print("Interposed Processes:\n\n")
             for pid, count in pay['pid_map'].items():
-                tab.add_row([pid, count])
+                cmd_line = " ".join(
+                    psutil.Process(
+                        int(pid)
+                        ).cmdline()
+                    )
+                tab.add_row([pid, cmd_line, count])
             print(tab)
         elif cmd == "status":
             print_status_rsp(pay)
