@@ -339,10 +339,12 @@ def monitor_server_startup(cfg):
         yes = colored("yes", "green")
         no = colored("no", "red")
 
-        print("\rServer Active: %s  Server Responsive: %s" %
+        print((" " * 50), end="\r")
+        print("Server Active: %s Server Responsive: %s" %
               ((yes if server_active else no),
                (yes if server_responsive else no)),
-              end="")
+              end="\r")
+        sys.stdout.flush()
         if not(server_active or server_responsive):
             break
 
