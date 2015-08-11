@@ -181,6 +181,10 @@ def is_opus_active():
             ("OPUS_INTERPOSE_MODE" in os.environ and
              os.environ['OPUS_INTERPOSE_MODE'] != "0"))
 
+def is_opus_ipose_lib_set():
+    return ("LD_PRELOAD" in os.environ and
+            "libopusinterpose.so" in os.environ['LD_PRELOAD'])
+
 
 def read_config(config_path):
     if os.path.exists(config_path):
@@ -358,8 +362,8 @@ def monitor_server_startup(cfg):
 
 def start_opus_server(cfg):
     print("Attempting to start OPUS server.")
-    if is_opus_active():
-        os.environ['OPUS_INTERPOSE_MODE'] = "0"
+    if is_opus_active() or is_opus_ipose_lib_set():
+        reset_opus_env(cfg)
     if 'JAVA_HOME' not in os.environ:
         os.environ['JAVA_HOME'] = cfg['java_home']
 
@@ -446,23 +450,27 @@ def handle_launch(cfg, binary, arguments):
     os.execvp(binary, [binary] + arguments)
 
 
+def reset_opus_env(cfg):
+    del os.environ['OPUS_INTERPOSE_MODE']
+    del os.environ['OPUS_UDS_PATH']
+    del os.environ['OPUS_MSG_AGGR']
+    del os.environ['OPUS_MAX_AGGR_MSG_SIZE']
+    del os.environ['OPUS_LOG_LEVEL']
+    opus_preload_lib = path_normalise(os.path.join(cfg['install_dir'],
+                                                   'lib',
+                                                   'libopusinterpose.so'))
+    if os.environ['LD_PRELOAD'] == opus_preload_lib:
+        del os.environ['LD_PRELOAD']
+    else:
+        os.environ['LD_PRELOAD'] = os.environ['LD_PRELOAD'].replace(
+            opus_preload_lib, ""
+        ).strip()
+
+
 @auto_read_config
 def handle_exclude(cfg, binary, arguments):
     if is_opus_active():
-        del os.environ['OPUS_INTERPOSE_MODE']
-        del os.environ['OPUS_UDS_PATH']
-        del os.environ['OPUS_MSG_AGGR']
-        del os.environ['OPUS_MAX_AGGR_MSG_SIZE']
-        del os.environ['OPUS_LOG_LEVEL']
-        opus_preload_lib = path_normalise(os.path.join(cfg['install_dir'],
-                                                       'lib',
-                                                       'libopusinterpose.so'))
-        if os.environ['LD_PRELOAD'] == opus_preload_lib:
-            del os.environ['LD_PRELOAD']
-        else:
-            os.environ['LD_PRELOAD'] = os.environ['LD_PRELOAD'].replace(
-                opus_preload_lib, ""
-            ).strip()
+        reset_opus_env(cfg)
     else:
         print("OPUS is not active.")
     os.execvp(binary, [binary] + arguments)
