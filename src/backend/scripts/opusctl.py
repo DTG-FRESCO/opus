@@ -1,8 +1,5 @@
 #! /usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-"""
-
-"""
 from __future__ import (absolute_import, division,
                         print_function)
 
@@ -185,6 +182,7 @@ def is_opus_active():
             "libopusinterpose.so" in os.environ['LD_PRELOAD'] and
             ("OPUS_INTERPOSE_MODE" in os.environ and
              os.environ['OPUS_INTERPOSE_MODE'] != "0"))
+
 
 def is_opus_ipose_lib_set():
     return ("LD_PRELOAD" in os.environ and
@@ -581,9 +579,9 @@ def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
             color = no_inter_color
     else:
         color = offline_color
-    print(fmt_str.replace("{}",
-                          colored(symbol, color)
-                          ).encode("utf-8"),
+    print(fmt_str.replace(
+        "{}",
+        colored(symbol, color)).encode("utf-8"),
           end="")
 
 
