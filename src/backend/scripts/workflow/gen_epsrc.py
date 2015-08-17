@@ -9,15 +9,15 @@ from __future__ import (absolute_import, division,
 
 import os
 import datetime
-import yaml
 import jinja2
 import webbrowser
 import argparse
 import shutil
 import tempfile
+import pkg_resources
 from termcolor import colored
 
-import workflow_helper as wfh
+import opus.scripts.workflow_helper as wfh
 
 exec_list = []  # Contains list of executables
 visited_list = []
@@ -27,10 +27,6 @@ pid_files_map = {}
 src_code_extns = ['.py', '.c', '.cpp', '.C', '.sh', '.pl']
 start_filters = ['/tmp/']
 end_filters = ['.cls', '.aux', '.cache']
-
-
-class FailedOpusPath(Exception):
-    pass
 
 
 class FileTypes(object):
@@ -392,30 +388,6 @@ def package_code_data(rec_list_for_upload, files_data, dest_dir, cur_time):
     return render_data
 
 
-def get_opus_scripts_dir():
-    config_path = "~/.opus-cfg"
-    if 'OPUS_MASTER_CONFIG' in os.environ:
-        config_path = os.environ['OPUS_MASTER_CONFIG']
-        config_path = os.path.abspath(os.path.expanduser(config_path))
-
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as cfg_file:
-                cfg_file.readline().rstrip()  # First line not needed
-                cfg = yaml.load(cfg_file.read())
-            opus_scripts_path = os.path.join(cfg['install_dir'],
-                                             "src",
-                                             "backend",
-                                             "scripts")
-            opus_scripts_path = os.path.abspath(
-                os.path.expanduser(opus_scripts_path))
-            return opus_scripts_path
-        except [yaml.error.YAMLError, IOError]:
-            raise FailedOpusPath()
-    else:
-        raise FailedOpusPath()
-
-
 def main():
     parser = argparse.ArgumentParser(description="This program retrieves the "
                                      "workflow used to produce the queried "
@@ -437,20 +409,13 @@ def main():
     render_data = package_code_data(rec_list_for_upload, files_data,
                                     args.dest, cur_time)
 
-    try:
-        opus_scripts_dir = get_opus_scripts_dir()
-    except FailedOpusPath:
-        print("Error: Could not find OPUS install path")
-        return
-
-    workflow_script_dir = os.path.join(opus_scripts_dir, "workflow")
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(
-        workflow_script_dir))
     report_file_name = "epsrc_report." + cur_time + ".html"
     epsrc_report = os.path.join(args.dest, report_file_name)
     try:
         with open(epsrc_report, "wt") as epsrc_file:
-            epsrc_tmpl = env.get_template("epsrc.tmpl")
+            epsrc_tmpl = jinja2.Template(
+                pkg_resources.resource_string("opus.scripts", "epsrc.tmpl")
+                )
             epsrc_file.write(epsrc_tmpl.render(file_list=render_data))
     except IOError as exc:
         print(exc)

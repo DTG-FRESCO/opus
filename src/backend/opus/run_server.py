@@ -6,7 +6,7 @@ the appropriate config file and starts the applications main loop.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import (custom_time, management)
+from . import (custom_time, management)
 
 import argparse
 import logging

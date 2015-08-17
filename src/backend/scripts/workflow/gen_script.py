@@ -12,7 +12,7 @@ import datetime
 import argparse
 from termcolor import colored
 
-import workflow_helper as wfh
+import opus.scripts.workflow_helper as wfh
 
 visited_list = []
 

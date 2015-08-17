@@ -11,7 +11,7 @@ import os
 import subprocess
 import argparse
 
-import workflow_helper as wfh
+import opus.scripts.workflow_helper as wfh
 
 printed_list = []
 visited_list = []
