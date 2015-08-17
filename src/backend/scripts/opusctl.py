@@ -579,9 +579,8 @@ def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
             color = no_inter_color
     else:
         color = offline_color
-    print(fmt_str.replace(
-        "{}",
-        colored(symbol, color)).encode("utf-8"),
+    print(fmt_str.replace("{}",
+                          colored(symbol, color)).encode("utf-8"),
           end="")
 
 
