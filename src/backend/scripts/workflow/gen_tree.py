@@ -7,11 +7,18 @@ Produces a Tree View of the workflow
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import argparse
 import os
 import subprocess
-import argparse
+import sys
 
-import opus.scripts.workflow_helper as wfh
+try:
+    import opus.scripts.workflow_helper as wfh
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
+
 
 printed_list = []
 visited_list = []

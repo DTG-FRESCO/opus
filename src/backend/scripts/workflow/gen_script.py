@@ -7,12 +7,24 @@ Generates EPSRC report
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-import os
-import datetime
 import argparse
-from termcolor import colored
+import datetime
+import os
+import sys
 
-import opus.scripts.workflow_helper as wfh
+try:
+    from termcolor import colored
+except ImportError as exe:
+    print(exe.message)
+    sys.exit(1)
+
+try:
+    import opus.scripts.workflow_helper as wfh
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
+
 
 visited_list = []
 
