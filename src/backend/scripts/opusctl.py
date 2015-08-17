@@ -15,10 +15,15 @@ import os.path
 import sys
 import time
 
-import prettytable
-import psutil
-import yaml
-from termcolor import colored, COLORS
+try:
+    import prettytable
+    import psutil
+    import yaml
+    from termcolor import colored, COLORS
+except ImportError as exe:
+    if '-v' in sys.argv:
+        print(exe.message)
+    sys.exit(1)
 
 OPUS_AVAILABLE = True
 try:
@@ -603,6 +608,9 @@ def parse_args():
     parser.add_argument("--config", required=False, default=CONFIG_PATH,
                         help="Path to OPUS master config file.")
 
+    parser.add_argument("-v", action="store_true",
+                        help="Print verbose errors.")
+
     group_parser = parser.add_subparsers(dest="group")
     proc_parser = group_parser.add_parser(
         "process",
@@ -705,7 +713,7 @@ def main():
 
     params = {k: v
               for k, v in args._get_kwargs()  # pylint: disable=W0212
-              if k != 'group'}
+              if k not in ['group', 'v']}
 
     try:
         if args.group == "process":
