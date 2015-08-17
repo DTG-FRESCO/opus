@@ -1,8 +1,5 @@
 #! /usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-"""
-
-"""
 from __future__ import (absolute_import, division,
                         print_function)
 
@@ -15,10 +12,15 @@ import os.path
 import sys
 import time
 
-import prettytable
-import psutil
-import yaml
-from termcolor import colored, COLORS
+try:
+    import prettytable
+    import psutil
+    import yaml
+    from termcolor import colored, COLORS
+except ImportError as exe:
+    if '-v' in sys.argv:
+        print(exe.message)
+    sys.exit(1)
 
 OPUS_AVAILABLE = True
 try:
@@ -180,6 +182,7 @@ def is_opus_active():
             "libopusinterpose.so" in os.environ['LD_PRELOAD'] and
             ("OPUS_INTERPOSE_MODE" in os.environ and
              os.environ['OPUS_INTERPOSE_MODE'] != "0"))
+
 
 def is_opus_ipose_lib_set():
     return ("LD_PRELOAD" in os.environ and
@@ -577,8 +580,7 @@ def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
     else:
         color = offline_color
     print(fmt_str.replace("{}",
-                          colored(symbol, color)
-                          ).encode("utf-8"),
+                          colored(symbol, color)).encode("utf-8"),
           end="")
 
 
@@ -602,6 +604,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=False, default=CONFIG_PATH,
                         help="Path to OPUS master config file.")
+
+    parser.add_argument("-v", action="store_true",
+                        help="Print verbose errors.")
 
     group_parser = parser.add_subparsers(dest="group")
     proc_parser = group_parser.add_parser(
@@ -705,7 +710,7 @@ def main():
 
     params = {k: v
               for k, v in args._get_kwargs()  # pylint: disable=W0212
-              if k != 'group'}
+              if k not in ['group', 'v']}
 
     try:
         if args.group == "process":

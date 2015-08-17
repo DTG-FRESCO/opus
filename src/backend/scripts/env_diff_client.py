@@ -7,14 +7,24 @@ OPUS environment and dependencies diff tool
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import cc_utils
-
 import argparse
 import datetime
 import os
+import sys
 import textwrap
 
-import prettytable
+try:
+    import prettytable
+except ImportError as exe:
+    print(exe.message)
+    sys.exit(1)
+
+try:
+    from opus import cc_utils
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
 
 
 def sync_send_message(args, msg):

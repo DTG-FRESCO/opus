@@ -9,8 +9,14 @@ from __future__ import (absolute_import, division,
 import argparse
 import os
 import os.path
+import sys
 
-from opus import cc_utils
+try:
+    from opus import cc_utils
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
 
 
 def exec_query(args):
