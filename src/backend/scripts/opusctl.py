@@ -435,20 +435,25 @@ def handle_launch(cfg, binary, arguments):
 
 
 def reset_opus_env(cfg):
-    del os.environ['OPUS_INTERPOSE_MODE']
-    del os.environ['OPUS_UDS_PATH']
-    del os.environ['OPUS_MSG_AGGR']
-    del os.environ['OPUS_MAX_AGGR_MSG_SIZE']
-    del os.environ['OPUS_LOG_LEVEL']
+    opus_vars = ['OPUS_INTERPOSE_MODE',
+                 'OPUS_UDS_PATH',
+                 'OPUS_MSG_AGGR',
+                 'OPUS_MAX_AGGR_MSG_SIZE',
+                 'OPUS_LOG_LEVEL']
+    for var in opus_vars:
+        if var in os.environ:
+            del os.environ[var]
+
     opus_preload_lib = path_normalise(os.path.join(cfg['install_dir'],
                                                    'lib',
                                                    'libopusinterpose.so'))
-    if os.environ['LD_PRELOAD'] == opus_preload_lib:
-        del os.environ['LD_PRELOAD']
-    else:
-        os.environ['LD_PRELOAD'] = os.environ['LD_PRELOAD'].replace(
-            opus_preload_lib, ""
-        ).strip()
+    if 'LD_PRELOAD' in os.environ:
+        if os.environ['LD_PRELOAD'] == opus_preload_lib:
+            del os.environ['LD_PRELOAD']
+        else:
+            os.environ['LD_PRELOAD'] = os.environ['LD_PRELOAD'].replace(
+                opus_preload_lib, ""
+            ).strip()
 
 
 @auto_read_config
