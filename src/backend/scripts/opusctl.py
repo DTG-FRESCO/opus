@@ -175,16 +175,15 @@ def compute_config_check(cfg):
     return cfg_str, sha1.hexdigest()
 
 
-def is_opus_active():
-    return ("LD_PRELOAD" in os.environ and
-            "libopusinterpose.so" in os.environ['LD_PRELOAD'] and
-            ("OPUS_INTERPOSE_MODE" in os.environ and
-             os.environ['OPUS_INTERPOSE_MODE'] != "0"))
-
-
 def is_opus_ipose_lib_set():
     return ("LD_PRELOAD" in os.environ and
             "libopusinterpose.so" in os.environ['LD_PRELOAD'])
+
+
+def is_opus_active():
+    return (is_opus_ipose_lib_set() and
+            ("OPUS_INTERPOSE_MODE" in os.environ and
+             os.environ['OPUS_INTERPOSE_MODE'] != "0"))
 
 
 def read_config(config_path):
