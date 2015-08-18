@@ -298,21 +298,11 @@ def generate_server_cfg_file(cfg):
                 cc_port=cc_port))
 
 
-def is_server_active(cfg):
-    opus_pid_file = path_normalise(os.path.join(cfg['install_dir'], ".pid"))
-    try:
-        with open(opus_pid_file, "r") as p_file:
-            opus_pid = int(p_file.read())
-    except IOError:
-        return False
-
-    try:
-        opus = psutil.Process(opus_pid)
-    except psutil.NoSuchProcess:
-        return False
-
-    cmd_str = ' '.join(opus.cmdline())
-    return "opus.run_server" in cmd_str
+def is_server_active():
+    for proc in psutil.process_iter():
+        if "opus.run_server" in " ".join(proc.cmdline()):
+            return True
+    return False
 
 
 def elapsed(reset=False):
@@ -332,7 +322,7 @@ def monitor_server_startup(cfg):
     elapsed(reset=True)
     time.sleep(0.1)
     while elapsed() < 20:
-        server_active = is_server_active(cfg)
+        server_active = is_server_active()
         try:
             helper = cc_utils.CommandConnectionHelper("localhost",
                                                       int(cfg['cc_port']))
@@ -398,9 +388,6 @@ def start_opus_server(cfg):
     os.dup2(sto.fileno(), sys.stderr.fileno())
     sto.close()
 
-    opus_pid_file = path_normalise(os.path.join(cfg['install_dir'],
-                                                ".pid"))
-
     server_cfg_path = path_normalise(os.path.join(cfg['install_dir'],
                                                   "opus-cfg.yaml"))
 
@@ -409,10 +396,6 @@ def start_opus_server(cfg):
         if pid > 0:
             os.waitpid(pid, 0)
         else:
-            pid = str(os.getpid())
-            p_file = open(opus_pid_file, 'w+')
-            p_file.write(pid)
-            p_file.close()
             os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'cpp'
             os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
             os.execvp(cfg['python_binary'],
@@ -424,12 +407,10 @@ def start_opus_server(cfg):
     except OSError:
         sys.exit(1)
 
-    os.unlink(opus_pid_file)
-
 
 @auto_read_config
 def handle_launch(cfg, binary, arguments):
-    if not is_server_active(cfg):
+    if not is_server_active():
         if not start_opus_server(cfg):
             print("Aborting command launch.")
             return
@@ -481,7 +462,7 @@ def handle_exclude(cfg, binary, arguments):
 
 def handle_start(cfg):
     '''Starts OPUS server.'''
-    if not is_server_active(cfg):
+    if not is_server_active():
         start_opus_server(cfg)
     else:
         print("OPUS server already running.")
@@ -499,7 +480,7 @@ def handle_server(cfg, cmd, **params):
     if cmd == "start":
         handle_start(cfg=cfg, **params)
     else:
-        if not is_server_active(cfg):
+        if not is_server_active():
             print("Server is not running.")
             return
 
@@ -566,10 +547,10 @@ def handle_util(cmd, **params):
 
 
 @auto_read_config
-def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
+def handle_ps_line(offline_color, no_inter_color, inter_color,
                    symbol, fmt_str):
     term_status = is_opus_active()
-    server_status = is_server_active(cfg)
+    server_status = is_server_active()
     if server_status:
         if term_status:
             color = inter_color
