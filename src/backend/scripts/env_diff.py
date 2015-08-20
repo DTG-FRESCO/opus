@@ -102,9 +102,9 @@ def get_diff_input(cmd_args, result, prog_name):
             print("Modifications to binary \"%s\":" % (prog_name))
             mod_hist = prettytable.PrettyTable(["Modified By", "Modified At"])
             mod_hist.align["Modified By"] = "l"
-            for mod_program, sys_time in result['bin_mods']:
-                mod_hist.add_row([textwrap.fill(mod_program, 40),
-                                  sys_time])
+            for res in result['bin_mods']:
+                mod_hist.add_row([textwrap.fill(res['prog'], 40),
+                                res['date']])
             print(mod_hist)
 
         print("Differences in Resource limits, command line and user "
