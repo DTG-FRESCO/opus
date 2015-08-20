@@ -551,7 +551,7 @@ def handle_util(cmd, **params):
 
 
 @auto_read_config
-def handle_ps_line(offline_color, no_inter_color, inter_color,
+def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
                    symbol, fmt_str):
     term_status = is_opus_active()
     server_status = is_server_active()
