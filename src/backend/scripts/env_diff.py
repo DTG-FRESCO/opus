@@ -104,7 +104,7 @@ def get_diff_input(cmd_args, result, prog_name):
             mod_hist.align["Modified By"] = "l"
             for res in result['bin_mods']:
                 mod_hist.add_row([textwrap.fill(res['prog'], 40),
-                                res['date']])
+                                  res['date']])
             print(mod_hist)
 
         print("Differences in Resource limits, command line and user "
