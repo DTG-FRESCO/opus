@@ -6,6 +6,10 @@ subsystems and for sending commands to those subsystems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import logging
+import md5
+import random
+import traceback
 
 from . import query
 
@@ -34,10 +38,24 @@ class CommandControl(object):
     def exec_cmd(self, msg):
         '''Executes a command message that it has recieved, producing a
         response message.'''
-        if msg['cmd'] in self.command_handlers:
-            return self.command_handlers[msg['cmd']](self, msg)
-        else:
-            return {"success": False, "msg": "Invalid command name."}
+
+        try:
+            if msg['cmd'] in self.command_handlers:
+                return self.command_handlers[msg['cmd']](self, msg)
+            else:
+                return {"success": False, "msg": "Invalid command name."}
+        except Exception as exe:
+            errorid = md5.new(str(random.getrandbits(128))).hexdigest()
+            stack_trace = traceback.format_exc()
+            logging.error("Exception occurred processing command.\n"
+                          "Errorid:{}\n"
+                          "Command:\n{}\n"
+                          "Exception:\n{}".format(errorid, msg, stack_trace))
+            rsp = {"success": False,
+                   "msg": stack_trace}
+            return rsp
+
+
 
     def run(self):
         '''Engages the systems processing loop.'''

@@ -6,8 +6,6 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import logging
-import md5
-import random
 import select
 import socket
 
@@ -69,19 +67,7 @@ class TCPInterface(CommandInterface):
                 continue
 
             pay = cc_utils.recv_cc_msg(new_conn)
-
-            try:
-                rsp = self.command_control.exec_cmd(pay)
-            except Exception as exe:
-                errorid = md5.new(str(random.getrandbits(128))).hexdigest()
-                logging.error("Exception occurred processing command.\n"
-                              "Errorid:{}\n"
-                              "Command:\n{}\n"
-                              "Exception:\n{}".format(errorid, pay, exe))
-                rsp = {"success": False,
-                       "msg": "Command failed due to an unhandled exception. "
-                              "Errorid:{}".format(errorid)}
-
+            rsp = self.command_control.exec_cmd(pay)
             cc_utils.send_cc_msg(new_conn, rsp)
 
             if pay['cmd'] == "stop" and rsp['success']:
