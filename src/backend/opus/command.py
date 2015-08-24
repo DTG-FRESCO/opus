@@ -45,17 +45,16 @@ class CommandControl(object):
             else:
                 return {"success": False, "msg": "Invalid command name."}
         except Exception as exe:
-            errorid = md5.new(str(random.getrandbits(128))).hexdigest()
+            errorid = hex(random.getrandbits(128))[2:-1]
             stack_trace = traceback.format_exc()
             logging.error("Exception occurred processing command.\n"
-                          "Errorid:{}\n"
-                          "Command:\n{}\n"
-                          "Exception:\n{}".format(errorid, msg, stack_trace))
+                          "Errorid: %s\n"
+                          "Command:\n%s\n"
+                          "Exception:\n%s\n"
+                          "Stack Trace:\n%s\n", errorid, msg, exe, stack_trace)
             rsp = {"success": False,
-                   "msg": stack_trace}
+                   "msg": "Errorid: {}".format(errorid)}
             return rsp
-
-
 
     def run(self):
         '''Engages the systems processing loop.'''
