@@ -80,10 +80,10 @@ def static_var(varname, value):
     return decorate
 
 
-@static_var("counter", 0)
 def get_next_key():
     get_next_key.counter += 1
     return get_next_key.counter
+get_next_key.counter = 0
 
 
 def copy_files(pid, proc_rec):
