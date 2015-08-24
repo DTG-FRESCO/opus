@@ -168,7 +168,8 @@ def auto_read_config(func):
 
 def skip_config(func):
     @functools.wraps(func)
-    def wrap(config, *args, **kwargs):
+    def wrap(config, *args, **kwargs):  # pylint: disable=unused-argument
+        # Disable needed as args are passed by keyword
         return func(*args, **kwargs)
     return wrap
 
