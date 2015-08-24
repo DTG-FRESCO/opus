@@ -7,11 +7,18 @@ Produces a Tree View of the workflow
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import argparse
 import os
 import subprocess
-import argparse
+import sys
 
-import opus.scripts.workflow_helper as wfh
+try:
+    import opus.scripts.workflow_helper as wfh
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
+
 
 printed_list = []
 visited_list = []
@@ -60,17 +67,21 @@ def collapse_children(level, node_id, p_map, new_p_map, tkey=None):
 
         if tkey not in new_p_map:
             new_p_map[tkey] = {}
-            new_p_map[tkey]['pid'] = p_map[node_id]['pid']
-            new_p_map[tkey]['cmd_args'] = p_map[node_id]['cmd_args']
-            new_p_map[tkey]['read_files'] = p_map[node_id]['read_files']
-            new_p_map[tkey]['write_files'] = p_map[node_id]['write_files']
-            new_p_map[tkey]['read_write_files'] = p_map[node_id]['read_write_files']
-            new_p_map[tkey]['executed_files'] = p_map[node_id]['executed_files']
+            new = new_p_map[tkey]
+            old = p_map[node_id]
+            new['pid'] = old['pid']
+            new['cmd_args'] = old['cmd_args']
+            new['read_files'] = old['read_files']
+            new['write_files'] = old['write_files']
+            new['read_write_files'] = old['read_write_files']
+            new['executed_files'] = old['executed_files']
         else:
-            new_p_map[tkey]['read_files'].extend(p_map[node_id]['read_files'])
-            new_p_map[tkey]['write_files'].extend(p_map[node_id]['write_files'])
-            new_p_map[tkey]['read_write_files'].extend(p_map[node_id]['read_write_files'])
-            new_p_map[tkey]['executed_files'].extend(p_map[node_id]['executed_files'])
+            new = new_p_map[tkey]
+            old = p_map[node_id]
+            new['read_files'].extend(old['read_files'])
+            new['write_files'].extend(old['write_files'])
+            new['read_write_files'].extend(old['read_write_files'])
+            new['executed_files'].extend(old['executed_files'])
 
     # Recursively get data for children or execed processes
     if 'execed' in p_map[node_id]:
@@ -106,50 +117,55 @@ def collapse(p_map):
     return new_p_map
 
 
+def print_node(node, dot_fh):
+    proc_pid = node['pid']
+    proc_cmd = node['cmd_args']
+    dot_fh.write("    %d [label=\"%s\"];\n" % (proc_pid,
+                                               proc_cmd[:80] +
+                                               (proc_cmd[80:] and "...")))
+    if len(node['read_files']) > 0:
+        read_files = sorted(set(
+            node['read_files']))
+        for f in read_files:
+            if check_filter(f) is False:
+                continue
+            check_f(f, dot_fh)
+            dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
+    if len(node['write_files']) > 0:
+        write_files = sorted(set(
+            node['write_files']))
+        for f in write_files:
+            if check_filter(f) is False:
+                continue
+            check_f(f, dot_fh)
+            dot_fh.write("    %d -> \"%s\";\n" % (proc_pid, f))
+    if len(node['read_write_files']) > 0:
+        read_write_files = sorted(set(
+            node['read_write_files']))
+        for f in read_write_files:
+            if check_filter(f) is False:
+                continue
+            check_f(f, dot_fh)
+            dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
+            dot_fh.write("    %d -> \"%s\";\n" % (proc_pid, f))
+    if len(node['executed_files']) > 0:
+        executed_files = sorted(set(
+            node['executed_files']))
+        for f in executed_files:
+            if check_filter(f) is False:
+                continue
+            check_f(f, dot_fh)
+            dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
+
+
 def print_recursive(node_id, proc_tree_map, dot_fh):
     proc_pid = proc_tree_map[node_id]['pid']
-    proc_cmd = proc_tree_map[node_id]['cmd_args']
     if node_id in printed_list:
         return proc_pid
     printed_list.append(node_id)
 
     if len(proc_tree_map[node_id]['cmd_args']) > 0:
-        dot_fh.write("    %d [label=\"%s\"];\n" % (proc_pid,
-                                                   proc_cmd[:80] +
-                                                   (proc_cmd[80:] and "...")))
-        if len(proc_tree_map[node_id]['read_files']) > 0:
-            read_files = sorted(set(
-                proc_tree_map[node_id]['read_files']))
-            for f in read_files:
-                if check_filter(f) is False:
-                    continue
-                check_f(f, dot_fh)
-                dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
-        if len(proc_tree_map[node_id]['write_files']) > 0:
-            write_files = sorted(set(
-                proc_tree_map[node_id]['write_files']))
-            for f in write_files:
-                if check_filter(f) is False:
-                    continue
-                check_f(f, dot_fh)
-                dot_fh.write("    %d -> \"%s\";\n" % (proc_pid, f))
-        if len(proc_tree_map[node_id]['read_write_files']) > 0:
-            read_write_files = sorted(set(
-                proc_tree_map[node_id]['read_write_files']))
-            for f in read_write_files:
-                if check_filter(f) is False:
-                    continue
-                check_f(f, dot_fh)
-                dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
-                dot_fh.write("    %d -> \"%s\";\n" % (proc_pid, f))
-        if len(proc_tree_map[node_id]['executed_files']) > 0:
-            executed_files = sorted(set(
-                proc_tree_map[node_id]['executed_files']))
-            for f in executed_files:
-                if check_filter(f) is False:
-                    continue
-                check_f(f, dot_fh)
-                dot_fh.write("    \"%s\" -> %d;\n" % (f, proc_pid))
+        print_node(proc_tree_map[node_id], dot_fh)
 
     if 'execed' in proc_tree_map[node_id]:
         el = proc_tree_map[node_id]['execed']

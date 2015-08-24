@@ -7,17 +7,29 @@ Generates EPSRC report
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-import os
-import datetime
-import jinja2
-import webbrowser
 import argparse
+import datetime
+import os
 import shutil
+import sys
 import tempfile
-import pkg_resources
-from termcolor import colored
+import webbrowser
 
-import opus.scripts.workflow_helper as wfh
+try:
+    from termcolor import colored
+    import jinja2
+    import pkg_resources
+except ImportError as exe:
+    print(exe.message)
+    sys.exit(1)
+
+try:
+    import opus.scripts.workflow_helper as wfh
+except ImportError:
+    print("Failed to locate OPUS libs, check your $PYTHONPATH"
+          "and try again.")
+    sys.exit(1)
+
 
 exec_list = []  # Contains list of executables
 visited_list = []
@@ -68,10 +80,10 @@ def static_var(varname, value):
     return decorate
 
 
-@static_var("counter", 0)
 def get_next_key():
     get_next_key.counter += 1
     return get_next_key.counter
+get_next_key.counter = 0
 
 
 def copy_files(pid, proc_rec):
