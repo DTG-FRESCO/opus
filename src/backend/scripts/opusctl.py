@@ -166,6 +166,13 @@ def auto_read_config(func):
     return inner
 
 
+def skip_config(func):
+    @functools.wraps(func)
+    def wrap(config, *args, **kwargs):
+        return func(*args, **kwargs)
+    return wrap
+
+
 @memoised
 def compute_config_check(cfg):
     sha1 = hashlib.sha1()
@@ -550,8 +557,8 @@ def handle_util(cmd, **params):
         handle_ps_line(**params)
 
 
-@auto_read_config
-def handle_ps_line(cfg, offline_color, no_inter_color, inter_color,
+@skip_config
+def handle_ps_line(offline_color, no_inter_color, inter_color,
                    symbol, fmt_str):
     term_status = is_opus_active()
     server_status = is_server_active()
