@@ -25,20 +25,34 @@ def exec_query(args):
     helper = cc_utils.CommandConnectionHelper(args.host, args.port)
 
     filename = args.name
-    if os.path.isfile(filename):
-        filename = os.path.abspath(args.name)
-        filename = os.path.realpath(filename)
 
-    if(os.path.isdir(filename) or args.directory) and not args.file:
-        result = query_folder(helper, filename)
-    else:
+    if args.directory or (os.path.isdir(filename) and not args.file):
+        if filename[-1] == "/":
+            # Trailing slash causes backend query to return no results.
+            filename = filename[:-1]
+
+        result = query_folder(helper, filename, args.limit)
+    elif args.file or (os.path.isfile(filename) and not args.directory):
+        filename = os.path.abspath(filename)
+
+        if os.path.isfile(filename):
+            filename = os.path.realpath(filename)
+
         result = query_file(helper, filename)
+    else:
+        print("Path does not exist in the filesystem. Please pass either"
+              "-F or -D as appropriate.")
+        return
 
     if not result['success']:
         print(result['msg'])
     else:
         for record in result['data']:
-            print("{ts} - {cmd}".format(**record))
+            if args.trunc:
+                cmd = record['cmd'][:75] + (record['cmd'][75:] and '..')
+            else:
+                cmd = record['cmd']
+            print("{ts} - {cmd}".format(ts=record['ts'], cmd=cmd))
 
 
 def query_file(helper, name):
@@ -50,13 +64,14 @@ def query_file(helper, name):
                                 "qry_args": {'name': name}})
 
 
-def query_folder(helper, name):
+def query_folder(helper, name, limit):
     '''Performs a query returning the last 5 commands used on a folder.'''
-    print("Last 5 commands performed in %s:" % name)
+    print("Last {} commands performed in {}:".format(limit, name))
 
     return helper.make_request({'cmd': "exec_qry_method",
                                 'qry_method': "query_folder",
-                                "qry_args": {'name': name}})
+                                "qry_args": {'name': name,
+                                             'limit': limit}})
 
 
 def main():
@@ -69,6 +84,13 @@ def main():
                        help="Force the program to treat NAME as a directory.")
     group.add_argument("-F", "--file", action="store_true",
                        help="Force the program to treat NAME as a file.")
+
+    parser.add_argument("-L", "--limit", type=int, default=5,
+                        help="Number of results to return for directory "
+                        "queries.")
+
+    parser.add_argument("--no-trunc", action="store_false", dest="trunc",
+                        help="Disable truncation of long commands.")
 
     parser.add_argument("name", type=str)
 

@@ -27,10 +27,14 @@ def query_file(db_iface, args):
         "RETURN distinct p, m.value as val "
         "ORDER BY p.sys_time DESC LIMIT " + result_limit)
 
-    return {"success": True,
-            "data": [{'ts': fmt_time(r['p']['sys_time']),
-                      'cmd': r['val']}
-                     for r in rows]}
+    data = [{'ts': fmt_time(r['p']['sys_time']),
+             'cmd': r['val']}
+            for r in rows]
+
+    if len(data) > 0:
+        return {'success': True, 'data': data}
+    else:
+        return {'success': False, 'msg': "No data available for that file."}
 
 
 @client_query.ClientQueryControl.register_query_method("query_folder")
@@ -40,7 +44,7 @@ def query_folder(db_iface, args):
     result_limit = "20"  # Default
 
     if 'limit' in args:
-        result_limit = args['limit']
+        result_limit = str(args['limit'])
 
     if 'name' not in args:
         return {"success": False, "msg": "Folder name not provided in message"}
@@ -56,7 +60,12 @@ def query_folder(db_iface, args):
         "RETURN m1.value as val, p "
         "ORDER BY p.sys_time DESC LIMIT " + result_limit)
 
-    return {"success": True,
-            "data": [{'ts': fmt_time(r['p']['sys_time']),
-                      'cmd': r['val']}
-                     for r in rows]}
+    data = [{'ts': fmt_time(r['p']['sys_time']),
+             'cmd': r['val']}
+            for r in rows]
+
+    if len(data) > 0:
+        return {'success': True, 'data': data}
+    else:
+        return {'success': False,
+                'msg': "No programs recorded executing from that directory."}
