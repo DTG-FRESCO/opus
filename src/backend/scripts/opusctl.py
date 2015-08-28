@@ -16,7 +16,7 @@ try:
     import prettytable
     import psutil
     import yaml
-    from termcolor import colored, COLORS
+    from termcolor import colored
 except ImportError as exe:
     if '-v' in sys.argv:
         print(exe.message)
@@ -52,9 +52,6 @@ def memoised(func):
 @memoised
 def path_normalise(path):
     return os.path.abspath(os.path.expanduser(path))
-
-
-PS_SYMBOL = u"●"
 
 
 DEFAULT_CONFIG_PATH = "~/.opus-cfg"
@@ -559,20 +556,22 @@ def handle_util(cmd, **params):
 
 
 @skip_config
-def handle_ps_line(offline_color, no_inter_color, inter_color,
-                   symbol, fmt_str):
+def handle_ps_line(mode):
     term_status = is_opus_active()
     server_status = is_server_active()
-    if server_status:
+    if mode == "unicode":
         if term_status:
-            color = inter_color
-        else:
-            color = no_inter_color
-    else:
-        color = offline_color
-    print(fmt_str.replace("{}",
-                          colored(symbol, color)).encode("utf-8"),
-          end="")
+            if server_status:
+                print(u"☑".encode("utf-8"), end="")
+            else:
+                print(u"☒".encode("utf-8"), end="")
+    elif mode == "return":
+        return_code = 0
+        if server_status:
+            return_code |= 0b1
+        if term_status:
+            return_code |= 0b10
+        sys.exit(return_code)
 
 
 def print_status_rsp(pay):
@@ -669,29 +668,26 @@ def parse_args():
     util_cmds = util_parser.add_subparsers(dest="cmd")
     ps_line_parser = util_cmds.add_parser(
         "ps-line",
-        help=(u"Provides a $PS line component for indicating the status "
-              u"of OPUS. "
-              u"{} : Server running and current session interposed. "
-              u"{} : Server running but no session interposition. "
-              u"{} : Server offline.").format(colored(PS_SYMBOL, "green"),
-                                              colored(PS_SYMBOL, "red"),
-                                              colored(PS_SYMBOL, "white")
-                                              ).encode("utf-8"))
-    ps_line_parser.add_argument("--offline-color", choices=COLORS.keys(),
-                                default="white", help="Color to render the "
-                                "symbol in when the server is offline.")
-    ps_line_parser.add_argument("--no-inter-color", choices=COLORS.keys(),
-                                default="red", help="Color to render the "
-                                "symbol in when the session is not "
-                                "interposed.")
-    ps_line_parser.add_argument("--inter-color", choices=COLORS.keys(),
-                                default="green", help="Color to render the "
-                                "symbol in when the session is interposed.")
-    ps_line_parser.add_argument("--symbol", default=PS_SYMBOL,
-                                help="Symbol to print.")
-    ps_line_parser.add_argument("--format", dest="fmt_str", default="{}",
-                                help='Output, {} is replaced with the '
-                                "symbol appropriatly coloured.")
+        help="Provides a $PS line component for indicating the status "
+             "of OPUS.")
+
+    ps_mode = ps_line_parser.add_mutually_exclusive_group(required=True)
+    ps_mode.add_argument("--unicode", dest="mode",
+                         action="store_const", const="unicode",
+                         help=u"Express OPUS status using unicode symbols. "
+                         u"Prints nothing if the terminal interposition is "
+                         u"off. Prints ☒ if the terminal is interposed but "
+                         u"the server is off. Prints ☑ if both the terminal "
+                         u"is interposed and the server is "
+                         u"on.".encode("utf-8"))
+    ps_mode.add_argument("--return", dest="mode",
+                         action="store_const", const="return",
+                         help="Express OPUS status as the return code of "
+                         "this command. The return code of this command "
+                         "encodes the status of the OPUS server and the "
+                         "terminal interposition. The lowest bit gives "
+                         "the server status and the next bit gives the "
+                         "terminal status.")
 
     return parser.parse_args()
 
