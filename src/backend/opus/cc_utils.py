@@ -101,7 +101,9 @@ class CommandConnectionHelper(object):
             raise BackendConnectionError("Failed to send message to backend:"
                                          " %s" % exc)
         try:
-            return recv_cc_msg(conn)
+            ret = recv_cc_msg(conn)
         except IOError as exc:
             raise BackendConnectionError("Failed to receive message from"
                                          " backend: %s" % exc)
+        conn.close()
+        return ret

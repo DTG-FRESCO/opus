@@ -13,7 +13,10 @@ def fmt_time(time):
 def query_file(db_iface, args):
     '''Given a file name, this method returns the
     last command that modified the file'''
-    result_limit = "10"  # Default
+    result_limit = "1"  # Default
+
+    if 'limit' in args:
+        result_limit = args['limit']
 
     if 'name' not in args:
         return {"success": False, "msg": "File name not provided in message"}
@@ -44,7 +47,7 @@ def query_folder(db_iface, args):
     result_limit = "20"  # Default
 
     if 'limit' in args:
-        result_limit = str(args['limit'])
+        result_limit = args['limit']
 
     if 'name' not in args:
         return {"success": False, "msg": "Folder name not provided in message"}
