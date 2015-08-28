@@ -5,6 +5,7 @@ Interfaces to the CommandControl system.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import errno
 import logging
 import select
 import socket
@@ -56,7 +57,11 @@ class TCPInterface(CommandInterface):
 
     def run(self):
         while True:
-            select.select([self.host_sock], [], [])
+            try:
+                select.select([self.host_sock], [], [])
+            except IOError as exc:
+                if exc.errno != errno.EINTR:
+                    raise
 
             (new_conn, new_addr) = self.host_sock.accept()
 
