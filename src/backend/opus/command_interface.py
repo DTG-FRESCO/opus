@@ -19,6 +19,10 @@ class CommandInterface(object):
         super(CommandInterface, self).__init__(*args, **kwargs)
         self.command_control = command_control
 
+    def stop(self):
+        '''Shuts down the main loop.'''
+        raise NotImplementedError()
+
     def run(self):
         '''Causes the system to loop and process commands.'''
         raise NotImplementedError()
@@ -29,6 +33,8 @@ class TCPInterface(CommandInterface):
     def __init__(self, listen_addr, listen_port, whitelist_location=None,
                  *args, **kwargs):
         super(TCPInterface, self).__init__(*args, **kwargs)
+
+        self.running = False
 
         self.whitelist = []
 
@@ -54,9 +60,15 @@ class TCPInterface(CommandInterface):
             raise CommandInterfaceStartupError("Failed to bind socket.")
         self.host_sock.listen(10)
 
+    def stop(self):
+        if self.running:
+            self.running = False
+
     def run(self):
-        while True:
-            select.select([self.host_sock], [], [])
+        self.running = True
+        while self.running:
+            if select.select([self.host_sock], [], [], 2) == ([], [], []):
+                continue
 
             (new_conn, new_addr) = self.host_sock.accept()
 
@@ -69,6 +81,3 @@ class TCPInterface(CommandInterface):
             pay = cc_utils.recv_cc_msg(new_conn)
             rsp = self.command_control.exec_cmd(pay)
             cc_utils.send_cc_msg(new_conn, rsp)
-
-            if pay['cmd'] == "stop" and rsp['success']:
-                break

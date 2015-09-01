@@ -484,6 +484,46 @@ def handle_process(cmd, **params):
         handle_exclude(**params)
 
 
+def monitor_shutdown(cfg, msg):
+    print("Shutdown initiated.")
+    total_msgs = msg['msg_count']
+    start_msgs = None
+    start_time = None
+    try:
+        while True:
+            helper = cc_utils.CommandConnectionHelper("localhost",
+                                                      int(cfg['cc_port']))
+            ret = helper.make_request({"cmd": "status"})
+            if ret['analyser']['status'] == 'Dead':
+                break
+            cur_msg = ret['analyser']['num_msgs']
+
+            if start_msgs is None:
+                start_msgs = cur_msg
+                start_time = time.time()
+                rem_time = ""
+            else:
+                msg_diff = start_msgs-cur_msg
+                time_diff = time.time()-start_time
+                msg_per_s = msg_diff/time_diff
+                rem_secs = int(cur_msg/msg_per_s)
+                m, s = divmod(rem_secs, 60)
+                h, m = divmod(m, 60)
+                rem_time = "{:02d}:{:02d}:{:02d}".format(h, m, s)
+
+            print(" "*50, end="\r")
+            print("{:.2f}% [{}/{}] {}".format((1-(cur_msg/total_msgs))*100,
+                                              cur_msg, total_msgs, rem_time),
+                  end="\r")
+            sys.stdout.flush()
+
+            time.sleep(2)
+    except exception.BackendConnectionError:
+        pass
+    print(" "*50, end="\r")
+    print("Shutdown complete.")
+
+
 @auto_read_config
 def handle_server(cfg, cmd, **params):
     if cmd == "start":
@@ -504,13 +544,10 @@ def handle_server(cfg, cmd, **params):
         msg.update(params)
         pay = helper.make_request(msg)
 
-        if cmd == "stop":
-            if pay['success']:
-                print("Server stopped successfully.")
-            else:
-                print("Server stop failed.")
-        elif not pay['success']:
+        if not pay['success']:
             print(pay['msg'])
+        elif cmd == "stop":
+            monitor_shutdown(cfg, pay)
         elif cmd == "ps":
             tab = prettytable.PrettyTable(['Pid',
                                            'Command Line',
