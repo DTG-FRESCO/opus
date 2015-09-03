@@ -502,6 +502,17 @@ def _calc_rem_time(msgs):
 
 def monitor_shutdown(helper, msg):
     print("Shutdown initiated.")
+    print("Shutting down Producer...", end="")
+    try:
+        while True:
+            ret = helper.make_request({"cmd": "status"})
+            if ret['producer']['status'] == "Dead":
+                break
+    except exception.BackendConnectionError:
+        pass
+    print("Done.")
+    print("Shutting down Analyser...")
+    print("Flushing remaining messages...")
     total_msgs = msg['msg_count']
     try:
         while True:
@@ -522,6 +533,7 @@ def monitor_shutdown(helper, msg):
     except exception.BackendConnectionError:
         pass
     print(" "*50, end="\r")
+    print("Message processing complete.")
     print("Shutdown complete.")
 
 
