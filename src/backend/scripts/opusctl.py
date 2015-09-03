@@ -484,6 +484,59 @@ def handle_process(cmd, **params):
         handle_exclude(**params)
 
 
+def _calc_rem_time(msgs):
+    this = _calc_rem_time
+    if not hasattr(this, "msgs"):
+        this.msgs = msgs
+        this.time = time.time()
+        return ""
+    else:
+        msg_diff = this.msgs-msgs
+        time_diff = time.time()-this.time
+        msg_per_s = msg_diff/time_diff
+        rem_secs = int(msgs/msg_per_s)
+        m, s = divmod(rem_secs, 60)
+        h, m = divmod(m, 60)
+        return "{:02d}:{:02d}:{:02d}".format(h, m, s)
+
+
+def monitor_shutdown(helper, msg):
+    print("Shutdown initiated.")
+    print("Shutting down Producer...", end="")
+    try:
+        while True:
+            ret = helper.make_request({"cmd": "status"})
+            if ret['producer']['status'] == "Dead":
+                break
+    except exception.BackendConnectionError:
+        pass
+    print("Done.")
+    print("Shutting down Analyser...")
+    print("Flushing remaining messages...")
+    total_msgs = msg['msg_count']
+    try:
+        while True:
+            ret = helper.make_request({"cmd": "status"})
+            if ret['analyser']['status'] == 'Dead':
+                break
+            cur_msg = ret['analyser']['num_msgs']
+
+            rem_time = _calc_rem_time(cur_msg)
+
+            print(" "*50, end="\r")
+            print("{:.2f}% [{}/{}] {}".format((1-(cur_msg/total_msgs))*100,
+                                              cur_msg, total_msgs, rem_time),
+                  end="\r")
+            sys.stdout.flush()
+
+            time.sleep(2)
+    except exception.BackendConnectionError:
+        pass
+    print(" "*50, end="\r")
+    print("Message processing complete.")
+    print("Shutdown complete.")
+
+
 @auto_read_config
 def handle_server(cfg, cmd, **params):
     if cmd == "start":
@@ -504,13 +557,10 @@ def handle_server(cfg, cmd, **params):
         msg.update(params)
         pay = helper.make_request(msg)
 
-        if cmd == "stop":
-            if pay['success']:
-                print("Server stopped successfully.")
-            else:
-                print("Server stop failed.")
-        elif not pay['success']:
+        if not pay['success']:
             print(pay['msg'])
+        elif cmd == "stop":
+            monitor_shutdown(helper, pay)
         elif cmd == "ps":
             tab = prettytable.PrettyTable(['Pid',
                                            'Command Line',
@@ -693,13 +743,13 @@ def parse_args():
 
 
 def main():
-    args = parse_args()
-
-    params = {k: v
-              for k, v in args._get_kwargs()  # pylint: disable=W0212
-              if k not in ['group', 'v']}
-
     try:
+        args = parse_args()
+
+        params = {k: v
+                  for k, v in args._get_kwargs()  # pylint: disable=W0212
+                  if k not in ['group', 'v']}
+
         if args.group == "process":
             handle_process(**params)
         elif args.group == "server":
@@ -712,6 +762,8 @@ def main():
         print("Failed to execute command due to insufficient configuration. "
               "Please run the '{} conf' command "
               "to reconfigure the program.".format(sys.argv[0]))
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == "__main__":
     main()

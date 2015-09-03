@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division,
 
 import logging
 import random
+import threading
 import traceback
 
 from . import query
@@ -43,7 +44,8 @@ class CommandControl(object):
                 return self.command_handlers[msg['cmd']](self, msg)
             else:
                 return {"success": False, "msg": "Invalid command name."}
-        except Exception as exe:
+        except Exception as exe:  # pylint: disable=broad-except
+            # Broad exception to catch all failures of CaC commands.
             errorid = hex(random.getrandbits(128))[2:-1]
             stack_trace = traceback.format_exc()
             logging.error("Exception occurred processing command.\n"
@@ -76,9 +78,21 @@ def handle_setan(cac, msg):
                 "msg": cac.daemon_manager.set_analyser(msg['new_an'])}
 
 
+def _shutdown_inner(cac):
+    if cac.daemon_manager.stop_service():
+        cac.cmd_if.stop()
+    else:
+        handle_shutdown.shutdown_lock.release()
+
+
 @CommandControl.register_command_handler("stop")
 def handle_shutdown(cac, _):
-    return {"success": cac.daemon_manager.stop_service()}
+    if handle_shutdown.shutdown_lock.acquire(False):
+        analyser = cac.daemon_manager.analyser
+        handle_shutdown.msg_count = analyser.event_orderer.get_queue_size()
+        threading.Thread(target=_shutdown_inner, kwargs={'cac': cac}).start()
+    return {"success": True, "msg_count": handle_shutdown.msg_count}
+handle_shutdown.shutdown_lock = threading.Lock()
 
 
 @CommandControl.register_command_handler("exec_qry_method")
