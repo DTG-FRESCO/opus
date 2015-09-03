@@ -83,22 +83,27 @@ class CommandConnectionHelper(object):
     '''Manages a connection to the backend and provides helpers for making
     requests.'''
     def __init__(self, host, port):
-        try:
-            self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.conn.connect((host, port))
-        except IOError as exc:
-            raise BackendConnectionError("Failed to make contact with "
-                                         "the backend: %s" % exc)
+        self.host = host
+        self.port = port
 
     def make_request(self, msg):
         '''Sends a request message to the backend and retrieves a response.'''
         try:
-            send_cc_msg(self.conn, msg)
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.connect((self.host, self.port))
+        except IOError as exc:
+            raise BackendConnectionError("Failed to make contact with "
+                                         "the backend: %s" % exc)
+
+        try:
+            send_cc_msg(conn, msg)
         except IOError as exc:
             raise BackendConnectionError("Failed to send message to backend:"
                                          " %s" % exc)
         try:
-            return recv_cc_msg(self.conn)
+            ret = recv_cc_msg(conn)
         except IOError as exc:
             raise BackendConnectionError("Failed to receive message from"
                                          " backend: %s" % exc)
+        conn.close()
+        return ret

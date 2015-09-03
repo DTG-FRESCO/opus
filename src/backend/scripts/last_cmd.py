@@ -25,38 +25,65 @@ def exec_query(args):
     helper = cc_utils.CommandConnectionHelper(args.host, args.port)
 
     filename = args.name
-    if os.path.isfile(filename):
-        filename = os.path.abspath(args.name)
-        filename = os.path.realpath(filename)
 
-    if(os.path.isdir(filename) or args.directory) and not args.file:
-        result = query_folder(helper, filename)
+    if args.directory or (os.path.isdir(filename) and not args.file):
+        if filename[-1] == "/":
+            # Trailing slash causes backend query to return no results.
+            filename = filename[:-1]
+
+        if args.limit is None:
+            limit = "5"
+        else:
+            limit = args.limit
+
+        result = query(helper, filename, limit, True)
+    elif args.file or (os.path.isfile(filename) and not args.directory):
+        filename = os.path.abspath(filename)
+
+        if os.path.isfile(filename):
+            filename = os.path.realpath(filename)
+
+        if args.limit is None:
+            limit = "1"
+        else:
+            limit = args.limit
+
+        result = query(helper, filename, limit, False)
     else:
-        result = query_file(helper, filename)
+        print("Path does not exist in the filesystem. Please pass either"
+              "-F or -D as appropriate.")
+        return
 
     if not result['success']:
         print(result['msg'])
     else:
         for record in result['data']:
-            print("{ts} - {cmd}".format(**record))
+            if args.trunc:
+                cmd = record['cmd'][:75] + (record['cmd'][75:] and '..')
+            else:
+                cmd = record['cmd']
+            print("{ts} - {cmd}".format(ts=record['ts'], cmd=cmd))
 
 
-def query_file(helper, name):
-    '''Performs a query returning the last command used on a file.'''
-    print("Last command performed on %s:" % name)
+def query(helper, name, limit, folder=False):
+    if folder:
+        connective = "in"
+    else:
+        connective = "on"
+
+    if limit == "1":
+        print("Last command performed {} {}:".format(connective, name))
+    else:
+        print("Last {} commands performed {} {}:".format(limit,
+                                                         connective,
+                                                         name))
 
     return helper.make_request({'cmd': "exec_qry_method",
-                                'qry_method': "query_file",
-                                "qry_args": {'name': name}})
-
-
-def query_folder(helper, name):
-    '''Performs a query returning the last 5 commands used on a folder.'''
-    print("Last 5 commands performed in %s:" % name)
-
-    return helper.make_request({'cmd': "exec_qry_method",
-                                'qry_method': "query_folder",
-                                "qry_args": {'name': name}})
+                                'qry_method': "query_folder"
+                                              if folder else
+                                              "query_file",
+                                "qry_args": {'name': name,
+                                             'limit': limit}})
 
 
 def main():
@@ -69,6 +96,13 @@ def main():
                        help="Force the program to treat NAME as a directory.")
     group.add_argument("-F", "--file", action="store_true",
                        help="Force the program to treat NAME as a file.")
+
+    parser.add_argument("-L", "--limit",
+                        help="Number of results to return for directory "
+                        "queries.")
+
+    parser.add_argument("--no-trunc", action="store_false", dest="trunc",
+                        help="Disable truncation of long commands.")
 
     parser.add_argument("name", type=str)
 
