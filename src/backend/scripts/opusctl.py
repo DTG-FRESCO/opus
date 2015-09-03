@@ -557,7 +557,7 @@ def handle_util(cmd, **params):
 
 @skip_config
 def handle_ps_line(mode):
-    term_status = is_opus_active()
+    term_status = is_opus_ipose_lib_set()
     server_status = is_server_active()
     if mode == "unicode":
         if term_status:
