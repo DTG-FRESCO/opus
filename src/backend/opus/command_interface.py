@@ -28,7 +28,8 @@ class CommandInterface(object):
         raise NotImplementedError()
 
 
-class TCPInterface(CommandInterface):
+# False positive interface detection
+class TCPInterface(CommandInterface):  # pylint: disable=R0923
     '''TCP listening interface for command and control.'''
     def __init__(self, listen_addr, listen_port, whitelist_location=None,
                  *args, **kwargs):

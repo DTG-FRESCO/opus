@@ -484,11 +484,25 @@ def handle_process(cmd, **params):
         handle_exclude(**params)
 
 
+def _calc_rem_time(msgs):
+    this = _calc_rem_time
+    if not hasattr(this, "msgs"):
+        this.msgs = msgs
+        this.time = time.time()
+        return ""
+    else:
+        msg_diff = this.msgs-msgs
+        time_diff = time.time()-this.time
+        msg_per_s = msg_diff/time_diff
+        rem_secs = int(msgs/msg_per_s)
+        m, s = divmod(rem_secs, 60)
+        h, m = divmod(m, 60)
+        return "{:02d}:{:02d}:{:02d}".format(h, m, s)
+
+
 def monitor_shutdown(cfg, msg):
     print("Shutdown initiated.")
     total_msgs = msg['msg_count']
-    start_msgs = None
-    start_time = None
     try:
         while True:
             helper = cc_utils.CommandConnectionHelper("localhost",
@@ -498,18 +512,7 @@ def monitor_shutdown(cfg, msg):
                 break
             cur_msg = ret['analyser']['num_msgs']
 
-            if start_msgs is None:
-                start_msgs = cur_msg
-                start_time = time.time()
-                rem_time = ""
-            else:
-                msg_diff = start_msgs-cur_msg
-                time_diff = time.time()-start_time
-                msg_per_s = msg_diff/time_diff
-                rem_secs = int(cur_msg/msg_per_s)
-                m, s = divmod(rem_secs, 60)
-                h, m = divmod(m, 60)
-                rem_time = "{:02d}:{:02d}:{:02d}".format(h, m, s)
+            rem_time = _calc_rem_time(cur_msg)
 
             print(" "*50, end="\r")
             print("{:.2f}% [{}/{}] {}".format((1-(cur_msg/total_msgs))*100,

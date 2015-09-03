@@ -44,7 +44,8 @@ class CommandControl(object):
                 return self.command_handlers[msg['cmd']](self, msg)
             else:
                 return {"success": False, "msg": "Invalid command name."}
-        except Exception as exe:
+        except Exception as exe:  # pylint: disable=broad-except
+            # Broad exception to catch all failures of CaC commands.
             errorid = hex(random.getrandbits(128))[2:-1]
             stack_trace = traceback.format_exc()
             logging.error("Exception occurred processing command.\n"
