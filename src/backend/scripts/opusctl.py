@@ -743,13 +743,13 @@ def parse_args():
 
 
 def main():
-    args = parse_args()
-
-    params = {k: v
-              for k, v in args._get_kwargs()  # pylint: disable=W0212
-              if k not in ['group', 'v']}
-
     try:
+        args = parse_args()
+
+        params = {k: v
+                  for k, v in args._get_kwargs()  # pylint: disable=W0212
+                  if k not in ['group', 'v']}
+
         if args.group == "process":
             handle_process(**params)
         elif args.group == "server":
@@ -762,6 +762,8 @@ def main():
         print("Failed to execute command due to insufficient configuration. "
               "Please run the '{} conf' command "
               "to reconfigure the program.".format(sys.argv[0]))
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == "__main__":
     main()
