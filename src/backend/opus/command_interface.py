@@ -5,6 +5,7 @@ Interfaces to the CommandControl system.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import errno
 import logging
 import select
 import socket
@@ -68,8 +69,12 @@ class TCPInterface(CommandInterface):  # pylint: disable=R0923
     def run(self):
         self.running = True
         while self.running:
-            if select.select([self.host_sock], [], [], 2) == ([], [], []):
-                continue
+            try:
+                if select.select([self.host_sock], [], [], 2) == ([], [], []):
+                    continue
+            except IOError as exc:
+                if exc.errno != errno.EINTR:
+                    raise
 
             (new_conn, new_addr) = self.host_sock.accept()
 

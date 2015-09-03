@@ -500,13 +500,11 @@ def _calc_rem_time(msgs):
         return "{:02d}:{:02d}:{:02d}".format(h, m, s)
 
 
-def monitor_shutdown(cfg, msg):
+def monitor_shutdown(helper, msg):
     print("Shutdown initiated.")
     total_msgs = msg['msg_count']
     try:
         while True:
-            helper = cc_utils.CommandConnectionHelper("localhost",
-                                                      int(cfg['cc_port']))
             ret = helper.make_request({"cmd": "status"})
             if ret['analyser']['status'] == 'Dead':
                 break
@@ -550,7 +548,7 @@ def handle_server(cfg, cmd, **params):
         if not pay['success']:
             print(pay['msg'])
         elif cmd == "stop":
-            monitor_shutdown(cfg, pay)
+            monitor_shutdown(helper, pay)
         elif cmd == "ps":
             tab = prettytable.PrettyTable(['Pid',
                                            'Command Line',
@@ -597,7 +595,7 @@ def handle_util(cmd, **params):
 
 @skip_config
 def handle_ps_line(mode):
-    term_status = is_opus_active()
+    term_status = is_opus_ipose_lib_set()
     server_status = is_server_active()
     if mode == "unicode":
         if term_status:
