@@ -182,13 +182,16 @@ class PVMAnalyser(OrderingAnalyser):
     storage system.'''
     def __init__(self, storage_type, storage_args, opus_lite, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
-        self.db_iface = common_utils.meta_factory(storage.StorageIFace,
-                                                  storage_type, **storage_args)
+        self.storage_type = storage_type
+        self.storage_args = storage_args
         self.opus_lite = opus_lite
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
         once it is complete.'''
+        self.db_iface = common_utils.meta_factory(storage.StorageIFace,
+                                                  self.storage_type,
+                                                  **self.storage_args)
         super(PVMAnalyser, self).run()
         self.db_iface.close()
 
