@@ -212,18 +212,30 @@ class PVMAnalyser(OrderingAnalyser):
 
         with self.db_iface.start_transaction():
             if hdr_obj.payload_type == uds_msg.FUNCINFO_MSG:
-                posix.handle_function(self.db_iface, hdr_obj.pid, pay_obj)
+                posix.handle_function(self.db_iface,
+                                      hdr_obj.pid,
+                                      pay_obj)
             elif hdr_obj.payload_type == uds_msg.AGGREGATION_MSG:
-                posix.handle_bulk_functions(self.db_iface, hdr_obj.pid, pay_obj)
+                posix.handle_bulk_functions(self.db_iface,
+                                            hdr_obj.pid,
+                                            pay_obj)
             elif hdr_obj.payload_type == uds_msg.STARTUP_MSG:
-                posix.handle_process(self.db_iface, hdr_obj,
-                                     pay_obj, self.opus_lite)
+                posix.handle_process(self.db_iface,
+                                     hdr_obj,
+                                     pay_obj,
+                                     self.opus_lite)
             elif hdr_obj.payload_type == uds_msg.GENERIC_MSG:
                 if pay_obj.msg_type == uds_msg.DISCON:
-                    posix.handle_disconnect(self.db_iface, hdr_obj, hdr_obj.pid)
+                    posix.handle_disconnect(self.db_iface,
+                                            hdr_obj,
+                                            hdr_obj.pid)
                 elif pay_obj.msg_type == uds_msg.PRE_FUNC_CALL:
-                    posix.handle_prefunc(hdr_obj.pid, pay_obj)
+                    posix.handle_prefunc(hdr_obj.pid,
+                                         pay_obj)
             elif hdr_obj.payload_type == uds_msg.TERM_MSG:
-                posix.handle_startup(self.db_iface, pay_obj)
+                posix.handle_startup(self.db_iface,
+                                     pay_obj)
             elif hdr_obj.payload_type == uds_msg.LIBINFO_MSG:
-                posix.handle_libinfo(self.db_iface, hdr_obj.pid, pay_obj)
+                posix.handle_libinfo(self.db_iface,
+                                     hdr_obj.pid,
+                                     pay_obj)
