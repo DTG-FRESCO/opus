@@ -50,25 +50,28 @@ def monitor_shutdown(helper, msg):
     print("Shutting down Analyser...")
     print("Flushing remaining messages...")
     total_msgs = msg['msg_count']
-    try:
-        while True:
-            ret = helper.make_request({"cmd": "status"})
-            if ret['analyser']['status'] == 'Dead':
-                break
-            cur_msg = ret['analyser']['num_msgs']
+    if total_msgs > 0:
+        try:
+            while True:
+                ret = helper.make_request({"cmd": "status"})
+                if ret['analyser']['status'] == 'Dead':
+                    break
+                cur_msg = ret['analyser']['num_msgs']
 
-            rem_time = _calc_rem_time(cur_msg)
+                rem_time = _calc_rem_time(cur_msg)
 
-            print(" "*50, end="\r")
-            print("{:.2f}% [{}/{}] {}".format((1-(cur_msg/total_msgs))*100,
-                                              cur_msg, total_msgs, rem_time),
-                  end="\r")
-            sys.stdout.flush()
+                print(" "*50, end="\r")
+                print("{:.2f}% [{}/{}] {}".format((1-(cur_msg/total_msgs))*100,
+                                                  cur_msg,
+                                                  total_msgs,
+                                                  rem_time),
+                      end="\r")
+                sys.stdout.flush()
 
-            time.sleep(2)
-    except exception.BackendConnectionError:
-        pass
-    print(" "*50, end="\r")
+                time.sleep(2)
+        except exception.BackendConnectionError:
+            pass
+        print(" "*50, end="\r")
     print("Message processing complete.")
     print("Shutdown complete.")
 
