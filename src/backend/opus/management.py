@@ -147,10 +147,10 @@ class DaemonManager(object):
         '''Return the current analyser thread.'''
         return self.analyser.__class__.__name__
 
-    def stop_service(self):
+    def stop_service(self, drop):
         '''Cause the daemon to shutdown gracefully.'''
         if self.producer.do_shutdown():
-            if self.analyser.do_shutdown():
+            if self.analyser.do_shutdown(drop):
                 _shutdown_touch_file(_safe_read_config(self.config,
                                                        "GENERAL",
                                                        "touch_file"))

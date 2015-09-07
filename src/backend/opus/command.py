@@ -78,19 +78,21 @@ def handle_setan(cac, msg):
                 "msg": cac.daemon_manager.set_analyser(msg['new_an'])}
 
 
-def _shutdown_inner(cac):
-    if cac.daemon_manager.stop_service():
+def _shutdown_inner(cac, drop):
+    if cac.daemon_manager.stop_service(drop):
         cac.cmd_if.stop()
     else:
         handle_shutdown.shutdown_lock.release()
 
 
 @CommandControl.register_command_handler("stop")
-def handle_shutdown(cac, _):
+def handle_shutdown(cac, msg):
     if handle_shutdown.shutdown_lock.acquire(False):
         analyser = cac.daemon_manager.analyser
         handle_shutdown.msg_count = analyser.event_orderer.get_queue_size()
-        threading.Thread(target=_shutdown_inner, kwargs={'cac': cac}).start()
+        threading.Thread(target=_shutdown_inner,
+                         kwargs={'cac': cac, 'drop': msg['drop_queue']}
+                         ).start()
     return {"success": True, "msg_count": handle_shutdown.msg_count}
 handle_shutdown.shutdown_lock = threading.Lock()
 
