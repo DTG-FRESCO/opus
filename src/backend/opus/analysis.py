@@ -16,7 +16,7 @@ import time
 import opuspb  # pylint: disable=W0611
 
 
-from . import common_utils, storage, order, messaging
+from . import common_utils, exception, storage, order, messaging
 from . import uds_msg_pb2 as uds_msg
 from .pvm import posix
 
@@ -63,7 +63,7 @@ class LoggingAnalyser(Analyser):
             self.file_object = open(self.logfile_path, "a+b")
         except IOError as exc:
             logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
-            raise common_utils.OPUSException("log file open error")
+            raise exception.OPUSException("log file open error")
         if __debug__:
             logging.debug("Opened file %s", self.logfile_path)
 
