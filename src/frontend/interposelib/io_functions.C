@@ -27,7 +27,7 @@
         va_end(arg);                \
     }
 
-enum fcntl_arg_fmt_t {NO_ARG, INT_ARG, FLOCK_ARG};
+enum fcntl_arg_fmt_t {NO_ARG, INT_ARG, FLOCK_ARG, OWN_EX_ARG};
 
 /**
  * Function template to merge open and open64
@@ -232,8 +232,10 @@ extern "C" int openat64(int dirfd, const char *pathname, int flags, ...)
         ret = real_fcntl(filedes, cmd);                               \
     } else if (argfmt == INT_ARG) {                                   \
         ret = real_fcntl(filedes, cmd, int_arg);                      \
-    } else {                                                          \
+    } else if (argfmt == FLOCK_ARG) {                                 \
         ret = real_fcntl(filedes, cmd, flock_arg);                    \
+    } else if (argfmt == OWN_EX_ARG) {                                \
+        ret = real_fcntl(filedes, cmd, own_ex_arg);                   \
     }                                                                 \
     err_obj = errno;
 
@@ -241,19 +243,21 @@ extern "C" int openat64(int dirfd, const char *pathname, int flags, ...)
 static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt)
 {
     static FCNTL_POINTER real_fcntl = NULL;
-    int int_arg;
-    struct flock *flock_arg;
-    int ret;
+    int int_arg = 0;
+    struct flock *flock_arg = NULL;
+    struct f_owner_ex *own_ex_arg = NULL;
+    int ret = -1;
     TrackErrno err_obj(errno);
 
     if (!real_fcntl)
         real_fcntl = (FCNTL_POINTER)ProcUtils::get_sym_addr("fcntl");
 
-    if(argfmt == INT_ARG){
+    if (argfmt == INT_ARG) {
         int_arg = va_arg(arg, int);
-    }else if(argfmt == FLOCK_ARG){
+    } else if (argfmt == FLOCK_ARG) {
         flock_arg = va_arg(arg, struct flock*);
-
+    } else if (argfmt == OWN_EX_ARG) {
+        own_ex_arg = va_arg(arg, struct f_owner_ex*);
     }
     va_end(arg);
 
@@ -320,25 +324,33 @@ extern "C" int fcntl(int filedes, int cmd, ...)
     va_start(args, cmd);
     switch(cmd){
         case F_DUPFD:
-            return inner_fcntl(filedes, cmd, args, INT_ARG);
-        case F_GETFD:
-            return inner_fcntl(filedes, cmd, args, NO_ARG);
+        case F_DUPFD_CLOEXEC:
         case F_SETFD:
-            return inner_fcntl(filedes, cmd, args, INT_ARG);
-        case F_GETFL:
-            return inner_fcntl(filedes, cmd, args, NO_ARG);
         case F_SETFL:
-            return inner_fcntl(filedes, cmd, args, INT_ARG);
-        case F_GETOWN:
-            return inner_fcntl(filedes, cmd, args, NO_ARG);
         case F_SETOWN:
+        case F_SETSIG:
+        case F_SETLEASE:
+        case F_NOTIFY:
+        case F_SETPIPE_SZ:
             return inner_fcntl(filedes, cmd, args, INT_ARG);
+
+        case F_GETFD:
+        case F_GETFL:
+        case F_GETOWN:
+        case F_GETSIG:
+        case F_GETLEASE:
+        case F_GETPIPE_SZ:
+            return inner_fcntl(filedes, cmd, args, NO_ARG);
+
         case F_GETLK:
-            return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
         case F_SETLK:
-            return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
         case F_SETLKW:
             return inner_fcntl(filedes, cmd, args, FLOCK_ARG);
+
+        case F_GETOWN_EX:
+        case F_SETOWN_EX:
+            return inner_fcntl(filedes, cmd, args, OWN_EX_ARG);
+
         default:
             errno = -EINVAL;
             return -1;

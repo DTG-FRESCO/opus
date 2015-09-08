@@ -76,8 +76,7 @@ def proc_get_local(db_iface, proc_node, loc_name):
     '''Retrieves the local object node that corresponds with
     a given name from a process node.'''
 
-    loc_node, loc_proc_rel = traversal.get_valid_local(db_iface, proc_node,
-                                                       loc_name)
+    loc_node, _ = traversal.get_valid_local(db_iface, proc_node, loc_name)
     if loc_node is None:
         raise NoMatchingLocalError(proc_node, loc_name)
 
@@ -108,12 +107,12 @@ def update_proc_meta(db_iface, proc_node, meta_name, new_val, timestamp):
 
 def update_event_chain_cache(db_iface, loc_node, event_node):
     '''Finds the correct fd chain object and appends event node to the chain'''
-    proc_node, rel = traversal.get_process_from_local(db_iface, loc_node)
+    proc_node, _ = traversal.get_process_from_local(db_iface, loc_node)
     idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
-                                        (proc_node.id, loc_node['name']))
+                                      (proc_node.id, loc_node['name']))
     if idx_list is None:
-        logging.error("Unable to get cached events for pid: %d and fd: %s" %
-                        (proc_node['pid'], loc_node['name']))
+        logging.error("Unable to get cached events for pid: %d and fd: %s",
+                      proc_node['pid'], loc_node['name'])
     else:
         loc_index = idx_list.find(loc_node, key=lambda x: int(x['mono_time']))
         fd_chain = idx_list[loc_index - 1]
@@ -159,7 +158,24 @@ def add_event(db_iface, node, msg):
         update_event_chain_cache(db_iface, node, event_node)
 
 
-def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
+def _bind_global_to_new_local(db_iface, proc_node, o_loc_node, i_loc_node):
+    '''Helper function that binds the new local node to the global nodes
+    associated with the old local node'''
+    i_glob_node_link_list = traversal.get_globals_from_local(db_iface,
+                                                             i_loc_node)
+    if len(i_glob_node_link_list) == 1:
+        i_glob_node, i_glob_loc_rel = i_glob_node_link_list[0]
+
+        # Copy over state from input fd link
+        old_state = None
+        if proc_node.has_key('opus_lite') and proc_node['opus_lite']:
+            old_state = i_glob_loc_rel['state']
+
+        new_glob_node = pvm.version_global(db_iface, i_glob_node)
+        pvm.bind(db_iface, o_loc_node, new_glob_node, old_state)
+
+
+def proc_dup_fd(db_iface, proc_node, fd_i, fd_o, lp_link_state=None):
     '''Helper for duplicating file descriptors. Handles closing the old
     descriptor if needed and binding it to the new identifier.'''
     if fd_i == fd_o:
@@ -175,25 +191,16 @@ def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
                                                                o_loc_node)
         if len(glob_node_link_list) > 0:
             glob_node, _ = glob_node_link_list[0]
-            new_glob_node, new_o_loc_node = pvm.drop_g(db_iface,
-                                                       o_loc_node, glob_node)
+            _, new_o_loc_node = pvm.drop_g(db_iface, o_loc_node, glob_node)
             pvm.drop_l(db_iface, new_o_loc_node)
         else:
             pvm.drop_l(db_iface, o_loc_node)
 
     o_loc_node = pvm.get_l(db_iface, proc_node, fd_o)
-    i_glob_node_link_list = traversal.get_globals_from_local(db_iface,
-                                                             i_loc_node)
-    if len(i_glob_node_link_list) == 1:
-        i_glob_node, i_glob_loc_rel = i_glob_node_link_list[0]
+    if lp_link_state is not None:
+        db_iface.set_link_state(o_loc_node.PROC_OBJ.outgoing, lp_link_state)
 
-        # Copy over state from input fd link
-        old_state = None
-        if proc_node.has_key('opus_lite') and proc_node['opus_lite']:
-            old_state = i_glob_loc_rel['state']
-
-        new_glob_node = pvm.version_global(db_iface, i_glob_node)
-        pvm.bind(db_iface, o_loc_node, new_glob_node, old_state)
+    _bind_global_to_new_local(db_iface, proc_node, o_loc_node, i_loc_node)
 
 
 def process_put_env(db_iface, proc_node, env, overwrite):
