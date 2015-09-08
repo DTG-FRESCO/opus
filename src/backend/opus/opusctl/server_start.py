@@ -20,11 +20,11 @@ def elapsed(reset=False):
 def monitor_server_startup(cfg):
     elapsed(reset=True)
     time.sleep(0.1)
+    helper = cc_utils.CommandConnectionHelper("localhost",
+                                              int(cfg['cc_port']))
     while elapsed() < 20:
         server_active = utils.is_server_active()
         try:
-            helper = cc_utils.CommandConnectionHelper("localhost",
-                                                      int(cfg['cc_port']))
             helper.make_request({'cmd': 'status'})
             server_responsive = True
         except exception.BackendConnectionError:

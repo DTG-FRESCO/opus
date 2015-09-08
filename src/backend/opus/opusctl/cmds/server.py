@@ -94,16 +94,21 @@ def print_status_rsp(pay):
 
 @config.auto_read_config
 def handle(cfg, cmd, **params):
+    helper = cc_utils.CommandConnectionHelper("localhost",
+                                              int(cfg['cc_port']))
     if cmd == "start":
         handle_start(cfg=cfg, **params)
+    elif cmd == "restart":
+        if utils.is_server_active():
+            print("===Shutting down OPUS server===")
+            pay = helper.make_request({'cmd': 'stop'})
+            monitor_shutdown(helper, pay)
+        print("===Starting OPUS server===")
+        server_start.start_opus_server(cfg)
     else:
         if not utils.is_server_active():
             print("Server is not running.")
             return
-
-        helper = cc_utils.CommandConnectionHelper("localhost",
-                                                  int(cfg['cc_port']))
-
         msg = {"cmd": cmd}
         msg.update(params)
         pay = helper.make_request(msg)
@@ -139,6 +144,9 @@ def setup_parser(parser):
     cmds.add_parser(
         "stop",
         help="Stop the OPUS provenance collection server.")
+    cmds.add_parser(
+        "restart",
+        help="Restart the OPUS provenance collection server.")
     cmds.add_parser(
         "ps",
         help="Display a list of processes currently being interposed.")
