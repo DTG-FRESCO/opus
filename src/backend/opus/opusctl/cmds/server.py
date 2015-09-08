@@ -81,13 +81,14 @@ def print_status_rsp(pay):
 
     print("{0:<20} {1:<12}".format("Producer", pay['producer']['status']))
 
-    if 'num_msgs' in pay['analyser']:
-        print("{0:<20} {1:<12} {2:<20}".format(
-            "Analyser",
-            pay['analyser']['status'],
-            "(" + str(pay['analyser']['num_msgs']) + " msgs in queue)"))
-    else:
-        print("{0:<20} {1:<12}".format("Analyser", pay['analyser']['status']))
+    tmp_an = pay['analyser']
+    print("{0:<20} {1:<12}".format("Analyser", tmp_an['status']))
+    if 'num_msgs' in tmp_an:
+        print("    {:d} msgs in queue".format(tmp_an['num_msgs']))
+    if 'inbound_rate' in tmp_an:
+        print("    {:.1f}/s msgs added".format(tmp_an['inbound_rate']))
+    if 'outbound_rate' in tmp_an:
+        print("    {:.1f}/s msgs processed".format(tmp_an['outbound_rate']))
 
     print("{0:<20} {1:<12}".format("Query Interface", pay['query']['status']))
 

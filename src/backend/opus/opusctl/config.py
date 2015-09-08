@@ -80,7 +80,7 @@ LOGGING:
 
 MODULES:
   Producer: SocketProducer
-  Analyser: PVMAnalyser
+  Analyser: StatisticsAnalyser
   CommandInterface: TCPInterface
 
 PRODUCER:
@@ -92,7 +92,7 @@ PRODUCER:
         select_timeout: 5.0
 
 ANALYSER:
-  PVMAnalyser:
+  StatisticsAnalyser:
     storage_type: DBInterface
     storage_args:
       filename: {db_path}
