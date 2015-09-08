@@ -20,7 +20,7 @@ from .exception import InvalidTagException
 
 # Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
-FCNTL_F_DUPFD_CLOEXEC = 1030 # From header file fcntl.h
+FCNTL_F_DUPFD_CLOEXEC = 1030  # From header file fcntl.h
 
 
 class FixedDict(object):  # pylint: disable=R0903
@@ -113,7 +113,7 @@ def enum(**enums):
     '''Returns an enum class object'''
     enums['enum_str'] = staticmethod(lambda x: {val: key
                                                 for key, val in enums.items()
-                                                }[x])
+                                               }[x])
     return type(str('Enum'), (), enums)
 
 
@@ -132,22 +132,24 @@ def analyser_lock(func):
 
 def get_payload_type(header):
     '''Returns the appropriate payload object'''
+    pay_obj = None
     if header.payload_type == uds_msg_pb2.STARTUP_MSG:
-        return uds_msg_pb2.StartupMessage()
+        pay_obj = uds_msg_pb2.StartupMessage()
     elif header.payload_type == uds_msg_pb2.LIBINFO_MSG:
-        return uds_msg_pb2.LibInfoMessage()
+        pay_obj = uds_msg_pb2.LibInfoMessage()
     elif header.payload_type == uds_msg_pb2.FUNCINFO_MSG:
-        return uds_msg_pb2.FuncInfoMessage()
+        pay_obj = uds_msg_pb2.FuncInfoMessage()
     elif header.payload_type == uds_msg_pb2.GENERIC_MSG:
-        return uds_msg_pb2.GenericMessage()
+        pay_obj = uds_msg_pb2.GenericMessage()
     elif header.payload_type == uds_msg_pb2.TERM_MSG:
-        return uds_msg_pb2.TermMessage()
+        pay_obj = uds_msg_pb2.TermMessage()
     elif header.payload_type == uds_msg_pb2.TELEMETRY_MSG:
-        return uds_msg_pb2.FrontendTelemetry()
+        pay_obj = uds_msg_pb2.FrontendTelemetry()
     elif header.payload_type == uds_msg_pb2.AGGREGATION_MSG:
-        return uds_msg_pb2.AggregationMessage()
+        pay_obj = uds_msg_pb2.AggregationMessage()
     else:
         logging.error("Invalid payload type %d", header.payload_type)
+    return pay_obj
 
 
 def calc_exec_time(func):
