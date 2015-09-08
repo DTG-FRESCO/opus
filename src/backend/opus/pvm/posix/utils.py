@@ -76,8 +76,7 @@ def proc_get_local(db_iface, proc_node, loc_name):
     '''Retrieves the local object node that corresponds with
     a given name from a process node.'''
 
-    loc_node, _ = traversal.get_valid_local(db_iface, proc_node,
-                                                       loc_name)
+    loc_node, _ = traversal.get_valid_local(db_iface, proc_node, loc_name)
     if loc_node is None:
         raise NoMatchingLocalError(proc_node, loc_name)
 
@@ -110,7 +109,7 @@ def update_event_chain_cache(db_iface, loc_node, event_node):
     '''Finds the correct fd chain object and appends event node to the chain'''
     proc_node, _ = traversal.get_process_from_local(db_iface, loc_node)
     idx_list = db_iface.cache_man.get(storage.CACHE_NAMES.IO_EVENT_CHAIN,
-                                     (proc_node.id, loc_node['name']))
+                                      (proc_node.id, loc_node['name']))
     if idx_list is None:
         logging.error("Unable to get cached events for pid: %d and fd: %s",
                       proc_node['pid'], loc_node['name'])
@@ -250,7 +249,7 @@ def set_rw_lnk(db_iface, loc_node, state):
     if len(glob_node_list) == 1:
         _, glob_loc_rel = glob_node_list[0]
         if((state == storage.LinkState.READ and
-                  glob_loc_rel['state'] == storage.LinkState.WRITE) or
+            glob_loc_rel['state'] == storage.LinkState.WRITE) or
            (state == storage.LinkState.WRITE and
             glob_loc_rel['state'] == storage.LinkState.READ) or
            glob_loc_rel['state'] == storage.LinkState.RaW):
