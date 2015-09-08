@@ -548,6 +548,10 @@ def posix_fcntl(db_iface, proc_node, msg):
     if int(args['cmd']) == fcntl.F_DUPFD:
         utils.proc_dup_fd(db_iface, proc_node,
                           args['filedes'], str(msg.ret_val))
+    if int(args['cmd']) == common_utils.FCNTL_F_DUPFD_CLOEXEC:
+        utils.proc_dup_fd(db_iface, proc_node,
+                          args['filedes'], str(msg.ret_val),
+                          storage.LinkState.CLOEXEC)
     if int(args['cmd']) == fcntl.F_SETFD:
         if int(args['arg']) == fcntl.FD_CLOEXEC:
             db_iface.set_link_state(loc_node.PROC_OBJ.outgoing,

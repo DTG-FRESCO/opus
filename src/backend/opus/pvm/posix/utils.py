@@ -159,7 +159,7 @@ def add_event(db_iface, node, msg):
         update_event_chain_cache(db_iface, node, event_node)
 
 
-def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
+def proc_dup_fd(db_iface, proc_node, fd_i, fd_o, lp_link_state=None):
     '''Helper for duplicating file descriptors. Handles closing the old
     descriptor if needed and binding it to the new identifier.'''
     if fd_i == fd_o:
@@ -182,6 +182,9 @@ def proc_dup_fd(db_iface, proc_node, fd_i, fd_o):
             pvm.drop_l(db_iface, o_loc_node)
 
     o_loc_node = pvm.get_l(db_iface, proc_node, fd_o)
+    if lp_link_state is not None:
+        db_iface.set_link_state(o_loc_node.PROC_OBJ.outgoing, lp_link_state)
+
     i_glob_node_link_list = traversal.get_globals_from_local(db_iface,
                                                              i_loc_node)
     if len(i_glob_node_link_list) == 1:

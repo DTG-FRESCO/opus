@@ -20,6 +20,7 @@ from .exception import InvalidTagException
 
 # Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
+FCNTL_F_DUPFD_CLOEXEC = 1030 # From header file fcntl.h
 
 
 class FixedDict(object):  # pylint: disable=R0903
