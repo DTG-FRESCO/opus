@@ -14,6 +14,8 @@ import time
 
 from . import common_utils
 from .exception import InvalidCacheException, UniqueIDException
+
+import jpype
 from neo4j import GraphDatabase
 
 # Enum values for node types
@@ -184,6 +186,9 @@ class DBInterface(StorageIFace):
 
     def __init__(self, filename):
         super(DBInterface, self).__init__()
+
+        if not jpype.isThreadAttachedToJVM():
+            jpype.attachThreadToJVM()
 
         self.trans_lock = threading.Lock()
         try:
