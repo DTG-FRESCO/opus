@@ -16,7 +16,7 @@ import time
 import opuspb  # pylint: disable=W0611
 
 
-from . import common_utils, storage, order, messaging
+from . import common_utils, exception, storage, order, messaging
 from . import uds_msg_pb2 as uds_msg
 from .pvm import posix
 
@@ -63,7 +63,7 @@ class LoggingAnalyser(Analyser):
             self.file_object = open(self.logfile_path, "a+b")
         except IOError as exc:
             logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
-            raise common_utils.OPUSException("log file open error")
+            raise exception.OPUSException("log file open error")
         if __debug__:
             logging.debug("Opened file %s", self.logfile_path)
 
@@ -113,24 +113,25 @@ class OrderingAnalyser(Analyser):
                     logging.debug("T:Clear completed.")
                 continue
 
-    def do_shutdown(self):
+    def do_shutdown(self, drop=False):
         '''Clear the event orderer and then shutdown the processing thread.'''
         if not self.isAlive():
             return True
 
-        if __debug__:
-            logging.debug("M:Shutting down analyser.")
-            logging.debug("M:Starting queue flush.")
-        self.event_orderer.start_clear()
-        if __debug__:
-            logging.debug("M:Waiting for queue flush completion.")
-        self.queue_cleared.wait()
-        if __debug__:
-            logging.debug("M:Stopping thread.")
-        self.stop_event.set()
-        if __debug__:
-            logging.debug("M:Completing flush.")
-        self.queue_cleared.clear()
+        if not drop:
+            if __debug__:
+                logging.debug("M:Shutting down analyser.")
+                logging.debug("M:Starting queue flush.")
+            self.event_orderer.start_clear()
+            if __debug__:
+                logging.debug("M:Waiting for queue flush completion.")
+            self.queue_cleared.wait()
+            if __debug__:
+                logging.debug("M:Stopping thread.")
+            self.stop_event.set()
+            if __debug__:
+                logging.debug("M:Completing flush.")
+            self.queue_cleared.clear()
         return super(OrderingAnalyser, self).do_shutdown()
 
     def put_msg(self, msg_list):

@@ -141,9 +141,16 @@ def setup_parser(parser):
     cmds.add_parser(
         "start",
         help="Start the OPUS provenance collection server.")
-    cmds.add_parser(
+
+    stop_parser = cmds.add_parser(
         "stop",
         help="Stop the OPUS provenance collection server.")
+    stop_parser.add_argument(
+        "--drop-queue", action="store_true",
+        help="Force the server to drop all messages currently awaiting "
+        "processing. This will cause you to potentially lose provenance "
+        "data.")
+
     cmds.add_parser(
         "restart",
         help="Restart the OPUS provenance collection server.")
