@@ -111,12 +111,18 @@ def handle_status(cac, _):
     if cac.daemon_manager.analyser.isAlive():
         rsp['analyser']['status'] = "Alive"
 
+        analyser = cac.daemon_manager.analyser
         try:
-            analyser = cac.daemon_manager.analyser
             num_msgs = analyser.event_orderer.get_queue_size()
             rsp['analyser']['num_msgs'] = num_msgs
         except AttributeError:
             pass  # Analyser not an ordering analyser
+        try:
+            rsp['analyser']['inbound_rate'] = analyser.inbound.rate
+            rsp['analyser']['outbound_rate'] = analyser.outbound.rate
+        except AttributeError:
+            pass  # Analyser not a stats analyser
+
     else:
         rsp['analyser']['status'] = "Dead"
 

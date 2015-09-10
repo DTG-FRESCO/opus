@@ -76,18 +76,37 @@ def monitor_shutdown(helper, msg):
     print("Shutdown complete.")
 
 
+def _rewind(n):
+    print("\033[{:d}F".format(n), end="")
+
+
+def monitor_status(helper, follow):
+    pay = helper.make_request({'cmd': 'status'})
+    print_status_rsp(pay)
+    n = (len(pay) - 1) + (len(pay['analyser']) - 1)
+    while follow:
+        _rewind(n)
+        print("\n".join([" "*50]*n))
+        _rewind(n)
+        pay = helper.make_request({'cmd': 'status'})
+        print_status_rsp(pay)
+        n = (len(pay) - 1) + (len(pay['analyser']) - 1)
+        sys.stdout.flush()
+        time.sleep(1)
+
+
 def print_status_rsp(pay):
     '''Prints status response to stdout'''
-
     print("{0:<20} {1:<12}".format("Producer", pay['producer']['status']))
 
-    if 'num_msgs' in pay['analyser']:
-        print("{0:<20} {1:<12} {2:<20}".format(
-            "Analyser",
-            pay['analyser']['status'],
-            "(" + str(pay['analyser']['num_msgs']) + " msgs in queue)"))
-    else:
-        print("{0:<20} {1:<12}".format("Analyser", pay['analyser']['status']))
+    tmp_an = pay['analyser']
+    print("{0:<20} {1:<12}".format("Analyser", tmp_an['status']))
+    if 'num_msgs' in tmp_an:
+        print("    {:d} msgs in queue".format(tmp_an['num_msgs']))
+    if 'inbound_rate' in tmp_an:
+        print("    {:.1f}/s msgs added".format(tmp_an['inbound_rate']))
+    if 'outbound_rate' in tmp_an:
+        print("    {:.1f}/s msgs processed".format(tmp_an['outbound_rate']))
 
     print("{0:<20} {1:<12}".format("Query Interface", pay['query']['status']))
 
@@ -105,6 +124,8 @@ def handle(cfg, cmd, **params):
             monitor_shutdown(helper, pay)
         print("===Starting OPUS server===")
         server_start.start_opus_server(cfg)
+    elif cmd == "status":
+        monitor_status(helper, **params)
     else:
         if not utils.is_server_active():
             print("Server is not running.")
@@ -130,8 +151,6 @@ def handle(cfg, cmd, **params):
                     )
                 tab.add_row([pid, cmd_line, count])
             print(tab)
-        elif cmd == "status":
-            print_status_rsp(pay)
         else:
             print(pay['msg'])
 
@@ -157,9 +176,13 @@ def setup_parser(parser):
     cmds.add_parser(
         "ps",
         help="Display a list of processes currently being interposed.")
-    cmds.add_parser(
+
+    status_parser = cmds.add_parser(
         "status",
         help="Display a status readout for the provenance collection server.")
+    status_parser.add_argument(
+        "--follow", "-f", action="store_true",
+        help="Continue to refresh the counts until stopped.")
 
     detach_parser = cmds.add_parser(
         "detach",

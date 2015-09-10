@@ -240,3 +240,53 @@ class PVMAnalyser(OrderingAnalyser):
                 posix.handle_libinfo(self.db_iface,
                                      hdr_obj.pid,
                                      pay_obj)
+
+
+class StatisticsAnalyser(PVMAnalyser):
+
+    class Counter(object):
+        def __init__(self):
+            super(StatisticsAnalyser.Counter, self).__init__()
+            self.last_count = 0
+            self.last_time = time.time()
+            self.count = 0
+            self.rate = 0
+
+        def add(self, n):
+            self.count += n
+
+        def update(self):
+            tmp_count = self.count
+            tmp_time = time.time()
+            cdiff = tmp_count - self.last_count
+            tdiff = tmp_time - self.last_time
+            self.rate = cdiff/tdiff
+            self.last_count = tmp_count
+            self.last_time = tmp_time
+
+    def __init__(self, *args, **kwargs):
+        super(StatisticsAnalyser, self).__init__(*args, **kwargs)
+        self.inbound = self.Counter()
+        self.outbound = self.Counter()
+
+        self.checker_thread = threading.Thread(
+            target=StatisticsAnalyser._update_rate, args=(self,))
+        self.checker_thread.daemon = True
+
+    def _update_rate(self):
+        while True:
+            self.inbound.update()
+            self.outbound.update()
+            time.sleep(1)
+
+    def run(self):
+        self.checker_thread.start()
+        return super(StatisticsAnalyser, self).run()
+
+    def put_msg(self, msg_list):
+        self.inbound.add(len(msg_list))
+        return super(StatisticsAnalyser, self).put_msg(msg_list)
+
+    def process(self, (hdr, pay)):
+        self.outbound.add(1)
+        return super(StatisticsAnalyser, self).process((hdr, pay))
