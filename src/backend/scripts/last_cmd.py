@@ -19,6 +19,29 @@ except ImportError:
     sys.exit(1)
 
 
+def query_file(helper, filename, limit):
+    filename = os.path.abspath(filename)
+
+    if os.path.isfile(filename):
+        filename = os.path.realpath(filename)
+
+    if limit is None:
+        limit = "1"
+
+    return query(helper, filename, limit, False)
+
+
+def query_folder(helper, filename, limit):
+    if filename[-1] == "/":
+        # Trailing slash causes backend query to return no results.
+        filename = filename[:-1]
+
+    if limit is None:
+        limit = "5"
+
+    return query(helper, filename, limit, True)
+
+
 def exec_query(args):
     '''Execute command specified by args.'''
 
@@ -27,38 +50,23 @@ def exec_query(args):
     filename = args.name
 
     if args.directory or (os.path.isdir(filename) and not args.file):
-        if filename[-1] == "/":
-            # Trailing slash causes backend query to return no results.
-            filename = filename[:-1]
-
-        if args.limit is None:
-            limit = "5"
-        else:
-            limit = args.limit
-
-        result = query(helper, filename, limit, True)
+        result = query_folder(helper, filename, args.limit)
     elif args.file or (os.path.isfile(filename) and not args.directory):
-        filename = os.path.abspath(filename)
-
-        if os.path.isfile(filename):
-            filename = os.path.realpath(filename)
-
-        if args.limit is None:
-            limit = "1"
-        else:
-            limit = args.limit
-
-        result = query(helper, filename, limit, False)
+        result = query_file(helper, filename, args.limit)
     else:
         print("Path does not exist in the filesystem. Please pass either"
               "-F or -D as appropriate.")
         return
 
+    print_query_result(result, args.trunc)
+
+
+def print_query_result(result, trunc):
     if not result['success']:
         print(result['msg'])
     else:
         for record in result['data']:
-            if args.trunc:
+            if trunc:
                 cmd = record['cmd'][:75] + (record['cmd'][75:] and '..')
             else:
                 cmd = record['cmd']
