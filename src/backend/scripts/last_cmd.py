@@ -88,9 +88,13 @@ def query(helper, name, limit, folder=False):
 
 def main():
     '''Parse command line arguments and execute resulting command.'''
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Shows the last command(s) that were run on a file or in "
+                    "a directory.")
+
     parser.add_argument("--host", default="localhost")
     parser.add_argument("--port", type=int, default=10101)
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-D", "--directory", action="store_true",
                        help="Force the program to treat NAME as a directory.")
@@ -98,13 +102,15 @@ def main():
                        help="Force the program to treat NAME as a file.")
 
     parser.add_argument("-L", "--limit",
-                        help="Number of results to return for directory "
-                        "queries.")
+                        help="Number of results to return, defaults to 1 for "
+                        "file queries and 5 for directory queries.")
 
     parser.add_argument("--no-trunc", action="store_false", dest="trunc",
                         help="Disable truncation of long commands.")
 
-    parser.add_argument("name", type=str)
+    parser.add_argument("name", type=str,
+                        help="The file or directory you wish to query the "
+                        "history for.")
 
     args = parser.parse_args()
     exec_query(args)
