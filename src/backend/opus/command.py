@@ -88,8 +88,9 @@ def _shutdown_inner(cac, drop):
 @CommandControl.register_command_handler("stop")
 def handle_shutdown(cac, msg):
     if handle_shutdown.shutdown_lock.acquire(False):
-        analyser = cac.daemon_manager.analyser
-        handle_shutdown.msg_count = analyser.event_orderer.get_queue_size()
+        #analyser = cac.daemon_manager.analyser
+        #handle_shutdown.msg_count = analyser.event_orderer.get_queue_size()
+        handle_shutdown.msg_count = 0  # TODO: Temporary. To be fixed by Tom.B
         threading.Thread(target=_shutdown_inner,
                          kwargs={'cac': cac, 'drop': msg['drop_queue']}
                          ).start()

@@ -6,32 +6,15 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from . import (analysis, cc_utils, command, command_interface,
-               common_utils, production, messaging)
+from . import (cc_utils, command, command_interface,
+               production, messaging, config_util)
 from . import uds_msg_pb2 as uds_msg
-from .exception import InvalidConfigFileException
+from .analyser_controller import AnalyserController
+from .pf_queue import ProducerFetcherQueue
 
-import logging
 import os
 import os.path
 import time
-
-
-def _safe_read_config(cfg, section, key):
-    '''Read the value of key from section in cfg while appropriately catching
-    missing section and key exceptions and handling them by re-raising invalid
-    config errors.'''
-    try:
-        sec = cfg[section]
-    except KeyError:
-        logging.error("Config file lacks %s section.", section)
-        raise InvalidConfigFileException()
-    try:
-        return sec[key]
-    except KeyError:
-        logging.error("Config file lacks %s key in section %s.", key, section)
-        raise InvalidConfigFileException()
-
 
 def _startup_touch_file(touch_file):
     '''Generate a term message based on the presence or non-presence of the
@@ -65,61 +48,36 @@ def _shutdown_touch_file(touch_file):
     os.remove(touch_file)
 
 
-def _load_module(config, mod_name, mod_base,
-                 mod_extra_args=None, mod_type=None):
-    '''Loads the configuration for a module of name and base class from config,
-    allows the load to be augmented with extra arguments and allow config type
-    lookup to be overridden.'''
-    if mod_type is None:
-        mod_type = _safe_read_config(config, "MODULES", mod_name)
-
-    mod_args = _safe_read_config(config, mod_name.upper(), mod_type)
-
-    if mod_extra_args is not None:
-        mod_args.update(mod_extra_args)
-
-    try:
-        mod = common_utils.meta_factory(mod_base,
-                                        mod_type,
-                                        **mod_args)
-    except common_utils.InvalidTagException:
-        logging.error("Invalid %s type %s in config file.",
-                      mod_name, mod_type)
-        raise InvalidConfigFileException()
-    except TypeError:
-        logging.error("Config section %s is incorrectly setup.",
-                      mod_type)
-        raise InvalidConfigFileException()
-    return mod
-
-
 class DaemonManager(object):
     '''The daemon manager is created to launch the back-end.'''
     def __init__(self, config):
         self.config = config
 
-        self.analyser = _load_module(config, "Analyser", analysis.Analyser)
+        self.pf_queue = ProducerFetcherQueue()
+        self.analyser_ctl = AnalyserController(self.pf_queue, self.config)
 
         (prod_comm, ctrl_prod) = cc_utils.RWPipePair.create_pair()
 
-        self.producer = _load_module(config, "Producer", production.Producer,
-                                     {"analyser_obj": self.analyser,
-                                      "comm_pipe": prod_comm})
+        self.producer = config_util.load_module(config, "Producer",
+                                                production.Producer,
+                                                {"pf_queue": self.pf_queue,
+                                                 "comm_pipe": prod_comm})
 
         self.command = command.CommandControl(self, ctrl_prod)
 
-        self.command.set_interface(
-            _load_module(config, "CommandInterface",
-                         command_interface.CommandInterface,
-                         {"command_control": self.command})
+        self.command.set_interface(config_util.load_module(
+                        config, "CommandInterface",
+                        command_interface.CommandInterface,
+                        {"command_control": self.command})
         )
 
-        self.analyser.start()
-        startup_msg_pair = _startup_touch_file(_safe_read_config(self.config,
-                                                                 "GENERAL",
-                                                                 "touch_file"))
-        self.analyser.put_msg([startup_msg_pair])
+        self.analyser_ctl.start()
 
+        startup_msg_pair = _startup_touch_file(config_util.safe_read_config(
+                                                                self.config,
+                                                                "GENERAL",
+                                                                "touch_file"))
+        self.pf_queue.enqueue([startup_msg_pair])
         self.producer.start()
 
     def loop(self):
@@ -128,6 +86,7 @@ class DaemonManager(object):
 
     def set_analyser(self, new_analyser_type):
         '''Change the current analyser for a new analyser.'''
+        # NOTE: Deprecate this function
         try:
             new_analyser = _load_module(self.config, "Analyser",
                                         analysis.Analyser,
@@ -145,14 +104,18 @@ class DaemonManager(object):
 
     def get_analyser(self):
         '''Return the current analyser thread.'''
-        return self.analyser.__class__.__name__
+        # NOTE: Must use the new communication mechanism
+        return self.analyser_ctl.analyser.__class__.__name__
 
     def stop_service(self, drop):
         '''Cause the daemon to shutdown gracefully.'''
         if self.producer.do_shutdown():
-            if self.analyser.do_shutdown(drop):
-                _shutdown_touch_file(_safe_read_config(self.config,
-                                                       "GENERAL",
-                                                       "touch_file"))
-                return True
+            self.pf_queue.start_clear()
+            self.analyser_ctl.do_shutdown(drop)
+            self.analyser_ctl.join()
+            _shutdown_touch_file(config_util.safe_read_config(
+                                                   self.config,
+                                                   "GENERAL",
+                                                   "touch_file"))
+            return True
         return False

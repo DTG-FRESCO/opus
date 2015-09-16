@@ -15,8 +15,6 @@ import time
 from . import common_utils
 from .exception import InvalidCacheException, UniqueIDException
 
-import jpype
-from neo4j import GraphDatabase
 
 # Enum values for node types
 NodeType = common_utils.enum(META=1,
@@ -186,6 +184,10 @@ class DBInterface(StorageIFace):
 
     def __init__(self, filename):
         super(DBInterface, self).__init__()
+
+        # NOTE: Import inside init to avoid loading the JVM in the producer
+        import jpype
+        from neo4j import GraphDatabase
 
         if not jpype.isThreadAttachedToJVM():
             jpype.attachThreadToJVM()

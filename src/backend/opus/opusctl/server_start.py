@@ -62,7 +62,9 @@ def start_opus_server(cfg):
     try:
         pid = os.fork()
         if pid > 0:
-            return monitor_server_startup(cfg)
+            return True
+            # NOTE : To be fixed with the new communication mechanism
+            # return monitor_server_startup(cfg)
     except OSError:
         sys.exit(1)
 

@@ -343,10 +343,10 @@ class UDSCommunicationManager(CommunicationManager):
 
 class Producer(threading.Thread):
     '''Base class for the producer thread'''
-    def __init__(self, analyser_obj, comm_pipe):
+    def __init__(self, pf_queue, comm_pipe):
         '''Initialize class data members'''
         super(Producer, self).__init__()
-        self.analyser = analyser_obj
+        self.pf_queue = pf_queue
         self.comm_pipe = comm_pipe
         self.stop_event = threading.Event()
         self.daemon = True
@@ -355,14 +355,14 @@ class Producer(threading.Thread):
         '''Override in the derived class'''
         pass
 
-    @common_utils.analyser_lock
-    def _send_data_to_analyser(self, msg_list):
-        '''Calls the analyser object method by obtaining a lock'''
-        self.analyser.put_msg(msg_list)
+    def _send_data_to_fetcher(self, msg_list):
+        '''Enqueues messages on the producer fetcher queue'''
+        self.pf_queue.enqueue(msg_list)
 
     @common_utils.analyser_lock
     def switch_analyser(self, new_analyser):
         '''Takes a new analyser object and returns the old one'''
+        # NOTE: Deprecate this function
         old_analyser = self.analyser
         self.analyser = new_analyser
         return old_analyser
@@ -404,8 +404,8 @@ class SocketProducer(Producer):
                     logging.debug("No message to be logged")
             else:
                 if __debug__:
-                    logging.debug("Calling put_msg on analyser")
-                self._send_data_to_analyser(msg_list)
+                    logging.debug("Calling enqueue data on queue")
+                self._send_data_to_fetcher(msg_list)
         self.comm_manager.close()
 
     def do_shutdown(self):
