@@ -6,15 +6,16 @@ control systems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from . import (cc_utils, command, command_interface,
-               production, messaging, config_util)
+from . import (command, config_util, ipc, production, messaging)
 from . import uds_msg_pb2 as uds_msg
 from .analyser_controller import AnalyserController
 from .pf_queue import ProducerFetcherQueue
 
+import multiprocessing
 import os
 import os.path
 import time
+
 
 def _startup_touch_file(touch_file):
     '''Generate a term message based on the presence or non-presence of the
@@ -35,8 +36,7 @@ def _startup_touch_file(touch_file):
         term_msg.reason = uds_msg.TermMessage.CRASH
     else:
         term_msg.reason = uds_msg.TermMessage.SHUTDOWN
-        with open(touch_file, "w") as _:
-            pass
+        open(touch_file, "w").close()
 
     header.payload_len = term_msg.ByteSize()
 
@@ -53,30 +53,30 @@ class DaemonManager(object):
     def __init__(self, config):
         self.config = config
 
-        self.pf_queue = ProducerFetcherQueue()
-        self.analyser_ctl = AnalyserController(self.pf_queue, self.config)
+        self.router = ipc.Router(queue_class=multiprocessing.Queue)
+        self.router.run_forever()
 
-        (prod_comm, ctrl_prod) = cc_utils.RWPipePair.create_pair()
+        self.pf_queue = ProducerFetcherQueue()
+        self.analyser_ctl = AnalyserController(self.pf_queue,
+                                               self.router,
+                                               self.config)
 
         self.producer = config_util.load_module(config, "Producer",
                                                 production.Producer,
                                                 {"pf_queue": self.pf_queue,
-                                                 "comm_pipe": prod_comm})
+                                                 "router": self.router})
 
-        self.command = command.CommandControl(self, ctrl_prod)
+        command_cfg = config_util.safe_read_config(self.config, "COMMAND")
 
-        self.command.set_interface(config_util.load_module(
-                        config, "CommandInterface",
-                        command_interface.CommandInterface,
-                        {"command_control": self.command})
-        )
+        self.command = command.CommandControl(self,
+                                              router=self.router,
+                                              **command_cfg)
 
         self.analyser_ctl.start()
 
-        startup_msg_pair = _startup_touch_file(config_util.safe_read_config(
-                                                                self.config,
-                                                                "GENERAL",
-                                                                "touch_file"))
+        startup_msg_pair = _startup_touch_file(
+            config_util.safe_read_config(self.config, "GENERAL", "touch_file")
+            )
         self.pf_queue.enqueue([startup_msg_pair])
         self.producer.start()
 
@@ -84,38 +84,16 @@ class DaemonManager(object):
         '''Execute the internal command and controls main loop.'''
         self.command.run()
 
-    def set_analyser(self, new_analyser_type):
-        '''Change the current analyser for a new analyser.'''
-        # NOTE: Deprecate this function
-        try:
-            new_analyser = _load_module(self.config, "Analyser",
-                                        analysis.Analyser,
-                                        mod_type=new_analyser_type)
-        except InvalidConfigFileException:
-            return ("Please choose an analyser type that has a config"
-                    " specified in the systems configuration file.")
-
-        new_analyser.start()
-
-        old_analyser = self.producer.switch_analyser(new_analyser)
-        old_analyser.do_shutdown()
-        self.analyser = new_analyser
-        return "Sucess"
-
-    def get_analyser(self):
-        '''Return the current analyser thread.'''
-        # NOTE: Must use the new communication mechanism
-        return self.analyser_ctl.analyser.__class__.__name__
-
     def stop_service(self, drop):
         '''Cause the daemon to shutdown gracefully.'''
         if self.producer.do_shutdown():
             self.pf_queue.start_clear()
             self.analyser_ctl.do_shutdown(drop)
             self.analyser_ctl.join()
-            _shutdown_touch_file(config_util.safe_read_config(
-                                                   self.config,
-                                                   "GENERAL",
-                                                   "touch_file"))
+            _shutdown_touch_file(
+                config_util.safe_read_config(self.config,
+                                             "GENERAL",
+                                             "touch_file")
+                )
             return True
         return False

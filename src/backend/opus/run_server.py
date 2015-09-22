@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 from . import (custom_time, management)
+from .exception import InvalidConfigFileException
 
 import argparse
 import logging
@@ -60,7 +61,7 @@ def main():
         init_logging(config['LOGGING'])
 
         daemon_manager = management.DaemonManager(config)
-    except management.InvalidConfigFileException:
+    except InvalidConfigFileException:
         return
     except IOError:
         logging.error("Failed to read in config file.")

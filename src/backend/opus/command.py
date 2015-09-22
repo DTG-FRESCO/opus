@@ -6,12 +6,16 @@ subsystems and for sending commands to those subsystems.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import errno
 import logging
 import random
+import select
+import socket
 import threading
 import traceback
 
-from . import query
+from . import cc_utils, ipc
+from .exception import CommandInterfaceStartupError
 
 
 class CommandControl(object):
@@ -26,14 +30,38 @@ class CommandControl(object):
             return func
         return wrap
 
-    def __init__(self, daemon_manager, prod_ctrl):
+    def __init__(self, daemon_manager, router,
+                 listen_addr, listen_port,
+                 whitelist_location=None):
         self.daemon_manager = daemon_manager
-        self.prod_ctrl = prod_ctrl
-        self.cmd_if = None
+        self.node = ipc.Master(ident="CAC",
+                               router=router)
+        self.node.run_forever()
+        self.running = False
 
-    def set_interface(self, inter):
-        '''Set the control systems interface.'''
-        self.cmd_if = inter
+        self.whitelist = []
+
+        if whitelist_location is not None:
+            try:
+                with open(whitelist_location, "r") as white_file:
+                    for line in white_file:
+                        self.whitelist += [line]
+            except IOError:
+                logging.error("Failed to read specified whitelist file %s",
+                              whitelist_location)
+                raise CommandInterfaceStartupError(
+                    "Failed to read whitelist.")
+
+        self.host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.host_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        try:
+            self.host_sock.bind((listen_addr, listen_port))
+        except IOError:
+            logging.error("Failed to bind cmd socket on address %s port %d.",
+                          listen_addr, listen_port)
+            raise CommandInterfaceStartupError("Failed to bind socket.")
+        self.host_sock.listen(10)
 
     def exec_cmd(self, msg):
         '''Executes a command message that it has recieved, producing a
@@ -57,30 +85,36 @@ class CommandControl(object):
                    "msg": "Errorid: {}".format(errorid)}
             return rsp
 
+    def stop(self):
+        if self.running:
+            self.running = False
+
     def run(self):
-        '''Engages the systems processing loop.'''
-        self.cmd_if.run()
+        self.running = True
+        while self.running:
+            try:
+                if select.select([self.host_sock], [], [], 2) == ([], [], []):
+                    continue
+            except IOError as exc:
+                if exc.errno != errno.EINTR:
+                    raise
 
+            (new_conn, new_addr) = self.host_sock.accept()
 
-@CommandControl.register_command_handler("getan")
-def handle_getan(cac, _):
-    return {"success": True,
-            "msg": cac.daemon_manager.get_analyser()}
+            if self.whitelist and new_addr not in self.whitelist:
+                new_conn.close()
+                logging.info("Recieved connection from %s, dropped due"
+                             " to not matching white list.", new_addr)
+                continue
 
-
-@CommandControl.register_command_handler("setan")
-def handle_setan(cac, msg):
-    if "new_an" not in msg:
-        return {"success": False,
-                "msg": "Invalid set of arguments for setan command."}
-    else:
-        return {"success": True,
-                "msg": cac.daemon_manager.set_analyser(msg['new_an'])}
+            pay = cc_utils.recv_cc_msg(new_conn)
+            rsp = self.exec_cmd(pay)
+            cc_utils.send_cc_msg(new_conn, rsp)
 
 
 def _shutdown_inner(cac, drop):
     if cac.daemon_manager.stop_service(drop):
-        cac.cmd_if.stop()
+        cac.stop()
     else:
         handle_shutdown.shutdown_lock.release()
 
@@ -88,9 +122,8 @@ def _shutdown_inner(cac, drop):
 @CommandControl.register_command_handler("stop")
 def handle_shutdown(cac, msg):
     if handle_shutdown.shutdown_lock.acquire(False):
-        #analyser = cac.daemon_manager.analyser
-        #handle_shutdown.msg_count = analyser.event_orderer.get_queue_size()
-        handle_shutdown.msg_count = 0  # TODO: Temporary. To be fixed by Tom.B
+        an_stat = cac.node.send("ANALYSER", {"cmd": "status"}).result()
+        handle_shutdown.msg_count = an_stat['num_msgs']
         threading.Thread(target=_shutdown_inner,
                          kwargs={'cac': cac, 'drop': msg['drop_queue']}
                          ).start()
@@ -99,9 +132,8 @@ handle_shutdown.shutdown_lock = threading.Lock()
 
 
 @CommandControl.register_command_handler("exec_qry_method")
-def handle_exec_qry_method(cac, msg):
-    db_iface = cac.daemon_manager.analyser.db_iface
-    return query.ClientQueryControl.exec_method(db_iface, msg)
+def analyser(cac, msg):
+    return cac.node.send("ANALYSER", msg).result()
 
 
 @CommandControl.register_command_handler("status")
@@ -109,33 +141,24 @@ def handle_status(cac, _):
     rsp = {"success": True, 'analyser': {}, 'producer': {}, 'query': {}}
 
     # Analyser
-    if cac.daemon_manager.analyser.isAlive():
+    if cac.daemon_manager.analyser_ctl.is_alive():
         rsp['analyser']['status'] = "Alive"
 
-        analyser = cac.daemon_manager.analyser
-        try:
-            num_msgs = analyser.event_orderer.get_queue_size()
-            rsp['analyser']['num_msgs'] = num_msgs
-        except AttributeError:
-            pass  # Analyser not an ordering analyser
-        try:
-            rsp['analyser']['inbound_rate'] = analyser.inbound.rate
-            rsp['analyser']['outbound_rate'] = analyser.outbound.rate
-        except AttributeError:
-            pass  # Analyser not a stats analyser
+        rq = cac.node.send("ANALYSER", {"cmd": "status"})
 
+        rsp['analyser'].update(rq.result())
     else:
         rsp['analyser']['status'] = "Dead"
 
     # Producer
-    if cac.daemon_manager.producer.isAlive():
+    if cac.daemon_manager.producer.is_alive():
         rsp['producer']['status'] = "Alive"
     else:
         rsp['producer']['status'] = "Dead"
 
     # Query Interface
     if hasattr(cac.daemon_manager, "query_interface"):
-        if cac.daemon_manager.query_interface.isAlive():
+        if cac.daemon_manager.query_interface.is_alive():
             rsp['query']['status'] = "Alive"
         else:
             rsp['query']['status'] = "Dead"
@@ -147,6 +170,5 @@ def handle_status(cac, _):
 
 @CommandControl.register_command_handler("ps")
 @CommandControl.register_command_handler("detach")
-def forward_to_producer(cac, msg):
-    cac.prod_ctrl.write(msg)
-    return cac.prod_ctrl.read()
+def producer(cac, msg):
+    return cac.node.send("PRODUCER", msg).result()

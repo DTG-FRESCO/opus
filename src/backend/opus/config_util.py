@@ -10,7 +10,8 @@ from . import (common_utils)
 
 import logging
 
-def safe_read_config(cfg, section, key):
+
+def safe_read_config(cfg, section, key=None):
     '''Read the value of key from section in cfg while appropriately catching
     missing section and key exceptions and handling them by re-raising invalid
     config errors.'''
@@ -19,14 +20,19 @@ def safe_read_config(cfg, section, key):
     except KeyError:
         logging.error("Config file lacks %s section.", section)
         raise InvalidConfigFileException()
-    try:
-        return sec[key]
-    except KeyError:
-        logging.error("Config file lacks %s key in section %s.", key, section)
-        raise InvalidConfigFileException()
+    if key is None:
+        return sec
+    else:
+        try:
+            return sec[key]
+        except KeyError:
+            logging.error("Config file lacks %s key in section %s.",
+                          key, section)
+            raise InvalidConfigFileException()
 
 
-def load_module(config, mod_name, mod_base, mod_extra_args=None, mod_type=None):
+def load_module(config, mod_name, mod_base,
+                mod_extra_args=None, mod_type=None):
     '''Loads the configuration for a module of name and base class from config,
     allows the load to be augmented with extra arguments and allow config type
     lookup to be overridden.'''
@@ -51,4 +57,3 @@ def load_module(config, mod_name, mod_base, mod_extra_args=None, mod_type=None):
                       mod_type)
         raise InvalidConfigFileException()
     return mod
-

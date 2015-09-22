@@ -20,7 +20,7 @@ import threading
 import time
 import opuspb  # pylint: disable=W0611
 
-from . import (common_utils, messaging, uds_msg_pb2)
+from . import common_utils, ipc, messaging, uds_msg_pb2
 
 
 def unlink_uds_path(path):
@@ -89,7 +89,7 @@ class SockReader(object):
         if self.header is None:
             remaining_len = messaging.Header.length - len(self.buf_data)
 
-            status_code = self.__fill_buffer(remaining_len)
+            status_code = self._fill_buffer(remaining_len)
             if status_code != UDSCommunicationManager.StatusCode.success:
                 return status_code, None, None
 
@@ -106,7 +106,7 @@ class SockReader(object):
                                                    hdr_len)
 
         # Read the payload
-        status_code = self.__fill_buffer(remaining_len)
+        status_code = self._fill_buffer(remaining_len)
         if status_code != UDSCommunicationManager.StatusCode.success:
             return status_code, None, None
 
@@ -129,13 +129,13 @@ class SockReader(object):
 
         return status_code, hdr_buf, pay_buf
 
-    def __fill_buffer(self, remaining_len):
+    def _fill_buffer(self, remaining_len):
         '''Calls receive and appends buffer'''
-        tmp_buf, status_code = self.__receive(self.sock_obj, remaining_len)
+        tmp_buf, status_code = self._receive(self.sock_obj, remaining_len)
         self.buf_data += tmp_buf
         return status_code
 
-    def __receive(self, sock_obj, size):
+    def _receive(self, sock_obj, size):
         '''Receives data for a given size from a socket'''
         buf = b''
         status_code = UDSCommunicationManager.StatusCode.success
@@ -194,7 +194,7 @@ class UDSCommunicationManager(CommunicationManager):
                                    close_connection=100,
                                    try_again_later=101)
 
-    def __init__(self, uds_path, ctrl_sock,
+    def __init__(self, uds_path,
                  max_conn=10, select_timeout=5.0,
                  *args, **kwargs):
         '''Initialize the class members'''
@@ -206,7 +206,6 @@ class UDSCommunicationManager(CommunicationManager):
         self.max_server_conn = max_conn  # Configurable
         self.select_timeout = select_timeout  # Configurable
         self.server_socket = None
-        self.control_sock = ctrl_sock
 
         try:
             self.server_socket = socket.socket(socket.AF_UNIX,
@@ -221,8 +220,6 @@ class UDSCommunicationManager(CommunicationManager):
         self.server_socket.setblocking(0)  # Make the socket non-blocking
         self.epoll = select.epoll()
         self.epoll.register(self.server_socket.fileno(),
-                            select.EPOLLIN | select.EPOLLERR)
-        self.epoll.register(self.control_sock.r_pipe,
                             select.EPOLLIN | select.EPOLLERR)
 
     def do_poll(self):
@@ -242,43 +239,18 @@ class UDSCommunicationManager(CommunicationManager):
 
         for fileno, event in event_list:
             if fileno == self.server_socket.fileno():
-                self.__handle_new_connection()
-            elif fileno == self.control_sock.r_pipe:
-                self.__handle_command(ret_list)
+                self._handle_new_connection()
             elif event & select.EPOLLIN:
                 sock_obj = self.input_client_map[fileno].get_sock_obj()
-                self.__handle_client(sock_obj, ret_list)
+                self._handle_client(sock_obj, ret_list)
             elif event & select.EPOLLHUP:
                 if __debug__:
                     logging.debug("Got an EPOLLHUP event")
                 sock_obj = self.input_client_map[fileno].get_sock_obj()
-                self.__handle_close_connection(sock_obj, ret_list)
+                self._handle_close_connection(sock_obj, ret_list)
         return ret_list
 
-    def __handle_command(self, ret_list):
-        '''Handles a command message from the command and control system.'''
-        cmd = self.control_sock.read()
-        if cmd['cmd'] == "ps":
-            rsp = {"success": True,
-                   "pid_map": {pid: len(threads)
-                               for pid, threads in self.pid_map.items()}}
-        elif cmd['cmd'] == "detach":
-            if 'pid' not in cmd or cmd['pid'] not in self.pid_map:
-                rsp = {"success": False,
-                       "msg": "No valid pid argument supplied."}
-            else:
-                sock_objs = self.pid_map[cmd['pid']][:]
-                for sock in sock_objs:
-                    self.__handle_close_connection(sock, ret_list)
-                rsp = {"success": True,
-                       "msg": "Success. %d connections closed." %
-                       len(sock_objs)}
-        else:
-            rsp = {"success": False,
-                   "msg": "%s is not a valid command." % cmd['cmd']}
-        self.control_sock.write(rsp)
-
-    def __handle_client(self, sock_obj, ret_list):
+    def _handle_client(self, sock_obj, ret_list):
         '''Receives data from client or closes the client connection'''
         sock_rdr = self.input_client_map[sock_obj.fileno()]
         status_code, header_buf, payload_buf = sock_rdr.get_message()
@@ -288,12 +260,12 @@ class UDSCommunicationManager(CommunicationManager):
                 logging.debug("Got valid data")
             ret_list += [(header_buf, payload_buf)]
         elif status_code == self.StatusCode.close_connection:
-            self.__handle_close_connection(sock_obj, ret_list)
+            self._handle_close_connection(sock_obj, ret_list)
         elif status_code == self.StatusCode.try_again_later:
             if __debug__:
                 logging.debug("Will try again later")
 
-    def __handle_close_connection(self, sock_obj, ret_list):
+    def _handle_close_connection(self, sock_obj, ret_list):
         '''Handles close event or hang up event on the client socket'''
         self.epoll.unregister(sock_obj.fileno())
         if sock_obj.fileno() in self.input_client_map:
@@ -311,7 +283,7 @@ class UDSCommunicationManager(CommunicationManager):
             logging.debug('closing socket: %d', sock_obj.fileno())
         sock_obj.close()
 
-    def __handle_new_connection(self):
+    def _handle_new_connection(self):
         '''Accepts and adds the new connection to the fd list'''
         client_fd, _ = self.server_socket.accept()
         pid, uid, gid = get_credentials(client_fd)
@@ -331,6 +303,20 @@ class UDSCommunicationManager(CommunicationManager):
         else:
             self.pid_map[pid] = [client_fd]
 
+    def detach(self, pid):
+        if pid not in self.pid_map:
+            return None, []
+        else:
+            sock_objs = self.pid_map[pid][:]
+            ret_list = []
+            for sock in sock_objs:
+                self._handle_close_connection(sock, ret_list)
+            return len(sock_objs), ret_list
+
+    def ps(self):
+        return {pid: len(threads)
+                for pid, threads in self.pid_map.items()}
+
     def close(self):
         '''Close all connections and cleanup'''
         self.epoll.unregister(self.server_socket.fileno())
@@ -343,13 +329,27 @@ class UDSCommunicationManager(CommunicationManager):
 
 class Producer(threading.Thread):
     '''Base class for the producer thread'''
-    def __init__(self, pf_queue, comm_pipe):
+    def __init__(self, pf_queue, router):
         '''Initialize class data members'''
         super(Producer, self).__init__()
         self.pf_queue = pf_queue
-        self.comm_pipe = comm_pipe
+        self.node = ipc.Worker(ident="PRODUCER",
+                               router=router,
+                               handler=self._command)
+        self.node.run_forever()
+        self.msg = None
+        self.ret = None
+        self.msg_waiting = threading.Event()
+        self.ret_done = threading.Event()
         self.stop_event = threading.Event()
         self.daemon = True
+
+    def _command(self, msg):
+        self.msg = msg
+        self.msg_waiting.set()
+        self.ret_done.wait()
+        self.ret_done.clear()
+        return self.ret
 
     def run(self):
         '''Override in the derived class'''
@@ -358,14 +358,6 @@ class Producer(threading.Thread):
     def _send_data_to_fetcher(self, msg_list):
         '''Enqueues messages on the producer fetcher queue'''
         self.pf_queue.enqueue(msg_list)
-
-    @common_utils.analyser_lock
-    def switch_analyser(self, new_analyser):
-        '''Takes a new analyser object and returns the old one'''
-        # NOTE: Deprecate this function
-        old_analyser = self.analyser
-        self.analyser = new_analyser
-        return old_analyser
 
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
@@ -386,11 +378,9 @@ class SocketProducer(Producer):
     def __init__(self, comm_mgr_type, comm_mgr_args, *args, **kwargs):
         '''Initialize the class data members'''
         super(SocketProducer, self).__init__(*args, **kwargs)
-        self.comm_mgr_type = comm_mgr_type
-        comm_mgr_args['ctrl_sock'] = self.comm_pipe
         try:
             self.comm_manager = common_utils.meta_factory(CommunicationManager,
-                                                          self.comm_mgr_type,
+                                                          comm_mgr_type,
                                                           **comm_mgr_args)
         except common_utils.InvalidTagException as err_msg:
             raise common_utils.OPUSException(err_msg.msg)
@@ -399,6 +389,13 @@ class SocketProducer(Producer):
         '''Spin until thread stop event is set'''
         while not self.stop_event.isSet():
             msg_list = self.comm_manager.do_poll()
+
+            if self.msg_waiting.is_set():
+                self.msg_waiting.clear()
+                additional_msgs = self._process_command(self)
+                msg_list += additional_msgs
+                self.ret_done.set()
+
             if not msg_list:
                 if __debug__:
                     logging.debug("No message to be logged")
@@ -411,3 +408,29 @@ class SocketProducer(Producer):
     def do_shutdown(self):
         '''Shutdown the thread gracefully'''
         return super(SocketProducer, self).do_shutdown()
+
+    def _process_command(self, msg):
+        '''Handles a command message from the command and control system.'''
+        cmd = self.msg.cont
+        if cmd['cmd'] == "ps":
+            self.ret = {"success": True,
+                        "pid_map": self.comm_manager.ps()}
+        elif cmd['cmd'] == "detach":
+            if 'pid' in cmd:
+                res, ret_msg = self.comm_manager.detach(cmd['pid'])
+                if res is not None:
+                    self.ret = {"success": True,
+                                "msg": "Success. {:d} connections "
+                                "closed.".format(res)}
+                    return ret_msg
+                else:
+                    self.ret = {"success": False,
+                                "msg": "Pid {:d} not connected to "
+                                "OPUS.".format(cmd['pid'])}
+            else:
+                self.ret = {"success": False,
+                            "msg": "Missing pid argument."}
+        else:
+            self.ret = {"success": False,
+                        "msg": "%s is not a valid command." % cmd['cmd']}
+        return []

@@ -81,7 +81,6 @@ LOGGING:
 MODULES:
   Producer: SocketProducer
   Analyser: StatisticsAnalyser
-  CommandInterface: TCPInterface
 
 PRODUCER:
   SocketProducer:
@@ -98,10 +97,9 @@ ANALYSER:
       filename: {db_path}
     opus_lite: true
 
-COMMANDINTERFACE:
-  TCPInterface:
-    listen_addr: localhost
-    listen_port: {cc_port}
+COMMAND:
+  listen_addr: localhost
+  listen_port: {cc_port}
 
 GENERAL:
   touch_file: {touch_file}

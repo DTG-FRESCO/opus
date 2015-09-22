@@ -10,8 +10,6 @@ import bisect
 import collections
 import copy
 import logging
-import threading
-import functools
 import time
 
 from . import uds_msg_pb2
@@ -113,21 +111,8 @@ def enum(**enums):
     '''Returns an enum class object'''
     enums['enum_str'] = staticmethod(lambda x: {val: key
                                                 for key, val in enums.items()
-                                               }[x])
+                                                }[x])
     return type(str('Enum'), (), enums)
-
-
-def analyser_lock(func):
-    '''Decorator method for accessing analyser object'''
-    if not hasattr(analyser_lock, "mutex"):
-        analyser_lock.mutex = threading.Lock()
-
-    @functools.wraps(func)
-    def deco(self, *args, **kwargs):
-        '''Wraps function call with lock acquire and release'''
-        with analyser_lock.mutex:
-            return func(self, *args, **kwargs)
-    return deco
 
 
 def get_payload_type(header):
