@@ -105,3 +105,10 @@ class BackendConnectionError(OPUSException):
     the backend.'''
     def __init__(self, msg):
         super(BackendConnectionError, self).__init__(msg)
+
+
+class SnapshotException(OPUSException):
+    '''Exception class to signal that the snaphot event is set on the fetcher
+    process'''
+    def __init__(self):
+        super(SnapshotException, self).__init__("SnapshotException")

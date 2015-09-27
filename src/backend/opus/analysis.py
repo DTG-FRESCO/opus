@@ -87,11 +87,53 @@ class LoggingAnalyser(Analyser):
 class OrderingAnalyser(Analyser):
     '''The ordering analyser implements a event ordering queue and calls the
     process method to consume messages.'''
-    def __init__(self, *args, **kwargs):
+    def __init__(self, opus_snapshot_dir, *args, **kwargs):
         super(OrderingAnalyser, self).__init__(*args, **kwargs)
         # TODO(tb403) - Proper max_wind
         self.event_orderer = order.EventOrderer(50)
         self.queue_cleared = threading.Event()
+        self.msg_handler = self.process
+        self.snapshot_state = False
+        self.msg_fh = None
+        self.opus_snapshot_dir = opus_snapshot_dir
+        self.msg_queue_data_file = None
+        self.load_orderer()
+
+    def get_snapshot_dir(self):
+        return self.opus_snapshot_dir
+
+    def load_orderer(self):
+        self.msg_queue_data_file = self.get_snapshot_dir()
+        self.msg_queue_data_file += "/.opus_msg_queue.dat"
+        if not os.path.isfile(self.msg_queue_data_file):
+            return
+
+        hdr_len = messaging.Header.length
+        try:
+            with open(self.msg_queue_data_file, "rb") as fp:
+                while True:
+                    hdr = fp.read(hdr_len)
+                    if hdr == b'':
+                        break
+                    hdr_obj = messaging.Header()
+                    hdr_obj.loads(hdr)
+
+                    pay_len = hdr_obj.payload_len
+                    if pay_len == 0:
+                        continue
+                    pay = fp.read(pay_len)
+                    msg = [(hdr_obj.timestamp, (hdr, pay))]
+                    self.event_orderer.push(msg)
+        except IOError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
+            raise exception.OPUSException(
+                  "Could not open OPUS message queue file for reading")
+
+        if __debug__:
+            logging.debug("Size of event_orderer: %d", self.event_orderer.get_queue_size())
+            logging.debug("Removing file: %s", self.msg_queue_data_file)
+        os.unlink(self.msg_queue_data_file)
+
 
     def run(self):
         '''Pull events from the queue and process them as long as the
@@ -99,11 +141,17 @@ class OrderingAnalyser(Analyser):
         while not self.stop_event.is_set():
             try:
                 _, msg = self.event_orderer.pop()
-                self.process(msg)
+                self.msg_handler(msg)
             except Queue.Empty:
                 if __debug__:
                     logging.debug("T:Queue cleared, clearing state tables.")
                 self.queue_cleared.set()
+
+                if self.snapshot_state:
+                    os.fsync(self.msg_fh.fileno())
+                    self.msg_fh.close()
+                    self.dump_internal_state()
+
                 self.cleanup()
                 if __debug__:
                     logging.debug("T:Preparing to wait for clear completion.")
@@ -133,6 +181,23 @@ class OrderingAnalyser(Analyser):
                 logging.debug("M:Completing flush.")
             self.queue_cleared.clear()
         return super(OrderingAnalyser, self).do_shutdown()
+
+    def snapshot_shutdown(self):
+        try:
+            self.msg_fh = open(self.msg_queue_data_file, "wb")
+        except IOError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
+            raise exception.OPUSException(
+                  "Could not open OPUS message queue file for writing")
+
+        self.snapshot_state = True
+        self.msg_handler = self.put_msg_file
+        self.do_shutdown()
+
+    def put_msg_file(self, (hdr, pay)):
+        self.msg_fh.write(hdr)
+        self.msg_fh.write(pay)
+        self.msg_fh.flush()
 
     def put_msg(self, msg_list):
         '''Place a set of messages onto the queue, clearing the queue if any
@@ -176,16 +241,22 @@ class OrderingAnalyser(Analyser):
         '''Process a single message.'''
         raise NotImplementedError()
 
+    def dump_internal_state(self):
+        raise NotImplementedError()
+
 
 class PVMAnalyser(OrderingAnalyser):
     '''The PVM analyser class implements the core of the PVM model, including
     the significant operations and their interactions with the underlying
     storage system.'''
-    def __init__(self, storage_type, storage_args, opus_lite, *args, **kwargs):
+    def __init__(self, storage_type, storage_args, opus_lite,
+                 neo4j_cfg, *args, **kwargs):
         super(PVMAnalyser, self).__init__(*args, **kwargs)
         self.storage_type = storage_type
         self.storage_args = storage_args
+        self.storage_args['neo4j_cfg'] = neo4j_cfg
         self.opus_lite = opus_lite
+        self.proc_state_file = None
 
     def run(self):
         '''Run a standard processing loop, also close the storage interface
@@ -193,12 +264,19 @@ class PVMAnalyser(OrderingAnalyser):
         self.db_iface = common_utils.meta_factory(storage.StorageIFace,
                                                   self.storage_type,
                                                   **self.storage_args)
+        self.proc_state_file = self.get_snapshot_dir() + "/.opus_proc_state.dat"
+        posix.handle_proc_load_state(self.proc_state_file)
         super(PVMAnalyser, self).run()
         self.db_iface.close()
 
     def cleanup(self):
         '''Clear the process data structures.'''
         posix.handle_cleanup()
+
+    def dump_internal_state(self):
+        if __debug__:
+            logging.error("Dumping process state to file")
+        posix.handle_proc_dump_state(self.proc_state_file)
 
     def process(self, (hdr, pay)):
         '''Process a single front end message, applying it's effects to the

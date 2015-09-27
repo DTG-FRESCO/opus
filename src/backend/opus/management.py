@@ -16,7 +16,6 @@ import os
 import os.path
 import time
 
-
 def _startup_touch_file(touch_file):
     '''Generate a term message based on the presence or non-presence of the
     touch file. Then create the touch file if necessary.'''
@@ -57,9 +56,13 @@ class DaemonManager(object):
         self.router.run_forever()
 
         self.pf_queue = ProducerFetcherQueue()
+
+        analyser_ctlr_cfg = config_util.safe_read_config(self.config,
+                                                         "ANALYSER_CONTROLLER")
         self.analyser_ctl = AnalyserController(self.pf_queue,
                                                self.router,
-                                               self.config)
+                                               self.config,
+                                               **analyser_ctlr_cfg)
 
         self.producer = config_util.load_module(config, "Producer",
                                                 production.Producer,
@@ -72,7 +75,7 @@ class DaemonManager(object):
                                               router=self.router,
                                               **command_cfg)
 
-        self.analyser_ctl.start()
+        self.analyser_ctl.start_service()
 
         startup_msg_pair = _startup_touch_file(
             config_util.safe_read_config(self.config, "GENERAL", "touch_file")
@@ -88,12 +91,9 @@ class DaemonManager(object):
         '''Cause the daemon to shutdown gracefully.'''
         if self.producer.do_shutdown():
             self.pf_queue.start_clear()
-            self.analyser_ctl.do_shutdown(drop)
-            self.analyser_ctl.join()
-            _shutdown_touch_file(
-                config_util.safe_read_config(self.config,
-                                             "GENERAL",
-                                             "touch_file")
-                )
-            return True
+            if self.analyser_ctl.do_shutdown(drop):
+                _shutdown_touch_file(config_util.safe_read_config(self.config,
+                                                                  "GENERAL",
+                                                                  "touch_file"))
+                return True
         return False

@@ -141,7 +141,7 @@ def handle_status(cac, _):
     rsp = {"success": True, 'analyser': {}, 'producer': {}, 'query': {}}
 
     # Analyser
-    if cac.daemon_manager.analyser_ctl.is_alive():
+    if cac.daemon_manager.analyser_ctl.fetcher.is_alive():
         rsp['analyser']['status'] = "Alive"
 
         rq = cac.node.send("ANALYSER", {"cmd": "status"})

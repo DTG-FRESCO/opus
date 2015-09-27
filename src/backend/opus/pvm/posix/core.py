@@ -47,6 +47,16 @@ def handle_process(db_iface, hdr, pay, opus_lite):
     process.ProcStateController.proc_startup(db_iface, hdr, pay, opus_lite)
 
 
+def handle_proc_dump_state(file_name):
+    '''Dump the internal state of the process class'''
+    process.ProcStateController.dump_state(file_name)
+
+
+def handle_proc_load_state(file_name):
+    '''Loads the internal state of the process class from previous run'''
+    process.ProcStateController.load_state(file_name)
+
+
 def handle_disconnect(db_iface, hdr, pid):
     '''Handle the disconnection of a process.'''
     db_iface.set_mono_time_for_msg(hdr.timestamp)
