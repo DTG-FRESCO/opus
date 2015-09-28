@@ -76,7 +76,7 @@ class AnalyserController(object):
                 pass
             return ret
         elif cmd['cmd'] == "exec_qry_method":
-            return self.query(msg)
+            return self.query(cmd)
 
     def start_service(self):
         '''Starts the fetcher process and memory monitor thread'''
@@ -124,6 +124,10 @@ class AnalyserController(object):
                                                 neo4j_cfg)
 
         def _query(self, msg):
+            import jpype
+            if not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
+
             return query.ClientQueryControl.exec_method(
                 self.analyser.db_iface, msg)
 

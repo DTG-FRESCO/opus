@@ -393,6 +393,6 @@ class DBInterface(StorageIFace):
         return self.db.query(qry, **kwargs)
 
     def locked_query(self, qry, **kwargs):
-        '''Executes a query within a locknig transation.'''
+        '''Executes a query within a locking transaction.'''
         with self.trans_lock:
             return self.db.query(qry, **kwargs)
