@@ -73,10 +73,12 @@ class Client(Node):
                  queue_triple=None, queue_class=Queue.Queue):
         super(Client, self).__init__()
         self.ident = ident
-        if queue_triple is not None:
+        if queue_triple is not None and router is None:
             self.queue = QueuePair(*queue_triple)
-        else:
+        elif router is not None and queue_triple is None:
             self.queue = router.add(ident, queue_class)
+        else:
+            raise TypeError("Either router or queue_triple must not be None.")
 
     def _main_loop(self):
         raise NotImplementedError()
