@@ -110,21 +110,8 @@ def get_valid_local(db_iface, proc_node, loc_name):
     return loc_node, loc_proc_rel
 
 
-def get_glob_latest_version(db_iface, loc_node):
+def get_glob_latest_version(db_iface, glob_node):
     '''Returns the latest valid version of a global node'''
-    ret_glob = None
-
-    glob_node_list = get_globals_from_local(db_iface, loc_node)
-    glob_list_len = len(glob_node_list)
-
-    if glob_list_len == 0:
-        return ret_glob
-
-    if glob_list_len > 1:
-        logging.error("Tracing latest global of invalid local.")
-        return ret_glob
-
-    glob_node, _ = glob_node_list[0]
 
     # If there are no new versions of the global node the
     # local is pointing to, then return the current global

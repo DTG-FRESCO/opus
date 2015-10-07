@@ -70,34 +70,37 @@ def expand_proc(db_iface, proc_node, pay, opus_lite):
 
 
 def clone_file_des(db_iface, old_proc_node, new_proc_node):
-    '''Clones the file descriptors of old_proc_node to new_proc_node
-    using the CoT mechanism.'''
+    '''Copies over file descriptors, and global to process path information
+    from the old_proc_node to new_proc_node.'''
     loc_node_link_list = traversal.get_locals_from_process(db_iface,
                                                            old_proc_node)
-    for (loc_node, rel_link) in loc_node_link_list:
-        if rel_link['state'] in [storage.LinkState.CLOSED,
-                                 storage.LinkState.CLOEXEC]:
+    for (loc_node, loc_proc_rel) in loc_node_link_list:
+        if loc_proc_rel['state'] in [storage.LinkState.CLOSED,
+                                     storage.LinkState.CLOEXEC]:
             continue
+
         new_loc_node = pvm.get_l(db_iface, new_proc_node, loc_node['name'])
 
-        if old_proc_node['status'] == storage.PROCESS_STATE.DEAD:
-            loc_node = actions.close_action_helper(db_iface, loc_node)
+        gl_list = traversal.get_globals_from_local(db_iface, loc_node)
+        if len(gl_list) == 0:
+            continue
+
+        glob_node, glob_loc_rel = gl_list[0]
 
         # Find the newest valid version of the global object
-        glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
-        if glob_node is not None:
+        # since we call version_global within the loop
+        latest_glob_node = traversal.get_glob_latest_version(db_iface,
+                                                             glob_node)
+        if latest_glob_node is not None:
             # If in OPUS lite mode, copy over link state from parent
             old_state = None
-            if old_proc_node.has_key('opus_lite') and old_proc_node['opus_lite']:
-                glob_loc_rel = traversal.get_rel_to_dest(db_iface,
-                                                glob_node.LOC_OBJ.outgoing,
-                                                loc_node)
+            if (old_proc_node.has_key('opus_lite') and
+                old_proc_node['opus_lite']):
                 if glob_loc_rel is not None:
                     old_state = glob_loc_rel['state']
 
-            new_glob_node = pvm.version_global(db_iface, glob_node)
+            new_glob_node = pvm.version_global(db_iface, latest_glob_node)
             pvm.bind(db_iface, new_loc_node, new_glob_node, old_state)
-
 
 
 class ProcStateController(object):
@@ -118,6 +121,10 @@ class ProcStateController(object):
         if pid not in cls.proc_map:
             cls.proc_map[pid] = cls.proc_states.FORK
             new_proc_node = create_proc(db_iface, pid, timestamp)
+
+            if p_node.has_key('opus_lite'):
+                new_proc_node['opus_lite'] = p_node['opus_lite']
+
             cls.__add_proc_node(pid, new_proc_node)
             db_iface.create_relationship(new_proc_node, p_node,
                                          storage.RelType.PROC_PARENT)
@@ -183,6 +190,8 @@ class ProcStateController(object):
 
     @classmethod
     def __handle_execed_process(cls, db_iface, hdr, pay, opus_lite):
+        current_state = cls.proc_map[hdr.pid]
+
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = create_proc(db_iface, hdr.pid, hdr.timestamp)
         cls.__add_proc_node(hdr.pid, proc_node)
@@ -191,9 +200,6 @@ class ProcStateController(object):
         old_proc_node_id = cls.PIDMAP[hdr.pid]
         old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
 
-        # Set the old process node state to dead
-        old_proc_node['status'] = storage.PROCESS_STATE.DEAD
-
         db_iface.create_relationship(proc_node, old_proc_node,
                                     storage.RelType.PROC_OBJ_PREV)
         clone_file_des(db_iface, old_proc_node, proc_node)
@@ -201,6 +207,9 @@ class ProcStateController(object):
 
         # Clear the previous process object cache
         cls.__clear_process_cache(db_iface, old_proc_node)
+
+        # Set the old process node state to dead
+        old_proc_node['status'] = storage.PROCESS_STATE.DEAD
 
         # Remove the previous process node from pid_proc_nodes_map
         if old_proc_node_id in cls.pid_proc_nodes_map[hdr.pid]:
