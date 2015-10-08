@@ -17,7 +17,7 @@ import psutil
 import time
 import commands
 
-from . import config_util, ipc
+from . import config_util, ipc, common_utils as cu
 from .exception import SnapshotException
 
 
@@ -57,7 +57,7 @@ class AnalyserController(object):
         if __debug__:
             logging.debug("Calculating maximum heap size")
         vminfo = psutil.virtual_memory()
-        max_heap = 0.25 * vminfo.available
+        max_heap = cu.HEAP_PERCENT_MEM * vminfo.available
         self.neo4j_params['max_jvm_heap_size'] = max_heap
         return max_heap
 
@@ -108,6 +108,7 @@ class AnalyserController(object):
 
     def _run_fetcher(self):
         '''Runs the fetcher process loop'''
+        import jpype
         from . import analysis
         from . import query
 
@@ -124,7 +125,6 @@ class AnalyserController(object):
                                                 neo4j_cfg)
 
         def _query(self, msg):
-            import jpype
             if not jpype.isThreadAttachedToJVM():
                 jpype.attachThreadToJVM()
 
@@ -188,7 +188,8 @@ class AnalyserController(object):
                               (heap_size / 1024),
                               (self.max_jvm_heap / (1024 * 1024)))
 
-            if (heap_size * 1024) >= (0.9 * self.max_jvm_heap):
+            if ((heap_size * 1024) >=
+                (cu.HEAP_USAGE_THRESHOLD * self.max_jvm_heap)):
                 logging.error("Warning!! JVM heap size above threshold")
                 return True
 
@@ -198,8 +199,8 @@ class AnalyserController(object):
         sys_mem_info = psutil.virtual_memory()
         avail_mem = sys_mem_info.available
         total_mem = sys_mem_info.total
-        if ((avail_mem < (0.25 * total_mem)) and
-            (proc_mem_info.rss > (0.35 * total_mem))):
+        if ((avail_mem < (cu.MIN_PERCENT_AVAIL_MEM * total_mem)) and
+            (proc_mem_info.rss > (cu.MAX_RSS_PERCENT_MEM * total_mem))):
             logging.error("System is running low on memory!!")
             logging.error("Total mem: %d, Available mem: %d, Analyser mem: %d",
                           total_mem, avail_mem, proc_mem_info.rss)
