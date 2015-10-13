@@ -81,7 +81,6 @@ LOGGING:
 MODULES:
   Producer: SocketProducer
   Analyser: StatisticsAnalyser
-  CommandInterface: TCPInterface
 
 PRODUCER:
   SocketProducer:
@@ -97,11 +96,19 @@ ANALYSER:
     storage_args:
       filename: {db_path}
     opus_lite: true
+    opus_snapshot_dir: {opus_home}
 
-COMMANDINTERFACE:
-  TCPInterface:
-    listen_addr: localhost
-    listen_port: {cc_port}
+ANALYSER_CONTROLLER:
+  mem_mon_interval: 5.0
+
+NEO4J_PARAMS:
+  max_jvm_heap_size: None
+  keep_logical_logs: false
+  cache_type: weak
+
+COMMAND:
+  listen_addr: localhost
+  listen_port: {cc_port}
 
 GENERAL:
   touch_file: {touch_file}
@@ -241,6 +248,7 @@ def generate_server_cfg_file(cfg):
     db_path = utils.path_normalise(cfg['db_path'])
     touch_file = utils.path_normalise(os.path.join(cfg['install_dir'],
                                                    ".opus-live"))
+    opus_home = utils.path_normalise(cfg['install_dir'])
     cc_port = cfg['cc_port']
 
     with open(server_cfg_path, "w") as server_cfg:
@@ -251,4 +259,5 @@ def generate_server_cfg_file(cfg):
                 uds_sock=uds_sock,
                 db_path=db_path,
                 touch_file=touch_file,
+                opus_home=opus_home,
                 cc_port=cc_port))

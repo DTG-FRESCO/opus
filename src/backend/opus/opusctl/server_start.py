@@ -19,7 +19,7 @@ def elapsed(reset=False):
 
 def monitor_server_startup(cfg):
     elapsed(reset=True)
-    time.sleep(0.1)
+    time.sleep(3)
     helper = cc_utils.CommandConnectionHelper("localhost",
                                               int(cfg['cc_port']))
     while elapsed() < 20:

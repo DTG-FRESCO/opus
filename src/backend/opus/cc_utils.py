@@ -7,45 +7,12 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import json
-import os
 import socket
 import struct
 
 from .exception import BackendConnectionError
 
 CC_HDR = struct.Struct(str("@I"))
-
-
-class RWPipePair(object):
-    '''Pair of pipes that can be used to exchange data.'''
-    def __init__(self, r_pipe, w_pipe):
-        super(RWPipePair, self).__init__()
-        self.r_pipe = r_pipe
-        self.w_pipe = w_pipe
-
-    def read(self):
-        '''Reads a single message from the read pipe.'''
-        hdr_buf = os.read(self.r_pipe, CC_HDR.size)
-        pay_len = CC_HDR.unpack(hdr_buf)[0]
-        pay_buf = os.read(self.r_pipe, pay_len)
-        return json.loads(pay_buf)
-
-    def write(self, msg):
-        '''Write a single message to the write pipe.'''
-        msg_txt = json.dumps(msg)
-        buf = CC_HDR.pack(len(msg_txt))
-        buf += msg_txt
-        os.write(self.w_pipe, buf)
-
-    @classmethod
-    def create_pair(cls):
-        '''Creates a paired set of PW pipe pairs.'''
-        (rd1, wr1) = os.pipe()
-        (rd2, wr2) = os.pipe()
-
-        pair1 = cls(rd1, wr2)
-        pair2 = cls(rd2, wr1)
-        return (pair1, pair2)
 
 
 def send_cc_msg(sock, msg):

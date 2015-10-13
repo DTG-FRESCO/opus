@@ -10,8 +10,6 @@ import bisect
 import collections
 import copy
 import logging
-import threading
-import functools
 import time
 
 from . import uds_msg_pb2
@@ -21,6 +19,12 @@ from .exception import InvalidTagException
 # Number of seconds to wait for a thread to join on shutdown.
 THREAD_JOIN_SLACK = 30
 FCNTL_F_DUPFD_CLOEXEC = 1030  # From header file fcntl.h
+
+# Constants for tweaking memory usage
+HEAP_PERCENT_MEM = 0.25
+HEAP_USAGE_THRESHOLD = 0.90
+MIN_PERCENT_AVAIL_MEM = 0.25
+MAX_RSS_PERCENT_MEM = 0.35
 
 
 class FixedDict(object):  # pylint: disable=R0903
@@ -113,21 +117,8 @@ def enum(**enums):
     '''Returns an enum class object'''
     enums['enum_str'] = staticmethod(lambda x: {val: key
                                                 for key, val in enums.items()
-                                               }[x])
+                                                }[x])
     return type(str('Enum'), (), enums)
-
-
-def analyser_lock(func):
-    '''Decorator method for accessing analyser object'''
-    if not hasattr(analyser_lock, "mutex"):
-        analyser_lock.mutex = threading.Lock()
-
-    @functools.wraps(func)
-    def deco(self, *args, **kwargs):
-        '''Wraps function call with lock acquire and release'''
-        with analyser_lock.mutex:
-            return func(self, *args, **kwargs)
-    return deco
 
 
 def get_payload_type(header):

@@ -11,12 +11,11 @@ import functools
 import logging
 import threading
 import time
+import os
 
 from . import common_utils
 from .exception import InvalidCacheException, UniqueIDException
 
-import jpype
-from neo4j import GraphDatabase
 
 # Enum values for node types
 NodeType = common_utils.enum(META=1,
@@ -83,6 +82,14 @@ class CacheManager(object):
     updated and invalidated.'''
     def __init__(self, cache_list):
         self.caches = {key: dict() for key in cache_list}
+
+    def dump_cache(self, file_name):
+        '''Dumps contents of cache to file'''
+        pass
+
+    def load_cache(self, file_name):
+        '''Loads cache content from file'''
+        pass
 
     def invalidate(self, cache, key):
         '''Invalidates the entry 'key' in 'cache', a InvalidCacheExcetion
@@ -184,15 +191,19 @@ class DBInterface(StorageIFace):
     UNIQ_ID_IDX = "UNIQ_ID_IDX"
     TIME_INDEX = "TIME_INDEX"
 
-    def __init__(self, filename):
+    def __init__(self, filename, neo4j_cfg):
         super(DBInterface, self).__init__()
 
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
+        max_heap, config = self.get_config(neo4j_cfg)
+
+        if max_heap is not None:
+            os.environ['NEO4J_PYTHON_JVMARGS'] = '-Xms512M -Xmx%dM' % (max_heap)
+
+        from neo4j import GraphDatabase
 
         self.trans_lock = threading.Lock()
         try:
-            self.db = GraphDatabase(filename)
+            self.db = GraphDatabase(filename, **config)
             self.file_index = None
             self.proc_index = None
             self.node_id_idx = None
@@ -246,6 +257,29 @@ class DBInterface(StorageIFace):
         except Exception as exc:
             logging.error("Error: %s", str(exc))
             raise exc
+
+    def get_config(self, neo4j_cfg):
+        '''Returns the max heap size in MB along with neo4j
+        config parameters as a dictionary'''
+
+        max_heap = None
+        config = {}
+
+        if 'max_jvm_heap_size' in neo4j_cfg:
+            max_heap_in_bytes = neo4j_cfg['max_jvm_heap_size']
+            max_heap = int(max_heap_in_bytes / (1024 * 1024))
+
+        if 'keep_logical_logs' in neo4j_cfg:
+            if neo4j_cfg['keep_logical_logs']:
+                config['keep_logical_logs'] = str('true')
+            else:
+                config['keep_logical_logs'] = str('false')
+
+        if 'cache_type' in neo4j_cfg:
+            config['cache_type'] = neo4j_cfg['cache_type']
+
+        return max_heap, config
+
 
     def close(self):
         '''Shutdown the database'''
@@ -342,9 +376,12 @@ class DBInterface(StorageIFace):
         '''Deletes relatioship given a relationship object'''
         rel.delete()
 
+    @CacheManager.dec(CACHE_NAMES.NODE_BY_ID,
+                      lambda node_id: node_id)
     def get_node_by_id(self, node_id):
         '''Returns a node object given the ID'''
-        return self.cache_man.get(CACHE_NAMES.NODE_BY_ID, node_id)
+        _node = self.db.node[node_id]
+        return _node
 
     def set_link_state(self, rel_list, status):
         '''Sets the link state to status'''
@@ -356,6 +393,6 @@ class DBInterface(StorageIFace):
         return self.db.query(qry, **kwargs)
 
     def locked_query(self, qry, **kwargs):
-        '''Executes a query within a locknig transation.'''
+        '''Executes a query within a locking transaction.'''
         with self.trans_lock:
             return self.db.query(qry, **kwargs)

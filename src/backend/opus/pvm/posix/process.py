@@ -6,9 +6,11 @@ PVM posix core package.
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import os
 import logging
+import cPickle as pickle
 
-from ... import common_utils, pvm, storage, traversal
+from ... import common_utils, pvm, storage, traversal, exception
 from . import actions, utils
 
 
@@ -23,7 +25,7 @@ def create_proc(db_iface, pid, time_stamp):
 
     # Cache the process node by its node_id property
     db_iface.cache_man.update(storage.CACHE_NAMES.NODE_BY_ID,
-                            proc_node['node_id'], proc_node)
+                            proc_node.id, proc_node)
 
     return proc_node
 
@@ -68,34 +70,37 @@ def expand_proc(db_iface, proc_node, pay, opus_lite):
 
 
 def clone_file_des(db_iface, old_proc_node, new_proc_node):
-    '''Clones the file descriptors of old_proc_node to new_proc_node
-    using the CoT mechanism.'''
+    '''Copies over file descriptors, and global to process path information
+    from the old_proc_node to new_proc_node.'''
     loc_node_link_list = traversal.get_locals_from_process(db_iface,
                                                            old_proc_node)
-    for (loc_node, rel_link) in loc_node_link_list:
-        if rel_link['state'] in [storage.LinkState.CLOSED,
-                                 storage.LinkState.CLOEXEC]:
+    for (loc_node, loc_proc_rel) in loc_node_link_list:
+        if loc_proc_rel['state'] in [storage.LinkState.CLOSED,
+                                     storage.LinkState.CLOEXEC]:
             continue
+
         new_loc_node = pvm.get_l(db_iface, new_proc_node, loc_node['name'])
 
-        if old_proc_node['status'] == storage.PROCESS_STATE.DEAD:
-            loc_node = actions.close_action_helper(db_iface, loc_node)
+        gl_list = traversal.get_globals_from_local(db_iface, loc_node)
+        if len(gl_list) == 0:
+            continue
+
+        glob_node, glob_loc_rel = gl_list[0]
 
         # Find the newest valid version of the global object
-        glob_node = traversal.get_glob_latest_version(db_iface, loc_node)
-        if glob_node is not None:
+        # since we call version_global within the loop
+        latest_glob_node = traversal.get_glob_latest_version(db_iface,
+                                                             glob_node)
+        if latest_glob_node is not None:
             # If in OPUS lite mode, copy over link state from parent
             old_state = None
-            if old_proc_node.has_key('opus_lite') and old_proc_node['opus_lite']:
-                glob_loc_rel = traversal.get_rel_to_dest(db_iface,
-                                                glob_node.LOC_OBJ.outgoing,
-                                                loc_node)
+            if (old_proc_node.has_key('opus_lite') and
+                old_proc_node['opus_lite']):
                 if glob_loc_rel is not None:
                     old_state = glob_loc_rel['state']
 
-            new_glob_node = pvm.version_global(db_iface, glob_node)
+            new_glob_node = pvm.version_global(db_iface, latest_glob_node)
             pvm.bind(db_iface, new_loc_node, new_glob_node, old_state)
-
 
 
 class ProcStateController(object):
@@ -106,7 +111,7 @@ class ProcStateController(object):
 
     proc_map = {}
     PIDMAP = {}
-    pid_proc_nodes_map = {} # PID -> [procnode list]
+    pid_proc_nodes_map = {} # PID -> [proc_node.id list]
 
     @classmethod
     def proc_fork(cls, db_iface, p_node, pid, timestamp):
@@ -116,11 +121,15 @@ class ProcStateController(object):
         if pid not in cls.proc_map:
             cls.proc_map[pid] = cls.proc_states.FORK
             new_proc_node = create_proc(db_iface, pid, timestamp)
+
+            if p_node.has_key('opus_lite'):
+                new_proc_node['opus_lite'] = p_node['opus_lite']
+
             cls.__add_proc_node(pid, new_proc_node)
             db_iface.create_relationship(new_proc_node, p_node,
                                          storage.RelType.PROC_PARENT)
             clone_file_des(db_iface, p_node, new_proc_node)
-            cls.PIDMAP[pid] = new_proc_node['node_id']
+            cls.PIDMAP[pid] = new_proc_node.id
             return True
         else:
             logging.warning("Process %d received invalid request to fork while"
@@ -133,9 +142,9 @@ class ProcStateController(object):
     def __add_proc_node(cls, pid, proc_node):
         '''Maintains a list of process nodes for each pid'''
         if pid in cls.pid_proc_nodes_map:
-            cls.pid_proc_nodes_map[pid].append(proc_node)
+            cls.pid_proc_nodes_map[pid].append(proc_node.id)
         else:
-            cls.pid_proc_nodes_map[pid] = [proc_node]
+            cls.pid_proc_nodes_map[pid] = [proc_node.id]
 
     @classmethod
     def __is_forked_process(cls, pid):
@@ -156,14 +165,14 @@ class ProcStateController(object):
 
         for i in range(3):
             pvm.get_l(db_iface, proc_node, str(i))
-        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+        cls.PIDMAP[hdr.pid] = proc_node.id
 
     @classmethod
     def __handle_forked_process(cls, db_iface, hdr, pay, opus_lite):
         cls.proc_map[hdr.pid] = cls.proc_states.NORMAL
         proc_node = db_iface.get_node_by_id(cls.PIDMAP[hdr.pid])
         expand_proc(db_iface, proc_node, pay, opus_lite)
-        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+        cls.PIDMAP[hdr.pid] = proc_node.id
 
     @classmethod
     def __handle_vforked_process(cls, db_iface, hdr, pay, opus_lite):
@@ -177,7 +186,7 @@ class ProcStateController(object):
         db_iface.create_relationship(proc_node, parent_proc_node,
                                     storage.RelType.PROC_PARENT)
         clone_file_des(db_iface, parent_proc_node, proc_node)
-        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+        cls.PIDMAP[hdr.pid] = proc_node.id
 
     @classmethod
     def __handle_execed_process(cls, db_iface, hdr, pay, opus_lite):
@@ -189,20 +198,20 @@ class ProcStateController(object):
         old_proc_node_id = cls.PIDMAP[hdr.pid]
         old_proc_node = db_iface.get_node_by_id(old_proc_node_id)
 
-        # Set the old process node state to dead
-        old_proc_node['status'] = storage.PROCESS_STATE.DEAD
-
         db_iface.create_relationship(proc_node, old_proc_node,
                                     storage.RelType.PROC_OBJ_PREV)
         clone_file_des(db_iface, old_proc_node, proc_node)
-        cls.PIDMAP[hdr.pid] = proc_node['node_id']
+        cls.PIDMAP[hdr.pid] = proc_node.id
 
         # Clear the previous process object cache
         cls.__clear_process_cache(db_iface, old_proc_node)
 
+        # Set the old process node state to dead
+        old_proc_node['status'] = storage.PROCESS_STATE.DEAD
+
         # Remove the previous process node from pid_proc_nodes_map
-        if old_proc_node in cls.pid_proc_nodes_map[hdr.pid]:
-            cls.pid_proc_nodes_map[hdr.pid].remove(old_proc_node)
+        if old_proc_node_id in cls.pid_proc_nodes_map[hdr.pid]:
+            cls.pid_proc_nodes_map[hdr.pid].remove(old_proc_node_id)
 
 
     @classmethod
@@ -278,7 +287,8 @@ class ProcStateController(object):
         if pid not in cls.pid_proc_nodes_map:
             return
 
-        for proc_node in cls.pid_proc_nodes_map[pid]:
+        for proc_node_id in cls.pid_proc_nodes_map[pid]:
+            proc_node = db_iface.get_node_by_id(proc_node_id)
             cls.__clear_process_cache(db_iface, proc_node)
             proc_node['status'] = storage.PROCESS_STATE.DEAD
 
@@ -290,7 +300,8 @@ class ProcStateController(object):
         if pid not in cls.pid_proc_nodes_map:
             return
 
-        for proc_node in cls.pid_proc_nodes_map[pid]:
+        for proc_node_id in cls.pid_proc_nodes_map[pid]:
+            proc_node = db_iface.get_node_by_id(proc_node_id)
             if proc_node['status'] == storage.PROCESS_STATE.ALIVE:
                 continue
 
@@ -314,8 +325,8 @@ class ProcStateController(object):
                 cls.proc_map[pid] = cls.proc_states.NORMAL
                 return True
             else:
-                cls.__clear_caches(db_iface, pid)
                 cls.__close_all_open_fds(db_iface, pid)
+                cls.__clear_caches(db_iface, pid)
                 del cls.pid_proc_nodes_map[pid]
                 del cls.PIDMAP[pid]
                 del cls.proc_map[pid]
@@ -335,6 +346,36 @@ class ProcStateController(object):
             logging.error("Attempt to reffer to process %d which is not "
                           "present in the system.", pid)
             return None
+
+    @classmethod
+    def dump_state(cls, file_name):
+        '''Writes all class data structures to file'''
+        try:
+            with open(file_name, "wb") as fh:
+                pickle.dump(cls.proc_map, fh)
+                pickle.dump(cls.PIDMAP, fh)
+                pickle.dump(cls.pid_proc_nodes_map, fh)
+        except IOError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
+            raise exception.OPUSException("OPUS file open error, %s", file_name)
+
+    @classmethod
+    def load_state(cls, file_name):
+        '''Loads all class data structures from file'''
+        if not os.path.isfile(file_name):
+            return
+
+        try:
+            with open(file_name, "rb") as fh:
+                cls.proc_map = pickle.load(fh)
+                cls.PIDMAP = pickle.load(fh)
+                cls.pid_proc_nodes_map = pickle.load(fh)
+        except IOError as exc:
+            logging.error("Error: %d, Message: %s", exc.errno, exc.strerror)
+            raise exception.OPUSException("OPUS file open error, %s", file_name)
+
+        os.unlink(file_name)
+
 
     @classmethod
     def clear(cls):
