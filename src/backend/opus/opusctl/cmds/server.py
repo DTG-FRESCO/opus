@@ -125,6 +125,9 @@ def handle(cfg, cmd, **params):
         print("===Starting OPUS server===")
         server_start.start_opus_server(cfg)
     elif cmd == "status":
+        if not utils.is_server_active():
+            print("Server is not running.")
+            return
         monitor_status(helper, **params)
     else:
         if not utils.is_server_active():
