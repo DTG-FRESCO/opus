@@ -205,7 +205,7 @@ def generate_config(existing=None):
             default = existing[quest['key']]
         else:
             default = quest['def'](cfg)
-        prompt = "{} [{}]:".format(quest['prompt'], default)
+        prompt = "{} [{}]: ".format(quest['prompt'], default)
         resp = raw_input(prompt)
         if resp == "":
             cfg[quest['key']] = default
