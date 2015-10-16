@@ -84,12 +84,14 @@ def collapse_children(level, node_id, p_map, new_p_map, tkey=None):
             new['executed_files'].extend(old['executed_files'])
 
     # Recursively get data for children or execed processes
-    if 'execed' in p_map[node_id]:
+    if ('execed' in p_map[node_id] and
+        (len(p_map[node_id]['execed']) > 0)):
         el = p_map[node_id]['execed']
         el.sort()
         for ni in el:
             collapse_children(level, ni, p_map, new_p_map, tkey)
-    elif 'forked' in p_map[node_id]:
+    if ('forked' in p_map[node_id] and
+        (len(p_map[node_id]['forked']) > 0)):
         fl = p_map[node_id]['forked']
         fl.sort()
         for ni in fl:
@@ -111,7 +113,9 @@ def collapse(p_map):
             for node_id in fl:
                 collapse_children(level + 1, node_id, p_map, new_p_map)
             global bash_children
-            if "bash" in p_map[key]['cmd_args']:
+            # TODO: This should be changed
+            if ("bash" in p_map[key]['cmd_args'] or
+                "zsh" in p_map[key]['cmd_args']):
                 new_p_map[key]['forked'] = bash_children
             bash_children = []
     return new_p_map
@@ -167,12 +171,14 @@ def print_recursive(node_id, proc_tree_map, dot_fh):
     if len(proc_tree_map[node_id]['cmd_args']) > 0:
         print_node(proc_tree_map[node_id], dot_fh)
 
-    if 'execed' in proc_tree_map[node_id]:
+    if ('execed' in proc_tree_map[node_id] and
+        (len(proc_tree_map[node_id]['execed']) > 0)):
         el = proc_tree_map[node_id]['execed']
         el.sort()
         for ni in el:
             pid = print_recursive(ni, proc_tree_map, dot_fh)
-    elif 'forked' in proc_tree_map[node_id]:
+    if ('forked' in proc_tree_map[node_id] and
+        (len(proc_tree_map[node_id]['forked']) > 0)):
         fl = proc_tree_map[node_id]['forked']
         fl.sort()
         for ni in fl:
@@ -194,7 +200,8 @@ def print_tree(p_map, dot_fh):
 
         if 'forked' in p_map[key]:
             fl = p_map[key]['forked']
-            if 'bash' not in p_map[key]['cmd_args']:
+            if ('bash' not in p_map[key]['cmd_args'] and
+                'zsh' not in p_map[key]['cmd_args']):
                 dot_fh.write("    %d [label=\"%s\"];\n" %
                              (p_map[key]['pid'],
                               p_map[key]['cmd_args'][:80] +
@@ -202,7 +209,8 @@ def print_tree(p_map, dot_fh):
             printed_list.append(key)
             for node_id in fl:
                 pid = print_recursive(node_id, p_map, dot_fh)
-                if 'bash' not in p_map[key]['cmd_args']:
+                if ('bash' not in p_map[key]['cmd_args'] and
+                    'zsh' not in p_map[key]['cmd_args']):
                     dot_fh.write("    %d -> %d;\n" % (p_map[key]['pid'], pid))
     dot_fh.write("}\n")
 

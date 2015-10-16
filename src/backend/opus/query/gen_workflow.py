@@ -15,6 +15,7 @@ import datetime
 import cPickle as pickle
 import hashlib
 import logging
+import re
 
 
 action_dict = {0: 'None', 1: 'Copy On Touch', 2: 'Read', 3: 'Write',
@@ -25,7 +26,6 @@ start_filters = ['/etc/', '/lib/', '/var/', '/dev/', '/usr/', '.sh_history',
                  '.bashrc', '/run', '/bin', '/sbin', '/proc', '/opt']
 end_filters = ['.sh_history', '.bashrc', 'logilab_common-0.61.0-nspkg.pth',
                '.cache', '.config']
-dir_filters = ['.matplotlib']
 
 
 class GlobData:
@@ -73,9 +73,12 @@ def check_filter(glob_node):
     for f in end_filters:
         if name.endswith(f):
             return False
-    for f in dir_filters:
-        if f in name:
-            return False
+
+    # Check for hidden dirs in path
+    search_obj = re.search(r'\/\..*\/', name, re.M|re.I)
+    if search_obj:
+        return False
+
     return True
 
 
@@ -98,6 +101,8 @@ def get_cwd(proc_node):
 def get_meta(link_type):
     name_value_map = {}
     for tmp_rel in link_type.outgoing:
+        if not tmp_rel.end.has_key('name') or not tmp_rel.end.has_key('value'):
+            continue
         name_value_map[tmp_rel.end['name']] = tmp_rel.end['value']
     return name_value_map
 
@@ -153,6 +158,7 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
         w=storage.LinkState.WRITE,
         rw=storage.LinkState.RaW,
         b=storage.LinkState.BIN)
+
     for row in rows:
         glob_node = row['glob_node']
         rel = row['rel']
@@ -168,9 +174,6 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
             add_file(glob_node, lineage_list, read_write_files)
         elif rel['state'] == storage.LinkState.BIN:
             add_file(glob_node, lineage_list, executed_files)
-
-    # TODO: Change this to add new record and update existing record
-    # store_proc_tree_map(proc_node.id, ....)
 
     if proc_node.id not in proc_tree_map:
         proc_tree_map[proc_node.id] = {'forked': [], 'execed': []}
@@ -191,7 +194,8 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
         for r1 in proc_node.PROC_PARENT.outgoing:
             if r1.end.id not in proc_tree_map:
                 proc_tree_map[r1.end.id] = {'pid': proc_node['pid'],
-                                            'forked': [proc_node.id]}
+                                            'forked': [proc_node.id],
+                                            'execed': []}
             else:
                 proc_tree_map[r1.end.id]['forked'].append(proc_node.id)
 
@@ -201,7 +205,8 @@ def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
         for r1 in proc_node.PROC_OBJ_PREV.outgoing:
             if r1.end.id not in proc_tree_map:
                 proc_tree_map[r1.end.id] = {'pid': proc_node['pid'],
-                                            'execed': [proc_node.id]}
+                                            'execed': [proc_node.id],
+                                            'forked': []}
             else:
                 proc_tree_map[r1.end.id]['execed'].append(proc_node.id)
 

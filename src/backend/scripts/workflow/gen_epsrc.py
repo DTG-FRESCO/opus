@@ -203,13 +203,15 @@ def get_children(level, node_id, proc_tree_map, yaml_map,
                 proc_tree_map[node_id]['executed_files']))
 
     # Recursively get data for children or execed processes
-    if 'execed' in proc_tree_map[node_id]:
+    if ('execed' in proc_tree_map[node_id] and
+        (len(proc_tree_map[node_id]['execed']) > 0)):
         el = proc_tree_map[node_id]['execed']
         el.sort()
         for ni in el:
             get_children(level, ni, proc_tree_map,
                          yaml_map, level_cmd, yaml_key)
-    elif 'forked' in proc_tree_map[node_id]:
+    if ('forked' in proc_tree_map[node_id] and
+        (len(proc_tree_map[node_id]['forked']) > 0)):
         fl = proc_tree_map[node_id]['forked']
         fl.sort()
         for ni in fl:
