@@ -11,6 +11,7 @@ import collections
 import copy
 import logging
 import time
+import os
 
 from . import uds_msg_pb2
 from .exception import InvalidTagException
@@ -159,3 +160,14 @@ def calc_exec_time(func):
                                   (end_time - start_time)))
         return ret
     return timex
+
+
+def canonicalise_file_path(file_name):
+    file_name = os.path.abspath(file_name)
+
+    if os.path.isfile(file_name):
+        file_name = os.path.realpath(file_name)
+    else:
+        print("File does not exist in the filesystem, "
+              "cannot determine real path.")
+    return file_name

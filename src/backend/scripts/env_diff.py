@@ -13,6 +13,8 @@ import os
 import sys
 import textwrap
 
+from opus import common_utils as cu
+
 try:
     import prettytable
 except ImportError as exe:
@@ -127,7 +129,7 @@ def valid_date(s):
 
 
 def make_query(args):
-    prog_name = args.prog_name
+    prog_name = cu.canonicalise_file_path(args.prog_name)
     print("Getting executions for binary %s" % (prog_name))
 
     if os.path.isfile(prog_name):
