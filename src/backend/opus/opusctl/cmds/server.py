@@ -28,6 +28,8 @@ def _calc_rem_time(msgs):
         return ""
     else:
         msg_diff = this.msgs-msgs
+        if msg_diff == 0:
+            return ""
         time_diff = time.time()-this.time
         msg_per_s = msg_diff/time_diff
         rem_secs = int(msgs/msg_per_s)
