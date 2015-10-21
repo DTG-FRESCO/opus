@@ -85,13 +85,13 @@ def collapse_children(level, node_id, p_map, new_p_map, tkey=None):
 
     # Recursively get data for children or execed processes
     if ('execed' in p_map[node_id] and
-        (len(p_map[node_id]['execed']) > 0)):
+       (len(p_map[node_id]['execed']) > 0)):
         el = p_map[node_id]['execed']
         el.sort()
         for ni in el:
             collapse_children(level, ni, p_map, new_p_map, tkey)
     if ('forked' in p_map[node_id] and
-        (len(p_map[node_id]['forked']) > 0)):
+       (len(p_map[node_id]['forked']) > 0)):
         fl = p_map[node_id]['forked']
         fl.sort()
         for ni in fl:
@@ -113,7 +113,6 @@ def collapse(p_map):
             for node_id in fl:
                 collapse_children(level + 1, node_id, p_map, new_p_map)
             global bash_children
-            # TODO: This should be changed
             if ("bash" in p_map[key]['cmd_args'] or
                 "zsh" in p_map[key]['cmd_args']):
                 new_p_map[key]['forked'] = bash_children
@@ -172,13 +171,13 @@ def print_recursive(node_id, proc_tree_map, dot_fh):
         print_node(proc_tree_map[node_id], dot_fh)
 
     if ('execed' in proc_tree_map[node_id] and
-        (len(proc_tree_map[node_id]['execed']) > 0)):
+       (len(proc_tree_map[node_id]['execed']) > 0)):
         el = proc_tree_map[node_id]['execed']
         el.sort()
         for ni in el:
             pid = print_recursive(ni, proc_tree_map, dot_fh)
     if ('forked' in proc_tree_map[node_id] and
-        (len(proc_tree_map[node_id]['forked']) > 0)):
+       (len(proc_tree_map[node_id]['forked']) > 0)):
         fl = proc_tree_map[node_id]['forked']
         fl.sort()
         for ni in fl:

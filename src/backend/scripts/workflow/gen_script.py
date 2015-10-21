@@ -41,7 +41,7 @@ def get_first_level(level, node_id, proc_tree_map,
     visited_list.append(node_id)
 
     if len(proc_tree_map[node_id]['cmd_args']) > 0:
-        # NOTE: Indicates commands run by used from command prompt.
+        # Level 1 are commands run by the user.
         if level == 1:
             cwd = proc_tree_map[node_id]['cwd']
             if current_dir != cwd:
@@ -50,13 +50,15 @@ def get_first_level(level, node_id, proc_tree_map,
             script_file.write(proc_tree_map[node_id]['cmd_args'])
             script_file.write("\n")
 
-    if 'execed' in proc_tree_map[node_id] and (len(proc_tree_map[node_id]['execed']) > 0):
+    if ('execed' in proc_tree_map[node_id] and
+       (len(proc_tree_map[node_id]['execed']) > 0)):
         el = proc_tree_map[node_id]['execed']
         el.sort()
         for ni in el:
             get_first_level(level, ni, proc_tree_map,
                             script_file, current_dir)
-    if 'forked' in proc_tree_map[node_id] and (len(proc_tree_map[node_id]['forked']) > 0):
+    if ('forked' in proc_tree_map[node_id] and
+       (len(proc_tree_map[node_id]['forked']) > 0)):
         fl = proc_tree_map[node_id]['forked']
         fl.sort()
         for ni in fl:

@@ -118,7 +118,7 @@ def enum(**enums):
     '''Returns an enum class object'''
     enums['enum_str'] = staticmethod(lambda x: {val: key
                                                 for key, val in enums.items()
-                                                }[x])
+                                               }[x])
     return type(str('Enum'), (), enums)
 
 
