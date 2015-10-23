@@ -73,7 +73,7 @@ def check_filter(glob_node):
             return False
 
     # Check for hidden dirs in path
-    search_obj = re.search(r'\/\..*\/', name, re.M|re.I)
+    search_obj = re.search(r'\/\..*\/', name, re.M | re.I)
     if search_obj:
         return False
 
@@ -127,8 +127,8 @@ def add_file(glob_node, lineage_list, file_list):
 
 
 def find_files_read_and_written_by_process(db_iface, proc_node, proc_tree_map):
-    if (proc_node.id in GlobData.proc_list or
-        proc_node['sys_time'] > GlobData.queried_file_last_modified_time):
+    if(proc_node.id in GlobData.proc_list or
+       proc_node['sys_time'] > GlobData.queried_file_last_modified_time):
         return
 
     GlobData.proc_list.append(proc_node.id)

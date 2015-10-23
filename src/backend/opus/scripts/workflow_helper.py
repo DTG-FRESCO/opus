@@ -51,8 +51,7 @@ def make_workflow_qry(args):
     cmd = {'cmd': 'exec_qry_method',
            'qry_method': 'gen_workflow',
            'qry_args': {'file_name': file_name,
-                        'regen': regen}
-          }
+                        'regen': regen}}
 
     result = sync_send_message(args, cmd)
     if not result['success']:
