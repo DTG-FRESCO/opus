@@ -50,14 +50,14 @@ def get_first_level(level, node_id, proc_tree_map,
             script_file.write(proc_tree_map[node_id]['cmd_args'])
             script_file.write("\n")
 
-    if ('execed' in proc_tree_map[node_id] and
+    if('execed' in proc_tree_map[node_id] and
        (len(proc_tree_map[node_id]['execed']) > 0)):
         el = proc_tree_map[node_id]['execed']
         el.sort()
         for ni in el:
             get_first_level(level, ni, proc_tree_map,
                             script_file, current_dir)
-    if ('forked' in proc_tree_map[node_id] and
+    if('forked' in proc_tree_map[node_id] and
        (len(proc_tree_map[node_id]['forked']) > 0)):
         fl = proc_tree_map[node_id]['forked']
         fl.sort()
