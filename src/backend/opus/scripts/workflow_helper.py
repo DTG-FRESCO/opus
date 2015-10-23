@@ -7,7 +7,7 @@ Helper module for workflow scripts
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import cc_utils
+from opus import cc_utils, common_utils as cu
 
 import cPickle as pickle
 import time
@@ -41,7 +41,7 @@ def sync_send_message(args, msg):
 
 
 def make_workflow_qry(args):
-    file_name = args.file_name
+    file_name = cu.canonicalise_file_path(args.file_name)
     proc_tree_map = None
 
     regen = False
@@ -51,8 +51,7 @@ def make_workflow_qry(args):
     cmd = {'cmd': 'exec_qry_method',
            'qry_method': 'gen_workflow',
            'qry_args': {'file_name': file_name,
-                        'regen': regen}
-           }
+                        'regen': regen}}
 
     result = sync_send_message(args, cmd)
     if not result['success']:
