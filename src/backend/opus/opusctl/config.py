@@ -99,10 +99,27 @@ ANALYSER:
     opus_snapshot_dir: {opus_home}
 
 ANALYSER_CONTROLLER:
-  mem_mon_interval: 5.0
+  mem_mon_params:
+    mon_status: ON
+    mon_interval: 5.0
+  memory_params:
+    max_rss_threshold: None
+    jvm_usage_threshold: 0.90
+    min_percent_avail_mem: 0.25
+    max_rss_percent_mem: 0.35
 
 NEO4J_PARAMS:
-  max_jvm_heap_size: None
+  max_jvm_heap_size: default
+  min_jvm_heap_size: default
+  jvm_from_avail_mem: 0.25
+  buffer_cache:
+    buffer_cache_size: default
+    buff_cache_auto: 0.25
+    propstore: 0.20
+    nodestore: 0.20
+    relstore: 0.30
+    strings: 0.15
+    arrays: 0.15
   keep_logical_logs: false
   cache_type: weak
 

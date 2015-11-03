@@ -21,13 +21,6 @@ from .exception import InvalidTagException
 THREAD_JOIN_SLACK = 30
 FCNTL_F_DUPFD_CLOEXEC = 1030  # From header file fcntl.h
 
-# Constants for tweaking memory usage
-HEAP_PERCENT_MEM = 0.25
-HEAP_USAGE_THRESHOLD = 0.90
-MIN_PERCENT_AVAIL_MEM = 0.25
-MAX_RSS_PERCENT_MEM = 0.35
-
-
 class FixedDict(object):  # pylint: disable=R0903
     '''Ensures keys are fixed in the dictionary'''
     def __init__(self, dictionary):
