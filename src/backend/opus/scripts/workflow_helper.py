@@ -20,8 +20,8 @@ def get_cur_time():
 
 
 def parse_command_line(parser):
-    parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", type=int, default=10101)
+    parser.add_argument("--server", default="tcp://localhost:10101",
+                        help="Address to connect to provenance server via.")
     parser.add_argument("file_name",
                         help="Full path of the file to be queried", type=str)
     parser.add_argument('--regen', action='store_true', default=False)
@@ -35,7 +35,7 @@ def parse_command_line(parser):
 
 
 def sync_send_message(args, msg):
-    helper = cc_utils.CommandConnectionHelper(args.host, args.port)
+    helper = cc_utils.CommandConnectionHelper(args.server)
     result = helper.make_request(msg)
     return result
 

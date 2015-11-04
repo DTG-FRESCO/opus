@@ -10,6 +10,7 @@ import json
 import socket
 import struct
 
+from . import multisocket
 from .exception import BackendConnectionError
 
 CC_HDR = struct.Struct(str("@I"))
@@ -49,15 +50,14 @@ def recv_cc_msg(sock):
 class CommandConnectionHelper(object):
     '''Manages a connection to the backend and provides helpers for making
     requests.'''
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
+    def __init__(self, addr):
+        self.addr = addr
 
     def make_request(self, msg):
         '''Sends a request message to the backend and retrieves a response.'''
         try:
-            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            conn.connect((self.host, self.port))
+            conn = multisocket.MultiFamilySocket(socket.SOCK_STREAM)
+            conn.connect(self.addr)
         except IOError as exc:
             raise BackendConnectionError("Failed to make contact with "
                                          "the backend: %s" % exc)

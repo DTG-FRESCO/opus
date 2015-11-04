@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <linux/un.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #include <cstdint>
 #include <string>
@@ -18,11 +20,19 @@
  * Constructor establishes a UDS
  * connection to the OPUS backend
  */
+#ifdef TCP_SOCKET
+UDSCommClient::UDSCommClient(const std::string& addr, const int port) : conn_fd(-1)
+{
+    if (!connect(addr, port))
+        throw std::runtime_error("Connect failed!!");
+}
+#else
 UDSCommClient::UDSCommClient(const std::string& path) : conn_fd(-1)
 {
     if (!connect(path))
         throw std::runtime_error("Connect failed!!");
 }
+#endif
 
 /**
  * Destructor shuts down the UDS
@@ -36,6 +46,64 @@ UDSCommClient::~UDSCommClient()
 /**
  * Opens a UDS connection to the specified path
  */
+#ifdef TCP_SOCKET
+bool UDSCommClient::connect(const std::string& addr, const int port)
+{
+    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
+        __FILE__, __LINE__, __PRETTY_FUNCTION__);
+
+    try
+    {
+        struct sockaddr_in address;
+
+
+        while ((conn_fd = ::socket(PF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0)) < 0)
+        {
+            if (errno == EINTR)
+            {
+                LOG_MSG(LOG_ERROR, "[%s:%d]: socket interrupted\n", __FILE__, __LINE__);
+                continue;
+            }
+            else throw UDSCommException(__FILE__, __LINE__,
+                        ProcUtils::get_error(errno));
+        }
+
+        protect_fd();
+
+        memset(&address, 0, sizeof(struct sockaddr_in));
+
+        address.sin_family = AF_INET;
+	address.sin_port = htons(port);
+	
+	struct addrinfo *res;
+	if(::getaddrinfo(addr.c_str(), NULL, NULL, &res)!=0)
+	    throw UDSCommException(__FILE__, __LINE__,
+	                ProcUtils::get_error(errno));
+	
+	memcpy(&(address.sin_addr), &((struct sockaddr_in *) res->ai_addr)->sin_addr, sizeof(struct in_addr));
+
+        while (::connect(conn_fd, (struct sockaddr *)&address,
+            sizeof(struct sockaddr_in)) < 0)
+        {
+            if (errno == EINTR)
+            {
+                LOG_MSG(LOG_ERROR, "[%s:%d]: connect interrupted\n", __FILE__, __LINE__);
+                continue;
+            }
+            else if (errno == EINPROGRESS) break;
+            else throw UDSCommException(__FILE__, __LINE__,
+                            ProcUtils::get_error(errno));
+        }
+    }
+    catch(const UDSCommException& e)
+    {
+        e.print_msg();
+        return false;
+    }
+
+    return true;
+}
+#else
 bool UDSCommClient::connect(const std::string& path)
 {
     LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
@@ -87,18 +155,7 @@ bool UDSCommClient::connect(const std::string& path)
 
     return true;
 }
-
-/**
- * Reestablishes the UDS connection
- * with the existing path.
- */
-bool UDSCommClient::reconnect()
-{
-    LOG_MSG(LOG_DEBUG, "[%s:%d]: Entering %s\n",
-        __FILE__, __LINE__, __PRETTY_FUNCTION__);
-
-    return connect(uds_path);
-}
+#endif
 
 /**
  * Sends data_size bytes of data

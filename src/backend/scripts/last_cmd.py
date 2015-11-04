@@ -45,7 +45,7 @@ def query_folder(helper, filename, limit):
 def exec_query(args):
     '''Execute command specified by args.'''
 
-    helper = cc_utils.CommandConnectionHelper(args.host, args.port)
+    helper = cc_utils.CommandConnectionHelper(args.server)
 
     filename = args.name
 
@@ -100,8 +100,7 @@ def main():
         description="Shows the last command(s) that were run on a file or in "
                     "a directory.")
 
-    parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", type=int, default=10101)
+    parser.add_argument("--server", default="tcp://localhost:10101")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-D", "--directory", action="store_true",

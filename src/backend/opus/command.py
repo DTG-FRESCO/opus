@@ -14,7 +14,7 @@ import socket
 import threading
 import traceback
 
-from . import cc_utils, ipc
+from . import cc_utils, ipc, multisocket
 from .exception import CommandInterfaceStartupError
 
 
@@ -31,8 +31,7 @@ class CommandControl(object):
         return wrap
 
     def __init__(self, daemon_manager, router,
-                 listen_addr, listen_port,
-                 whitelist_location=None):
+                 listen_addr, whitelist_location=None):
         self.daemon_manager = daemon_manager
         self.node = ipc.Master(ident="CAC",
                                router=router)
@@ -52,14 +51,15 @@ class CommandControl(object):
                 raise CommandInterfaceStartupError(
                     "Failed to read whitelist.")
 
-        self.host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.host_sock = multisocket.MultiFamilySocket(socket.SOCK_STREAM,
+                                                       addr=listen_addr)
         self.host_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         try:
-            self.host_sock.bind((listen_addr, listen_port))
+            self.host_sock.bind(listen_addr)
         except IOError:
-            logging.error("Failed to bind cmd socket on address %s port %d.",
-                          listen_addr, listen_port)
+            logging.error("Failed to bind cmd socket on address %s.",
+                          listen_addr)
             raise CommandInterfaceStartupError("Failed to bind socket.")
         self.host_sock.listen(10)
 

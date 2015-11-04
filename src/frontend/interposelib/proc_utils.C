@@ -499,6 +499,26 @@ void ProcUtils::get_uds_path(string* uds_path_str)
 }
 
 /**
+ * Reads the TCP address and port from the environment
+ */
+void ProcUtils::get_tcp_address(string* address, int* port)
+{
+    try
+    {
+        char* tcp_addr = get_env_val("OPUS_TCP_ADDRESS");
+	char* tcp_port = get_env_val("OPUS_TCP_PORT");
+
+        *address = tcp_addr;
+	*port = std::stoi(tcp_port);
+
+    }
+    catch(const std::exception& e)
+    {
+        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
+    }
+}
+
+/**
  * Given a user ID, the user name string is returned
  */
 const string ProcUtils::get_user_name(const uid_t user_id)
@@ -855,6 +875,16 @@ bool ProcUtils::connect()
 
     try
     {
+#ifdef TCP_SOCKET
+        std::string address;
+	int port;
+	get_tcp_address(&address, &port);
+
+	if(address.empty())
+	   throw std::runtime_error("Cannot connect! Address is empty");
+
+	comm_obj = new UDSCommClient(address, port);
+#else
         std::string uds_path_str;
         get_uds_path(&uds_path_str);
 
@@ -863,6 +893,7 @@ bool ProcUtils::connect()
 
         // Connect to the backend
         comm_obj = new UDSCommClient(uds_path_str);
+#endif
     }
     catch(const std::exception& e)
     {

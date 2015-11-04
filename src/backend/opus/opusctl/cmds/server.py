@@ -115,8 +115,7 @@ def print_status_rsp(pay):
 
 @config.auto_read_config
 def handle(cfg, cmd, **params):
-    helper = cc_utils.CommandConnectionHelper("localhost",
-                                              int(cfg['cc_port']))
+    helper = cc_utils.CommandConnectionHelper(cfg['cc_addr'])
     if cmd == "start":
         handle_start(cfg=cfg, **params)
     elif cmd == "restart":
