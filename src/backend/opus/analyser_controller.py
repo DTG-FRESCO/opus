@@ -195,8 +195,7 @@ class AnalyserController(object):
         # If the resident set size has increased beyond the maximum
         # RSS threshold, restart the analyser
         if ('max_rss_threshold' in self.memory_params and
-            self.memory_params['max_rss_threshold'] not in
-            ['none', 'None', 'NONE']):
+            self.memory_params['max_rss_threshold'] is not None):
             rss_in_mb = proc_mem_info.rss / (1024 * 1024)
             if rss_in_mb > self.memory_params['max_rss_threshold']:
                 logging.info("Warning!! RSS: %f MB exceeded beyond "

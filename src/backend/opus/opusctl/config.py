@@ -103,7 +103,7 @@ ANALYSER_CONTROLLER:
     mon_status: ON
     mon_interval: 5.0
   memory_params:
-    max_rss_threshold: None
+    max_rss_threshold: null
     jvm_usage_threshold: 0.90
     min_percent_avail_mem: 0.25
     max_rss_percent_mem: 0.35
