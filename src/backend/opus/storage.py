@@ -12,6 +12,7 @@ import logging
 import threading
 import time
 import os
+import psutil
 
 from . import common_utils
 from .exception import InvalidCacheException, UniqueIDException
@@ -63,7 +64,7 @@ CACHE_NAMES = common_utils.enum(VALID_LOCAL=0,
                                 IO_EVENT_CHAIN=4)
 
 # Enum values for process status
-PROCESS_STATE = common_utils.enum(ALIVE=0, DEAD = 1)
+PROCESS_STATE = common_utils.enum(ALIVE=0, DEAD=1)
 
 
 class FdChain(object):
@@ -103,8 +104,8 @@ class CacheManager(object):
                 logging.warn("Warning: Attempted to invalidate key {0} "
                              "in cache {1} but {0} was not present in "
                              "the cache.".format(
-                                key, CACHE_NAMES.enum_str(cache)
-                                )
+                                 key, CACHE_NAMES.enum_str(cache)
+                                 )
                              )
             return
 
@@ -170,7 +171,7 @@ class StorageIFace(object):
         '''Create a node'''
         pass
 
-    def create_relationship(self, from_node, to_node, rel_type):
+    def create_relationship(self, from_node, to_node, rel_type, state=None):
         '''Create a relationship between two nodes'''
         pass
 
@@ -194,16 +195,14 @@ class DBInterface(StorageIFace):
     def __init__(self, filename, neo4j_cfg):
         super(DBInterface, self).__init__()
 
-        max_heap, config = self.get_config(neo4j_cfg)
-
-        if max_heap is not None:
-            os.environ['NEO4J_PYTHON_JVMARGS'] = '-Xms512M -Xmx%dM' % (max_heap)
+        config_params = self._configure_neo4j(neo4j_cfg)
 
         from neo4j import GraphDatabase
 
         self.trans_lock = threading.Lock()
+        self.mono_time = None
         try:
-            self.db = GraphDatabase(filename, **config)
+            self.db = GraphDatabase(filename, **config_params)
             self.file_index = None
             self.proc_index = None
             self.node_id_idx = None
@@ -252,34 +251,115 @@ class DBInterface(StorageIFace):
             # Fix for the class load error when using multiple threads
             rows = self.db.query("START n=node(1) RETURN n")
             for row in rows:
-                n_val = row['n']
+                row['n']
 
         except Exception as exc:
             logging.error("Error: %s", str(exc))
             raise exc
 
-    def get_config(self, neo4j_cfg):
-        '''Returns the max heap size in MB along with neo4j
-        config parameters as a dictionary'''
+    def _config_jvm(self, neo4j_cfg):
+        '''Configures the JVM heap sizes'''
+        max_jvm_heap_in_mb = 0.0
+        min_jvm_heap_in_mb = 0.0
 
-        max_heap = None
-        config = {}
+        if(neo4j_cfg['max_jvm_heap_size'] == 'default' or
+           neo4j_cfg['min_jvm_heap_size'] == 'default'):
+            logging.info("Proceeding with default NEO4J JVM settings")
+            return
 
         if 'max_jvm_heap_size' in neo4j_cfg:
-            max_heap_in_bytes = neo4j_cfg['max_jvm_heap_size']
-            max_heap = int(max_heap_in_bytes / (1024 * 1024))
+            if neo4j_cfg['max_jvm_heap_size'] in 'auto':
+                logging.info("Calculating maximum JVM heap size "
+                             "from available memory")
+                vminfo = psutil.virtual_memory()
+                max_jvm_heap_in_mb = ((neo4j_cfg['jvm_from_avail_mem'] *
+                                      vminfo.available) / (1024 * 1024))
+            else:
+                max_jvm_heap_in_mb = neo4j_cfg['max_jvm_heap_size']
+            logging.info("Max JVM heap size: %f MB", max_jvm_heap_in_mb)
+
+        if 'min_jvm_heap_size' in neo4j_cfg:
+            if neo4j_cfg['min_jvm_heap_size'] == 'auto':
+                logging.info("Calculating minimum JVM heap size...")
+                min_jvm_heap_in_mb = 0.25 * max_jvm_heap_in_mb
+            else:
+                min_jvm_heap_in_mb = neo4j_cfg['min_jvm_heap_size']
+            logging.info("Min JVM heap size: %f MB", min_jvm_heap_in_mb)
+
+        if max_jvm_heap_in_mb > min_jvm_heap_in_mb:
+            logging.info("Setting max_heap: %f MB, min_heap: %f MB",
+                         max_jvm_heap_in_mb, min_jvm_heap_in_mb)
+            os.environ['NEO4J_PYTHON_JVMARGS'] = '-Xms%dM -Xmx%dM' % (
+                int(min_jvm_heap_in_mb), int(max_jvm_heap_in_mb))
+        else:
+            logging.info("Max JVM heap is not greater than min JVM heap, "
+                         "proceeding with default NEO4J JVM settings")
+
+    def _config_buffer_cache(self, cfg, bcfg):
+        '''Configures the buffer cache used by NEO4J'''
+        buff_cache_size = bcfg['buffer_cache_size']
+
+        if buff_cache_size == 'default':
+            logging.info("Proceeding with default settings "
+                         "for the NEO4J buffer cache")
+            return
+        elif buff_cache_size == 'auto':
+            logging.info("Determining max buffer cache size from "
+                         "available memory")
+            vminfo = psutil.virtual_memory()
+            buff_cache_size = ((bcfg['buff_cache_auto'] *
+                                vminfo.available) / (1024 * 1024))
+
+        logging.info("Max buffer cache size: %f MB", buff_cache_size)
+
+        propstore = int(bcfg['propstore'] * buff_cache_size)
+        cfg['neostore.propertystore.db.mapped_memory'] = str('%dM' %
+                                                             (propstore))
+        logging.info("neostore.propertystore.db.mapped_memory: %f MB",
+                     propstore)
+
+        nodestore = int(bcfg['nodestore'] * buff_cache_size)
+        cfg['neostore.nodestore.db.mapped_memory'] = str('%dM' %
+                                                         (nodestore))
+        logging.info("neostore.nodestore.db.mapped_memory: %f MB",
+                     nodestore)
+
+        relstore = int(bcfg['relstore'] * buff_cache_size)
+        cfg['neostore.relationshipstore.db.mapped_memory'] = str('%dM' %
+                                                                 (relstore))
+        logging.info("neostore.relationshipstore.db.mapped_memory: %f MB",
+                     relstore)
+
+        strings = int(bcfg['strings'] * buff_cache_size)
+        cfg['neostore.propertystore.db.strings.mapped_memory'] = str('%dM' %
+                                                                     (strings))
+        logging.info("neostore.propertystore.db.strings.mapped_memory: %f MB",
+                     strings)
+
+        arrays = int(bcfg['arrays'] * buff_cache_size)
+        cfg['neostore.propertystore.db.arrays.mapped_memory'] = str('%dM' %
+                                                                    (arrays))
+        logging.info("neostore.propertystore.db.arrays.mapped_memory: %f MB",
+                     arrays)
+
+    def _configure_neo4j(self, neo4j_cfg):
+        '''Configures the JVM heap, Neo4j buffer cache size
+        and other Neo4j parameters'''
+        config_params = {}
+
+        self._config_jvm(neo4j_cfg)
+        self._config_buffer_cache(config_params, neo4j_cfg['buffer_cache'])
 
         if 'keep_logical_logs' in neo4j_cfg:
             if neo4j_cfg['keep_logical_logs']:
-                config['keep_logical_logs'] = str('true')
+                config_params['keep_logical_logs'] = str('true')
             else:
-                config['keep_logical_logs'] = str('false')
+                config_params['keep_logical_logs'] = str('false')
 
         if 'cache_type' in neo4j_cfg:
-            config['cache_type'] = neo4j_cfg['cache_type']
+            config_params['cache_type'] = neo4j_cfg['cache_type']
 
-        return max_heap, config
-
+        return config_params
 
     def close(self):
         '''Shutdown the database'''
