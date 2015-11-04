@@ -142,8 +142,8 @@ class AnalyserController(object):
                 msg = self.pf_queue.dequeue()
                 self.analyser.put_msg(msg)
             except Queue.Empty:
-                if (self.fetcher_stop_event.is_set() and
-                    self.pf_queue.get_queue_size() == 0):
+                if(self.fetcher_stop_event.is_set() and
+                   self.pf_queue.get_queue_size() == 0):
                     break
             except SnapshotException:
                 logging.error("Snapshot event set!!")
@@ -169,7 +169,7 @@ class AnalyserController(object):
         # If the JVM's current heap size is greater than 90%
         # of the maximum value of heap size, restart analyser
         (status, output) = commands.getstatusoutput(
-                           'jstat -gccapacity %d' % (fetch_proc.pid))
+            'jstat -gccapacity %d' % (fetch_proc.pid))
         if status != 0:
             logging.error("%d: %s", status, output)
         else:
@@ -184,23 +184,23 @@ class AnalyserController(object):
                               (heap_size / 1024),
                               (jstat_max_jvm / 1024))
 
-            if (heap_size >=
-                (self.memory_params['jvm_usage_threshold'] * jstat_max_jvm)):
+            if(heap_size >=
+               (self.memory_params['jvm_usage_threshold'] * jstat_max_jvm)):
                 logging.error("Warning!! JVM heap size above threshold, "
                               "current_heap: %f MB, max_heap: %f MB",
                               (heap_size / 1024), (jstat_max_jvm / 1024))
                 return True
 
-
         # If the resident set size has increased beyond the maximum
         # RSS threshold, restart the analyser
-        if ('max_rss_threshold' in self.memory_params and
-            self.memory_params['max_rss_threshold'] is not None):
+        if('max_rss_threshold' in self.memory_params and
+           self.memory_params['max_rss_threshold'] is not None):
             rss_in_mb = proc_mem_info.rss / (1024 * 1024)
             if rss_in_mb > self.memory_params['max_rss_threshold']:
                 logging.info("Warning!! RSS: %f MB exceeded beyond "
                              "maximum threshold: %f MB",
-                             rss_in_mb, self.memory_params['max_rss_threshold'])
+                             rss_in_mb,
+                             self.memory_params['max_rss_threshold'])
                 return True
 
         # If system available memory is less than 25% of total memory
@@ -209,10 +209,10 @@ class AnalyserController(object):
         sys_mem_info = psutil.virtual_memory()
         avail_mem = sys_mem_info.available
         total_mem = sys_mem_info.total
-        if ((avail_mem < (self.memory_params['min_percent_avail_mem']
-                          * total_mem)) and
-            (proc_mem_info.rss > (self.memory_params['max_rss_percent_mem']
-                                  * total_mem))):
+        if((avail_mem < (self.memory_params['min_percent_avail_mem'] *
+                         total_mem)) and
+           (proc_mem_info.rss > (self.memory_params['max_rss_percent_mem'] *
+                                 total_mem))):
             logging.error("System is running low on memory!!")
             logging.error("Total mem: %d, Available mem: %d, Analyser mem: %d",
                           total_mem, avail_mem, proc_mem_info.rss)
@@ -235,8 +235,8 @@ class AnalyserController(object):
                     self._start_fetcher()
                     fetch_proc = psutil.Process(self.fetcher.pid)
                 else:
-                    logging.error(
-                    "Failed to shutdown fetcher/analyser, restart manually")
+                    logging.error("Failed to shutdown fetcher/analyser, "
+                                  "restart manually")
                     break
             time.sleep(self.mem_mon_params['mon_interval'])
 
@@ -267,7 +267,6 @@ class AnalyserController(object):
             logging.error(exc)
             return False
         return True
-
 
     def do_shutdown(self, drop):
         '''Initiates shutdown of analyser controller'''
