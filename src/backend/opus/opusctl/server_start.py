@@ -7,7 +7,7 @@ import sys
 
 from . import utils
 from .ext_deps import termcolor
-from .. import cc_utils, exception
+from .. import cc_utils
 
 
 def elapsed(reset=False):
@@ -21,29 +21,23 @@ def monitor_server_startup(cfg):
     elapsed(reset=True)
     time.sleep(3)
     helper = cc_utils.CommandConnectionHelper(cfg['cc_addr'])
+    server_active = False
     while elapsed() < 20:
-        server_active = utils.is_server_active()
-        try:
-            helper.make_request({'cmd': 'status'})
-            server_responsive = True
-        except exception.BackendConnectionError:
-            server_responsive = False
 
         yes = termcolor.colored("yes", "green")
         no = termcolor.colored("no", "red")
 
         print((" " * 50), end="\r")
-        print("Server Active: %s Server Responsive: %s" %
-              ((yes if server_active else no),
-               (yes if server_responsive else no)),
+        print("Server Active: %s" %
+              (yes if server_active else no),
               end="\r")
         sys.stdout.flush()
-        if not(server_active or server_responsive):
-            break
 
-        if server_active and server_responsive:
+        if server_active:
             print("\nServer sucessfully started.")
             return True
+
+        server_active = utils.is_server_active(helper=helper)
         time.sleep(0.1)
     print("\nServer startup failed, check the %s and %s error logs for "
           "information." % (os.path.join(cfg['install_dir'], "opus_err.log"),

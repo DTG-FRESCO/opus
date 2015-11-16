@@ -12,7 +12,7 @@ from .. import config, server_start, utils
 
 @config.auto_read_config
 def handle_launch(cfg, binary, arguments):
-    if not utils.is_server_active():
+    if not utils.is_server_active(cfg=cfg):
         if not server_start.start_opus_server(cfg):
             print("Aborting command launch.")
             return

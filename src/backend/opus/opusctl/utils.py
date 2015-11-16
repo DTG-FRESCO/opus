@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 
-from .ext_deps import psutil
+from .. import cc_utils, exception
 
 
 def path_normalise(path):
@@ -21,11 +21,21 @@ def is_opus_active():
              os.environ['OPUS_INTERPOSE_MODE'] != "0"))
 
 
-def is_server_active():
-    for proc in psutil.process_iter():
-        if "opus.run_server" in " ".join(proc.cmdline()):
-            return True
-    return False
+def is_server_active(cfg=None, helper=None):
+    if helper is None:
+        if cfg is not None:
+            helper = cc_utils.CommandConnectionHelper(cfg['cc_addr'])
+        else:
+            raise ValueError("One of cfg and helper must not be None.")
+    else:
+        if cfg is not None:
+            raise ValueError("One of cfg and helper must not be None.")
+
+    try:
+        helper.make_request({"cmd": "status"})
+    except exception.BackendConnectionError:
+        return False
+    return True
 
 
 def reset_opus_env(cfg):
