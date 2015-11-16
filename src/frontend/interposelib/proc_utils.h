@@ -46,7 +46,8 @@ class ProcUtils
 
         static char* get_env_val(const std::string& env_key);
         static void get_uds_path(std::string* uds_path_str);
-        static void get_preload_path(std::string* ld_preload_path);
+	static void get_tcp_address(std::string* address, int* port);
+	static void get_preload_path(std::string* ld_preload_path);
         static const std::string get_user_name(const uid_t user_id);
         static const std::string get_group_name(const gid_t group_id);
         static void get_md5_sum(const std::string& real_path,

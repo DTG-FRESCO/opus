@@ -9,11 +9,17 @@
 class UDSCommClient
 {
     public:
-        UDSCommClient(const std::string& path);
+#ifdef TCP_SOCKET
+	UDSCommClient(const std::string& addr, const int port);
+        ~UDSCommClient();
+
+        bool connect(const std::string& addr, const int port);
+#else
+	UDSCommClient(const std::string& path);
         ~UDSCommClient();
 
         bool connect(const std::string& uds_path);
-        bool reconnect();
+#endif
         void close_connection();
         void shutdown();
 

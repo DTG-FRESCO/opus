@@ -14,7 +14,7 @@ from ... import cc_utils, exception
 
 def handle_start(cfg):
     '''Starts OPUS server.'''
-    if not utils.is_server_active():
+    if not utils.is_server_active(cfg=cfg):
         server_start.start_opus_server(cfg)
     else:
         print("OPUS server already running.")
@@ -115,24 +115,23 @@ def print_status_rsp(pay):
 
 @config.auto_read_config
 def handle(cfg, cmd, **params):
-    helper = cc_utils.CommandConnectionHelper("localhost",
-                                              int(cfg['cc_port']))
+    helper = cc_utils.CommandConnectionHelper(cfg['cc_addr'])
     if cmd == "start":
         handle_start(cfg=cfg, **params)
     elif cmd == "restart":
-        if utils.is_server_active():
+        if utils.is_server_active(helper=helper):
             print("===Shutting down OPUS server===")
             pay = helper.make_request({'cmd': 'stop'})
             monitor_shutdown(helper, pay)
         print("===Starting OPUS server===")
         server_start.start_opus_server(cfg)
     elif cmd == "status":
-        if not utils.is_server_active():
+        if not utils.is_server_active(helper=helper):
             print("Server is not running.")
             return
         monitor_status(helper, **params)
     else:
-        if not utils.is_server_active():
+        if not utils.is_server_active(helper=helper):
             print("Server is not running.")
             return
         msg = {"cmd": cmd}

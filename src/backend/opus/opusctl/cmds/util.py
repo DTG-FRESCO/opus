@@ -6,13 +6,12 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 
-from .. import config, utils
+from .. import utils
 
 
-@config.skip_config
-def handle_ps_line(mode):
+def handle_ps_line(cfg, mode):
     term_status = utils.is_opus_ipose_lib_set()
-    server_status = utils.is_server_active()
+    server_status = utils.is_server_active(cfg=cfg)
     if mode == "unicode":
         if term_status:
             if server_status:

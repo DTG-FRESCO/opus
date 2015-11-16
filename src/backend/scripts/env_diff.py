@@ -30,7 +30,7 @@ except ImportError:
 
 
 def sync_send_message(args, msg):
-    helper = cc_utils.CommandConnectionHelper(args.host, args.port)
+    helper = cc_utils.CommandConnectionHelper(args.server)
     result = helper.make_request(msg)
     return result
 
@@ -171,8 +171,7 @@ def main():
                                      " executions of a binary and allows the"
                                      " user to find the difference between two"
                                      " executions")
-    parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", type=int, default=10101)
+    parser.add_argument("--server", default="tcp://localhost:10101")
     parser.add_argument('--dates', nargs=2, metavar=('start_date', 'end_date'),
                         help='start_date and end_date in YYYY-MM-DD',
                         default=None,

@@ -24,9 +24,10 @@ CONFIG_SETUP = [
      'def': lambda _: '~/.opus',
      'prompt': 'Choose a directory for your OPUS installation to reside in'},
 
-    {'key': 'uds_path',
-     'def': lambda cfg: os.path.join(cfg['install_dir'], 'uds_sock'),
-     'prompt': 'Choose a location for the OPUS Unix Domain Socket'},
+    {'key': 'server_addr',
+     'def': lambda cfg: "unix://" + os.path.join(cfg['install_dir'],
+                                                 'uds_sock'),
+     'prompt': 'Choose an address for provenance data collection.'},
 
     {'key': 'db_path',
      'def': lambda cfg: os.path.join(cfg['install_dir'], 'prov.neo4j'),
@@ -44,9 +45,9 @@ CONFIG_SETUP = [
      'def': lambda _: '/usr/lib/jvm/java-7-common',
      'prompt': 'Where is your jvm installation'},
 
-    {'key': 'cc_port',
-     'def': lambda _: '10101',
-     'prompt': 'Port to use for provenance server communications.'},
+    {'key': 'cc_addr',
+     'def': lambda _: 'tcp://localhost:10101',
+     'prompt': 'Address to use for provenance server communications.'},
 
     {'key': 'debug_mode',
      'def': lambda _: False,
@@ -84,9 +85,9 @@ MODULES:
 
 PRODUCER:
   SocketProducer:
-    comm_mgr_type: UDSCommunicationManager
+    comm_mgr_type: MultiCommunicationManager
     comm_mgr_args:
-        uds_path: {uds_sock}
+        addr: {server_addr}
         max_conn: 10
         select_timeout: 5.0
 
@@ -124,8 +125,7 @@ NEO4J_PARAMS:
   cache_type: weak
 
 COMMAND:
-  listen_addr: localhost
-  listen_port: {cc_port}
+  listen_addr: {cc_addr}
 
 GENERAL:
   touch_file: {touch_file}
@@ -261,20 +261,20 @@ def generate_server_cfg_file(cfg):
     log_level = "DEBUG" if cfg['debug_mode'] else "ERROR"
     log_file = utils.path_normalise(os.path.join(cfg['install_dir'],
                                                  "opus.log"))
-    uds_sock = utils.path_normalise(cfg['uds_path'])
+    server_addr = cfg['server_addr']
     db_path = utils.path_normalise(cfg['db_path'])
     touch_file = utils.path_normalise(os.path.join(cfg['install_dir'],
                                                    ".opus-live"))
     opus_home = utils.path_normalise(cfg['install_dir'])
-    cc_port = cfg['cc_port']
+    cc_addr = cfg['cc_addr']
 
     with open(server_cfg_path, "w") as server_cfg:
         server_cfg.write(
             SERVER_CONFIG_TEMPLATE.format(
                 log_level=log_level,
                 log_file=log_file,
-                uds_sock=uds_sock,
+                server_addr=server_addr,
                 db_path=db_path,
                 touch_file=touch_file,
                 opus_home=opus_home,
-                cc_port=cc_port))
+                cc_addr=cc_addr))

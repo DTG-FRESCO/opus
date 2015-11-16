@@ -12,7 +12,7 @@ from .. import config, server_start, utils
 
 @config.auto_read_config
 def handle_launch(cfg, binary, arguments):
-    if not utils.is_server_active():
+    if not utils.is_server_active(cfg=cfg):
         if not server_start.start_opus_server(cfg):
             print("Aborting command launch.")
             return
@@ -28,7 +28,12 @@ def handle_launch(cfg, binary, arguments):
     else:
         os.environ['LD_PRELOAD'] = opus_preload_lib
 
-    os.environ['OPUS_UDS_PATH'] = utils.path_normalise(cfg['uds_path'])
+    if cfg['server_addr'][:4] == "unix":
+        os.environ['OPUS_UDS_PATH'] = utils.path_normalise(cfg['server_addr'][7:])
+    else:
+        addr = cfg['server_addr'][6:].split(":")
+        os.environ['OPUS_TCP_ADDRESS'] = addr[0]
+        os.environ['OPUS_TCP_PORT'] = addr[1]
     os.environ['OPUS_MSG_AGGR'] = "1"
     os.environ['OPUS_MAX_AGGR_MSG_SIZE'] = "65536"
     os.environ['OPUS_LOG_LEVEL'] = "3"  # Log critical

@@ -12,7 +12,6 @@ from __future__ import (absolute_import, division,
 
 import errno
 import logging
-import os
 import select
 import socket
 import struct
@@ -20,13 +19,8 @@ import threading
 import time
 import opuspb  # pylint: disable=W0611
 
-from . import common_utils, ipc, messaging, uds_msg_pb2
-
-
-def unlink_uds_path(path):
-    '''Remove UDS link'''
-    if os.path.exists(path):
-        os.unlink(path)
+from . import common_utils, ipc, messaging, multisocket, uds_msg_pb2
+from .exception import OPUSException
 
 
 def get_credentials(client_fd):
@@ -90,7 +84,7 @@ class SockReader(object):
             remaining_len = messaging.Header.length - len(self.buf_data)
 
             status_code = self._fill_buffer(remaining_len)
-            if status_code != UDSCommunicationManager.StatusCode.success:
+            if status_code != MultiCommunicationManager.StatusCode.success:
                 return status_code, None, None
 
             # If header is fully received, construct the header object
@@ -107,7 +101,7 @@ class SockReader(object):
 
         # Read the payload
         status_code = self._fill_buffer(remaining_len)
-        if status_code != UDSCommunicationManager.StatusCode.success:
+        if status_code != MultiCommunicationManager.StatusCode.success:
             return status_code, None, None
 
         hdr_buf = self.buf_data[:hdr_len]
@@ -138,18 +132,18 @@ class SockReader(object):
     def _receive(self, sock_obj, size):
         '''Receives data for a given size from a socket'''
         buf = b''
-        status_code = UDSCommunicationManager.StatusCode.success
+        status_code = MultiCommunicationManager.StatusCode.success
         while size > 0:
             try:
                 data = sock_obj.recv(size)
                 if data == b'':
                     status_code = \
-                        UDSCommunicationManager.StatusCode.close_connection
+                        MultiCommunicationManager.StatusCode.close_connection
                     break
             except socket.error as exc:
                 if exc.errno == errno.EAGAIN or exc.errno == errno.EWOULDBLOCK:
                     status_code = \
-                        UDSCommunicationManager.StatusCode.try_again_later
+                        MultiCommunicationManager.StatusCode.try_again_later
                 elif exc.errno == errno.EINTR:
                     logging.error("Error: %d, Message: %s",
                                   exc.errno, exc.strerror)
@@ -158,7 +152,7 @@ class SockReader(object):
                     logging.error("Error: %d, Message: %s",
                                   exc.errno, exc.strerror)
                     status_code = \
-                        UDSCommunicationManager.StatusCode.close_connection
+                        MultiCommunicationManager.StatusCode.close_connection
                 break
             buf += data
             size -= len(data)
@@ -188,35 +182,34 @@ class CommunicationManager(object):
         pass
 
 
-class UDSCommunicationManager(CommunicationManager):
-    '''UDS specific server implementation'''
+class MultiCommunicationManager(CommunicationManager):
+    '''multisocket specific server implementation'''
     StatusCode = common_utils.enum(success=0,
                                    close_connection=100,
                                    try_again_later=101)
 
-    def __init__(self, uds_path,
+    def __init__(self, addr,
                  max_conn=10, select_timeout=5.0,
                  *args, **kwargs):
         '''Initialize the class members'''
-        super(UDSCommunicationManager, self).__init__(*args, **kwargs)
-        unlink_uds_path(uds_path)
+        super(MultiCommunicationManager, self).__init__(*args, **kwargs)
         self.input_client_map = {}  # fd -> SockReader
         self.pid_map = {}  # pid to list of sock objects map
-        self.uds_path = uds_path  # Configurable
+        self.addr = addr  # Configurable
         self.max_server_conn = max_conn  # Configurable
         self.select_timeout = select_timeout  # Configurable
         self.server_socket = None
 
         try:
-            self.server_socket = socket.socket(socket.AF_UNIX,
-                                               socket.SOCK_STREAM)
-            self.server_socket.bind(self.uds_path)
+            self.server_socket = multisocket.MultiFamilySocket(
+                socket.SOCK_STREAM)
+            self.server_socket.bind(self.addr)
             self.server_socket.listen(self.max_server_conn)
         except socket.error as err:
             if self.server_socket:
                 self.server_socket.close()
             logging.error("Error: %s", str(err))
-            raise common_utils.OPUSException("socket error")
+            raise OPUSException("socket error")
         self.server_socket.setblocking(0)  # Make the socket non-blocking
         self.epoll = select.epoll()
         self.epoll.register(self.server_socket.fileno(),
@@ -324,7 +317,6 @@ class UDSCommunicationManager(CommunicationManager):
         for fileno in self.input_client_map:
             self.epoll.unregister(fileno)
             self.input_client_map[fileno].close()
-        unlink_uds_path(self.uds_path)
 
 
 class Producer(threading.Thread):
@@ -383,7 +375,7 @@ class SocketProducer(Producer):
                                                           comm_mgr_type,
                                                           **comm_mgr_args)
         except common_utils.InvalidTagException as err_msg:
-            raise common_utils.OPUSException(err_msg.msg)
+            raise OPUSException(err_msg.msg)
 
     def run(self):
         '''Spin until thread stop event is set'''
