@@ -1,8 +1,9 @@
 image: python:2.7
 
+variables:
+  VERSION: "0.0.1"
+
 build-tar:
-  variables:
-    VERSION: "0.0.1"
   script:
     - build.sh
   tags:
