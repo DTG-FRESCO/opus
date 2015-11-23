@@ -5,6 +5,7 @@ variables:
 
 build-tar:
   script:
+    - echo $PWD
     - build.sh
   tags:
     - python
