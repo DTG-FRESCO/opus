@@ -5,8 +5,7 @@ variables:
 
 build-tar:
   script:
-    - echo $PWD
-    - build.sh
+    - ./build.sh
   tags:
     - python
   allow_failure: true
