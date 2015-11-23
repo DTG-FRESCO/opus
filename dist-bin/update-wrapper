@@ -1,0 +1,4 @@
+#! /bin/bash
+cur=$(grep "base=" wrapper | cut -d= -f2)
+new=$PWD
+sed -i 's|base='$cur'|base='$new'|' wrapper

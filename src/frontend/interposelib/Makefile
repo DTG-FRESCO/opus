@@ -28,7 +28,7 @@ endif
 ifdef PROTO_LIB_PATH
 	LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
 endif
-LFLAGS  := $(LFLAGS) -ldl -lrt -lprotobuf -lcrypto -lpthread
+LFLAGS  := $(LFLAGS) -Wl,-Bstatic -lprotobuf -lcrypto -Wl,-Bdynamic -lpthread -lrt -ldl 
 
 SRCS    :=  log.C \
             opus_lock.C \

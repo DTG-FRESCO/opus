@@ -1,0 +1,10 @@
+#! /bin/bash
+base=unset
+prog_name=$(basename $0)
+
+if [ $base = "unset" ]; then
+	echo "Wrapper uninitialised, please move into the opus install directory and re-run update-wrapper."
+	exit 1
+fi
+
+PYTHONUSERBASE=$base/python-libs $base/python-libs/bin/$prog_name.py $*
