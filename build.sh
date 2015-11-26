@@ -15,6 +15,11 @@ cd $INSTALL_BASE
 PYTHONUSERBASE=$INSTALL_BASE/python-libs pip install --user --upgrade pytz setuptools google-apputils
 }
 
+function build_deps(){
+cd $INSTALL_BASE
+PYTHONUSERBASE=$INSTALL_BASE/python-libs pip install --user --upgrade jinja2
+}
+
 function install_protobuf(){
 cd $INSTALL_BASE
 wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz
@@ -125,6 +130,7 @@ install_protobuf
 install_jpype
 install_libcrypto
 #install_libpthread
+build_deps
 install_opus
 cleanup_protobuf
 cleanup_jpype
