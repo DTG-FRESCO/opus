@@ -9,15 +9,16 @@ export INSTALL_BASE=$PWD
 mkdir -p python-libs
 mkdir -p lib-base
 export PATH=$INSTALL_BASE/lib-base/bin:$PATH
+export PYTHONUSERBASE=$INSTALL_BASE/python-libs
 
 function setup_python(){
 cd $INSTALL_BASE
-PYTHONUSERBASE=$INSTALL_BASE/python-libs pip install --user --upgrade pytz setuptools google-apputils
+pip install --user --upgrade pytz setuptools google-apputils
 }
 
 function build_deps(){
 cd $INSTALL_BASE
-PYTHONUSERBASE=$INSTALL_BASE/python-libs pip install --user --upgrade jinja2
+pip install --user --upgrade jinja2
 }
 
 function install_protobuf(){
@@ -33,7 +34,7 @@ cd python
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION=2
 python setup.py build --cpp_implementation
-PYTHONUSERBASE=$INSTALL_BASE/python-libs python setup.py install --user --cpp_implementation
+python setup.py install --user --cpp_implementation
 }
 
 function cleanup_protobuf(){
@@ -47,8 +48,8 @@ wget http://downloads.sourceforge.net/project/jpype/JPype/0.5.4/JPype-0.5.4.2.zi
 unzip JPype-0.5.4.2.zip
 rm JPype-0.5.4.2.zip
 cd JPype-0.5.4.2
-PYTHONUSERBASE=$INSTALL_BASE/python-libs python setup.py build
-PYTHONUSERBASE=$INSTALL_BASE/python-libs python setup.py install --user
+python setup.py build
+python setup.py install --user
 }
 
 function cleanup_jpype(){
@@ -97,7 +98,7 @@ cd $REPO_BASE
 make
 mv lib/libopusinterpose.so $INSTALL_BASE
 cd src/backend/
-PYTHONUSERBASE=$INSTALL_BASE/python-libs pip install --upgrade --user .
+pip install --upgrade --user .
 }
 
 function install_wrapper(){
