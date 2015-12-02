@@ -21,7 +21,7 @@ CONFIG_SETUP = [
      'prompt': 'Choose a location for the OPUS master config'},
 
     {'key': 'install_dir',
-     'def': lambda _: '~/.opus',
+     'def': lambda _: os.getcwd(),
      'prompt': 'Where is your OPUS installation?'},
 
     {'key': 'server_addr',
@@ -34,7 +34,7 @@ CONFIG_SETUP = [
      'prompt': 'Choose a location for the OPUS database to reside in'},
 
     {'key': 'bash_var_path',
-     'def': lambda _: '~/.opus-vars',
+     'def': lambda cfg: os.path.join(cfg['install_dir'], '.opus-vars'),
      'prompt': 'Choose a location for the OPUS bash variables cfg_file'},
 
     {'key': 'python_binary',

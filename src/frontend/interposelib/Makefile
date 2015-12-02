@@ -21,13 +21,7 @@ CFLAGS2 := $(CFLAGS2) -DDEBUG_LOGGING
 #CFLAGS2 := $(CFLAGS2) -DTCP_SOCKET
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE)
-ifdef PROTO_INC_PATH
-	CFLAGS2 := $(CFLAGS2) -I$(PROTO_INC_PATH)
-endif
 
-ifdef PROTO_LIB_PATH
-	LFLAGS  := $(LFLAGS) -L$(PROTO_LIB_PATH)
-endif
 LFLAGS  := $(LFLAGS) -Wl,-Bstatic -lprotobuf -lcrypto -Wl,-Bdynamic -lpthread -lrt -ldl 
 
 SRCS    :=  log.C \

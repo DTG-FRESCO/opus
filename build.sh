@@ -3,11 +3,23 @@ set -e
 set -x
 
 export REPO_BASE=$PWD
+
+export VERSION=$(git describe)
+
+if [ $? -ne 0 ]; then
+	echo "Attempting to build a non-tagged commit."
+	exit 1
+fi
+
+export VERSION=${VERSION#v}
+
 mkdir -p dist/opus-$VERSION
 cd dist/opus-$VERSION
 export INSTALL_BASE=$PWD
 mkdir -p python-libs
+mkdir -p lib
 mkdir -p lib-base
+echo $VERSION > VERSION
 export PATH=$INSTALL_BASE/lib-base/bin:$PATH
 export PYTHONUSERBASE=$INSTALL_BASE/python-libs
 
@@ -34,7 +46,7 @@ cd python
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION=2
 python setup.py build --cpp_implementation
-python setup.py install --user --cpp_implementation
+python setup.py install --user --cpp_implementation --single-version-externally-managed --root=/
 }
 
 function cleanup_protobuf(){
@@ -92,11 +104,11 @@ function install_opus(){
 cd $INSTALL_BASE
 
 export PROJ_INCLUDE=$REPO_BASE/include
-export PROTO_LIB_PATH=$INSTALL_BASE/lib-base/lib
-export PROTO_INC_PATH=$INSTALL_BASE/lib-base/include
+export LIBRARY_PATH=$INSTALL_BASE/lib-base/lib:$LIBRARY_PATH
+export CPATH=$INSTALL_BASE/lib-base/include:$CPATH
 cd $REPO_BASE
 make
-mv lib/libopusinterpose.so $INSTALL_BASE
+mv lib/libopusinterpose.so $INSTALL_BASE/lib
 cd src/backend/
 pip install --upgrade --user .
 }
