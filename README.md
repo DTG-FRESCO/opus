@@ -3,8 +3,12 @@
 OPUS is a system for tracking the effects programs have on your system and improving the productivity of your work. It captures the effects programs have using LD_PRELOAD based interposition and stitches this data together into a graph of all the interactions on the system. Then it provides a set of tools that let you query this graph for information.
 
 ## Installation
-1. `git clone https://github.com/DTG-FRESCO/opus.git ~/.opus`
-1. `./setup.sh`
+1. Download the latest release.
+1. Extract the archive to the chosen install location.
+1. Open a terminal inside the extracted location.
+1. ./update_wrapper
+1. bin/opusctl conf -i
+1. cat /tmp/install-opus >> ~/.bashrc
 1. Open a fresh shell.
 
 ## OPUS Control script
