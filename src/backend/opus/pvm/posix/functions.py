@@ -14,7 +14,6 @@ import logging
 import pkg_resources
 import os
 import sys
-import opuspb
 
 try:
     import yaml
@@ -26,7 +25,7 @@ except ImportError:
 
 from ... import pvm
 from . import actions, process, utils
-from ... import common_utils, storage, traversal, uds_msg_pb2
+from ... import common_utils, opuspb, storage, traversal, uds_msg_pb2
 from ...exception import MissingMappingError
 
 

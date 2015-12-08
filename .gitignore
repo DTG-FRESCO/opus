@@ -18,6 +18,8 @@
 bin
 include
 lib
+dist
+src/backend/build
 
 #
 #Ignore Config Files

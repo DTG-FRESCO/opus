@@ -1,0 +1,11 @@
+image: python:2.7
+
+variables:
+  VERSION: "0.0.1"
+
+build-tar:
+  script:
+    - ./build.sh
+  tags:
+    - python
+  allow_failure: true
