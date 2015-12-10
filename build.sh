@@ -85,21 +85,6 @@ cd $INSTALL_BASE
 rm -r openssl-1.0.2d
 }
 
-function install_pthread(){
-cd $INSTALL_BASE
-git clone git://sourceware.org/git/glibc.git
-cd glibc
-git checkout --track -b local_glibc-2.22 origin/release/2.22/master
-mkdir build
-cd build
-../configure --prefix=$INSTALL_BASE/lib-base -fPIC
-}
-
-function cleanup_pthread(){
-cd $INSTALL_BASE
-rm -r glibc
-}
-
 function install_opus(){
 cd $INSTALL_BASE
 
@@ -142,13 +127,11 @@ setup_python
 install_protobuf
 install_jpype
 install_libcrypto
-#install_libpthread
 build_deps
 install_opus
 cleanup_protobuf
 cleanup_jpype
 cleanup_libcrypto
-#cleanup_libpthread
 cleanup_libs
 install_wrapper
 zip_package
