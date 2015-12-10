@@ -2,6 +2,8 @@
 set -e
 set -x
 
+source build.vars.sh
+
 export REPO_BASE=$PWD
 
 export VERSION=$(git describe)
@@ -35,10 +37,10 @@ pip install --user --upgrade jinja2
 
 function install_protobuf(){
 cd $INSTALL_BASE
-wget https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.gz
-tar -xvzf protobuf-2.6.1.tar.gz
-rm protobuf-2.6.1.tar.gz
-cd protobuf-2.6.1
+wget $PROTOBUF_URL
+tar -xvzf $PROTOBUF_ARCH
+rm $PROTOBUF_ARCH
+cd $PROTOBUF_DIR
 ./configure --with-pic --disable-shared --prefix=$INSTALL_BASE/lib-base
 make
 make install
@@ -51,30 +53,29 @@ python setup.py install --user --cpp_implementation --single-version-externally-
 
 function cleanup_protobuf(){
 cd $INSTALL_BASE
-rm -r protobuf-2.6.1
+rm -r $PROTOBUF_DIR
 }
 
 function install_jpype(){
 cd $INSTALL_BASE
-wget http://downloads.sourceforge.net/project/jpype/JPype/0.5.4/JPype-0.5.4.2.zip
-unzip JPype-0.5.4.2.zip
-rm JPype-0.5.4.2.zip
-cd JPype-0.5.4.2
+wget $JPYPE_URL
+unzip $JPYPE_ARCH
+rm $JPYPE_ARCH
+cd $JPYPE_DIR
 python setup.py build
 python setup.py install --user
 }
 
 function cleanup_jpype(){
 cd $INSTALL_BASE
-rm -r JPype-0.5.4.2
+rm -r $JPYPE_DIR
 }
 
 function install_libcrypto(){
 cd $INSTALL_BASE
-wget https://www.openssl.org/source/openssl-1.0.2d.tar.gz
-tar -xvzf openssl-1.0.2d.tar.gz
-rm openssl-1.0.2d.tar.gz
-cd openssl-1.0.2d
+git clone $OPENSSL_REPO
+cd $OPENSSL_DIR
+git checkout $OPENSSL_TAG
 ./config -fPIC -no-shared --prefix=$INSTALL_BASE/lib-base
 make
 make install
@@ -82,7 +83,7 @@ make install
 
 function cleanup_libcrypto(){
 cd $INSTALL_BASE
-rm -r openssl-1.0.2d
+rm -rf $OPENSSL_DIR
 }
 
 function install_opus(){
