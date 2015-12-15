@@ -24,6 +24,7 @@ mkdir -p lib-base
 echo $VERSION > VERSION
 export PATH=$INSTALL_BASE/lib-base/bin:$PATH
 export PYTHONUSERBASE=$INSTALL_BASE/python-libs
+export PYTHON=/usr/bin/python2
 
 function setup_python(){
 cd $INSTALL_BASE
@@ -47,8 +48,8 @@ make install
 cd python
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION=2
-python setup.py build --cpp_implementation
-python setup.py install --user --cpp_implementation --single-version-externally-managed --root=/
+$PYTHON setup.py build --cpp_implementation
+$PYTHON setup.py install --user --cpp_implementation --single-version-externally-managed --root=/
 }
 
 function cleanup_protobuf(){
@@ -62,8 +63,8 @@ wget $JPYPE_URL
 unzip $JPYPE_ARCH
 rm $JPYPE_ARCH
 cd $JPYPE_DIR
-python setup.py build
-python setup.py install --user
+$PYTHON setup.py build
+$PYTHON setup.py install --user
 }
 
 function cleanup_jpype(){
