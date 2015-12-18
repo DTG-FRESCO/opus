@@ -2,25 +2,16 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <grp.h>
 #include <libgen.h>
 #include <link.h>
 #include <linux/un.h>
-#include <openssl/md5.h>
-#include <pwd.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/utsname.h>
-#include <time.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <linux/limits.h>
 #include <cstdint>
-#include <iomanip>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -28,10 +19,12 @@
 #include <map>
 #include "log.h"
 #include "uds_client.h"
-#include "message_util.h"
 #include "messaging.h"
 #include "signal_utils.h"
 #include "common_enums.h"
+#include "file_hash.h"
+#include "sys_util.h"
+#include "message_util.h"
 
 #define STRINGIFY(value) #value
 
@@ -81,12 +74,12 @@ static int get_loaded_libs(struct dl_phdr_info *info,
         if (!real_path)
         {
             LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
+                        SysUtil::get_error(errno).c_str());
             return -1;
         }
 
         string md5_sum;
-        ProcUtils::get_md5_sum(real_path, &md5_sum);
+        FileHash::get_md5_sum(real_path, &md5_sum);
 
         lib_vec->push_back(make_pair(real_path, md5_sum));
         free(real_path);
@@ -152,7 +145,7 @@ static inline void set_rlimit_info(StartupMessage* start_msg)
         if (getrlimit((*citer).second, &rlim) < 0)
         {
             LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
+                        SysUtil::get_error(errno).c_str());
             continue;
         }
 
@@ -173,7 +166,7 @@ static inline void set_system_info(StartupMessage* start_msg)
     if (uname(&buf) < 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
+                    SysUtil::get_error(errno).c_str());
         return;
     }
 
@@ -242,27 +235,11 @@ static inline void set_command_line(StartupMessage* start_msg,
         else
         {
             char can_path[PATH_MAX + 1] = "";
-            cmd_line_str += ProcUtils::canonicalise_path(argv[i], can_path);
+            cmd_line_str += SysUtil::canonicalise_path(argv[i], can_path);
         }
     }
 
     start_msg->set_cmd_line_args(cmd_line_str);
-}
-
-/**
- * Given an environment variable key
- * this function returns its value
- */
-char* ProcUtils::get_env_val(const string& env_key)
-{
-    char* val = getenv(env_key.c_str());
-    if (!val)
-    {
-        string err_desc = "Could not read environment variable " + env_key;
-        throw std::runtime_error(err_desc);
-    }
-
-    return val;
 }
 
 /**
@@ -272,7 +249,7 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
 {
     try
     {
-        char* preload_path = get_env_val("LD_PRELOAD");
+        char* preload_path = SysUtil::get_env_val("LD_PRELOAD");
 
         LOG_MSG(LOG_DEBUG, "[%s:%d]: LD_PRELOAD path: %s\n",
                     __FILE__, __LINE__, preload_path);
@@ -283,45 +260,6 @@ void ProcUtils::get_preload_path(string* ld_preload_path)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: : %s\n", __FILE__, __LINE__, e.what());
     }
-}
-
-/**
- * Returns the raw monotonic clock time of the system
- */
-uint64_t ProcUtils::get_time()
-{
-    struct timespec tp;
-
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &tp) < 0)
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
-
-    uint64_t nsecs = (uint64_t)tp.tv_sec * 1000000000UL + (uint64_t)tp.tv_nsec;
-
-    return nsecs;
-}
-
-/**
- * Retrieves current time and date in a specific format
- */
-void ProcUtils::get_formatted_time(string* date_time)
-{
-    time_t unix_time;
-    struct tm timeinfo;
-    char buffer[128];
-
-    memset(buffer, 0, sizeof(buffer));
-
-    unix_time = time(NULL);
-    localtime_r(&unix_time, &timeinfo);
-
-    if (strftime(buffer, sizeof(buffer), "%Y-%m-%d %T", &timeinfo) == 0)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: strftime returned zero bytes\n",
-                        __FILE__, __LINE__);
-        return;
-    }
-    *date_time = buffer;
 }
 
 /**
@@ -348,7 +286,7 @@ void ProcUtils::set_msg_aggr_flag()
 {
     try
     {
-        char *msg_aggr = get_env_val("OPUS_MSG_AGGR");
+        char *msg_aggr = SysUtil::get_env_val("OPUS_MSG_AGGR");
         if (msg_aggr) aggr_on_flag = true;
     }
     catch(const std::exception& e)
@@ -480,7 +418,7 @@ void ProcUtils::get_uds_path(string* uds_path_str)
 {
     try
     {
-        char* uds_path = get_env_val("OPUS_UDS_PATH");
+        char* uds_path = SysUtil::get_env_val("OPUS_UDS_PATH");
         if (strlen(uds_path) > UNIX_PATH_MAX)
         {
             string err_desc = "UDS path length exceeds max allowed value "
@@ -505,97 +443,17 @@ void ProcUtils::get_tcp_address(string* address, int* port)
 {
     try
     {
-        char* tcp_addr = get_env_val("OPUS_TCP_ADDRESS");
-	char* tcp_port = get_env_val("OPUS_TCP_PORT");
+        char* tcp_addr = SysUtil::get_env_val("OPUS_TCP_ADDRESS");
+        char* tcp_port = SysUtil::get_env_val("OPUS_TCP_PORT");
 
         *address = tcp_addr;
-	*port = std::stoi(tcp_port);
+        *port = std::stoi(tcp_port);
 
     }
     catch(const std::exception& e)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
     }
-}
-
-/**
- * Given a user ID, the user name string is returned
- */
-const string ProcUtils::get_user_name(const uid_t user_id)
-{
-    struct passwd pwd;
-    struct passwd *result;
-    char *buf = NULL;
-    size_t bufsize = -1;
-    string user_name_str = "";
-
-    bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-    if (bufsize <= 0) bufsize = 1024;
-
-    try
-    {
-        buf = new char[bufsize];
-
-        int ret = getpwuid_r(user_id, &pwd, buf, bufsize, &result);
-        if (result == NULL)
-        {
-            if (ret == 0) throw std::runtime_error("User not found");
-            else throw std::runtime_error(ProcUtils::get_error(errno));
-        }
-
-        user_name_str = pwd.pw_name;
-    }
-    catch(const std::bad_alloc& e)
-    {
-        ProcUtils::interpose_off(e.what());
-    }
-    catch(const std::exception& e)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
-    }
-
-    delete[] buf;
-    return user_name_str;
-}
-
-/**
- * Given a group ID, the group name string is returned
- */
-const string ProcUtils::get_group_name(const gid_t group_id)
-{
-    struct group grp;
-    struct group *result;
-    char *buf = NULL;
-    size_t bufsize = -1;
-    string group_name_str = "";
-
-    bufsize = sysconf(_SC_GETGR_R_SIZE_MAX);
-    if (bufsize <= 0) bufsize = 1024;
-
-    try
-    {
-        buf = new char[bufsize];
-
-        int ret = getgrgid_r(group_id, &grp, buf, bufsize, &result);
-        if (result == NULL)
-        {
-            if (ret == 0) throw std::runtime_error("Group not found");
-            else throw std::runtime_error(ProcUtils::get_error(errno));
-        }
-
-        group_name_str = grp.gr_name;
-    }
-    catch(const std::bad_alloc& e)
-    {
-        ProcUtils::interpose_off(e.what());
-    }
-    catch(const std::exception& e)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
-    }
-
-    delete[] buf;
-    return group_name_str;
 }
 
 /**
@@ -628,10 +486,10 @@ void ProcUtils::send_startup_message(const int argc, char** argv, char** envp)
     }
 
     start_msg.set_cmd_line_args("");
-    start_msg.set_user_name(ProcUtils::get_user_name(getuid()));
-    start_msg.set_group_name(ProcUtils::get_group_name(getgid()));
+    start_msg.set_user_name(SysUtil::get_user_name(getuid()));
+    start_msg.set_group_name(SysUtil::get_group_name(getgid()));
     start_msg.set_ppid(getppid());
-    start_msg.set_start_time(ProcUtils::get_time());
+    start_msg.set_start_time(SysUtil::get_time());
 
     set_command_line(&start_msg, argc, argv);
     if (envp) set_env_vars(&start_msg, envp);
@@ -685,52 +543,6 @@ void ProcUtils::send_loaded_libraries()
 }
 
 /**
- * Obtains the md5 checksum when given a valid file path
- */
-void ProcUtils::get_md5_sum(const string& real_path, string *md5_sum)
-{
-    int fd = -1;
-
-    try
-    {
-        struct stat buf;
-
-        fd = open(real_path.c_str(), O_RDONLY);
-        if (fd < 0) throw std::runtime_error(ProcUtils::get_error(errno));
-
-        if (fstat(fd, &buf) < 0)
-            throw std::runtime_error(ProcUtils::get_error(errno));
-
-        size_t file_size = buf.st_size;
-        void *data = mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0);
-        if (data == MAP_FAILED)
-            throw std::runtime_error(ProcUtils::get_error(errno));
-
-        unsigned char result[MD5_DIGEST_LENGTH] = "";
-        if (MD5(reinterpret_cast<unsigned char*>(data),
-                file_size, result) != NULL)
-        {
-            std::stringstream sstr;
-            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-            {
-                sstr << std::setfill('0') << std::setw(2)
-                    << std::hex << (uint16_t)result[i];
-            }
-            *md5_sum = sstr.str();
-        }
-
-        if (munmap(data, file_size) < 0)
-            throw std::runtime_error(ProcUtils::get_error(errno));
-    }
-    catch(const std::exception& e)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, e.what());
-    }
-
-    if (fd != -1) close(fd);
-}
-
-/**
  * Returns the thread ID of
  * the calling thread
  */
@@ -740,7 +552,7 @@ pid_t ProcUtils::gettid()
 
     if ((tid = syscall(__NR_gettid)) < 0)
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
+                    SysUtil::get_error(errno).c_str());
 
     return tid;
 }
@@ -767,7 +579,7 @@ pid_t ProcUtils::__getpid()
     {
         proc_pid_path = realpath("/proc/self", NULL);
         if (!proc_pid_path)
-            throw std::runtime_error(ProcUtils::get_error(errno));
+            throw std::runtime_error(SysUtil::get_error(errno));
 
         string pid_path(proc_pid_path);
 
@@ -920,46 +732,6 @@ void ProcUtils::disconnect()
 }
 
 /**
- * Canonicalises a given pathname
- */
-const char* ProcUtils::canonicalise_path(const char *path, char *actual_path)
-{
-    char *real_path = realpath(path, actual_path);
-    if (!real_path)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-        return path;
-    }
-
-    return real_path;
-}
-
-/**
- * Finds the absolute path of a given path
- */
-const char* ProcUtils::abs_path(const char *path, char *abs_path)
-{
-    // strdupa uses alloca
-    char *dir = strdupa(path);
-    char *base = strdupa(path);
-
-    char *path_head = dirname(dir);
-    char *path_tail = basename(base);
-
-    char *real_path = realpath(path_head, abs_path);
-    if (!real_path)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, strerror(errno));
-        return path;
-    }
-
-    strcat(real_path, "/");
-    strcat(real_path, path_tail);
-
-    return real_path;
-}
-
-/**
  * Converts a 32-bit signed integer to string
  */
 char* ProcUtils::opus_itoa(const int32_t val, char *str)
@@ -969,7 +741,6 @@ char* ProcUtils::opus_itoa(const int32_t val, char *str)
 
     return str;
 }
-
 
 /**
  * Returns a protobuf object when passed an obj type
@@ -1020,25 +791,6 @@ void ProcUtils::clear_proto_objects()
     if (gen_msg_obj) gen_msg_obj->Clear();
 }
 
-/**
- * Given an errno value, this method uses a
- * thread safe implementation of strerror to
- * retrieve the error description.
- */
-const string ProcUtils::get_error(const int err_num)
-{
-    char err_buf[256] = "";
-
-    char *err_str = strerror_r(err_num, err_buf, sizeof(err_buf));
-    if (!err_str)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: strerror_r error: %d\n",
-                    __FILE__, __LINE__, errno);
-        return "";
-    }
-
-    return err_str;
-}
 
 /**
  * Store alternate protobuf message location
@@ -1102,7 +854,7 @@ void ProcUtils::interpose_off(const string& desc)
     if (putenv(env_buff) != 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
+                    SysUtil::get_error(errno).c_str());
     }
 
     LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__, desc.c_str());
@@ -1115,38 +867,6 @@ void ProcUtils::interpose_off(const string& desc)
 
     // Set global OPUS interpose mode to OFF
     opus_interpose_mode = OPUS::OPUSMode::OPUS_OFF;
-}
-
-const char* ProcUtils::get_path_from_fd(const int fd, char *file_path)
-{
-    char proc_fd_path[PATH_MAX + 1] = "";
-    snprintf(proc_fd_path, PATH_MAX, "/proc/self/fd/%d", fd);
-
-    return ProcUtils::canonicalise_path(proc_fd_path, file_path);
-}
-
-const char* ProcUtils::dirfd_get_path(const int fd,
-                                      const char *path,
-                                      char *path_res,
-                                      const char* (path_res_func)(const char*, char*)){
-    if(path[0] == '/'){
-        return path_res_func(path, path_res);
-    }else{
-        char path_dir[PATH_MAX + 1] = "";        
-        char path_tmp[PATH_MAX + 1] = "";
-        if(fd == AT_FDCWD){
-            if(getcwd(path_dir, PATH_MAX) == NULL){
-                LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
-                return path;
-            }
-        }else{
-            ProcUtils::get_path_from_fd(fd, path_dir);
-        }
-        snprintf(path_tmp, PATH_MAX, "%s/%s", path_dir, path);
-
-        return path_res_func(path_tmp, path_res);
-    }
 }
 
 const bool ProcUtils::is_opus_fd(const int fd){

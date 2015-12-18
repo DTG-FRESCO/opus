@@ -12,9 +12,11 @@
 #include "log.h"
 #include "func_ptr_types.h"
 #include "proc_utils.h"
-#include "message_util.h"
 #include "track_errno.h"
 #include "common_macros.h"
+#include "sys_util.h"
+#include "file_hash.h"
+#include "message_util.h"
 
 
 #define GET_MODE                    \
@@ -54,12 +56,12 @@ static int __open_internal(const char* pathname, int flags,
         return ret;
     }
 
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
     CALL_FUNC(int, ret, real_open, pathname, flags, mode);
 
     int errno_value = errno;
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
@@ -73,7 +75,7 @@ static int __open_internal(const char* pathname, int flags,
     if (pathname)
     {
         char pathname_buf[PATH_MAX + 1] = "";
-        tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
+        tmp_arg->set_value(SysUtil::canonicalise_path(pathname, pathname_buf));
     }
 
     tmp_arg = func_msg->add_args();
@@ -87,6 +89,15 @@ static int __open_internal(const char* pathname, int flags,
 
     char mode_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa(mode, mode_buf));
+
+#ifdef COMPUTE_GIT_HASH
+    if (ret >= 0)
+    {
+        char git_hash[64] = "";
+        if (FileHash::get_git_hash(ret, git_hash))
+            func_msg->set_git_hash(git_hash);
+    }
+#endif
 
     set_func_info_msg(func_msg, func_name, ret,
                         start_time, end_time, errno_value);
@@ -142,12 +153,12 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
         return ret;
     }
 
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
     CALL_FUNC(int, ret, real_openat, dirfd, pathname, flags, mode);
 
     int errno_value = errno;
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
@@ -167,7 +178,7 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
     if (pathname)
     {
         char pathname_buf[PATH_MAX + 1] = "";
-        tmp_arg->set_value(ProcUtils::canonicalise_path(pathname, pathname_buf));
+        tmp_arg->set_value(SysUtil::canonicalise_path(pathname, pathname_buf));
     }
 
     tmp_arg = func_msg->add_args();
@@ -187,13 +198,22 @@ static int __openat_internal(int dirfd, const char* pathname, int flags,
     if (ret >= 0)
     {
         char file_path[PATH_MAX + 1] = "";
-        if (ProcUtils::get_path_from_fd(ret, file_path))
+        if (SysUtil::get_path_from_fd(ret, file_path))
         {
             tmp_arg = func_msg->add_args();
             tmp_arg->set_key("file_path");
             tmp_arg->set_value(file_path);
         }
     }
+
+#ifdef COMPUTE_GIT_HASH
+    if (ret >=0)
+    {
+        char git_hash[64] = "";
+        if (FileHash::get_git_hash(ret, git_hash))
+            func_msg->set_git_hash(git_hash);
+    }
+#endif
 
     set_func_info_msg(func_msg, func_name, ret,
                         start_time, end_time, errno_value);
@@ -274,12 +294,12 @@ static int inner_fcntl(int filedes, int cmd, va_list arg, fcntl_arg_fmt_t argfmt
         return ret;
     }
 
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
     FCNTL_CALL_FUNC
 
     int errno_value = errno;
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));

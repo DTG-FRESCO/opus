@@ -93,6 +93,9 @@ def version_global(db_iface, old_glob_node):
                                    new_glob_node['sys_time'],
                                    new_glob_node)
 
+    if old_glob_node.has_key('githash'):
+        new_glob_node['githash'] = old_glob_node['githash']
+
     db_iface.create_relationship(new_glob_node, old_glob_node,
                                  storage.RelType.GLOB_OBJ_PREV)
 
@@ -126,7 +129,7 @@ def get_l(db_iface, proc_node, loc_name):
     return loc_node
 
 
-def get_g(db_iface, loc_node, glob_name):
+def get_g(db_iface, loc_node, glob_name, githash=None):
     '''Performs a PVM get on the global object identified by glob_name and
     binds it to loc_node.'''
 
@@ -150,6 +153,9 @@ def get_g(db_iface, loc_node, glob_name):
     else:
         new_glob_node = version_global(db_iface, old_glob_node)
 
+    if githash is not None:
+        new_glob_node['githash'] = githash
+
     bind(db_iface, loc_node, new_glob_node)
     return new_glob_node
 
@@ -165,9 +171,12 @@ def drop_l(db_iface, loc_node):
                                   (proc_node.id, loc_node['name']))
 
 
-def drop_g(db_iface, loc_node, glob_node):
+def drop_g(db_iface, loc_node, glob_node, githash=None):
     '''PVM drop on glob_node and disassociated fron loc_node.'''
     new_glob_node = version_global(db_iface, glob_node)
+    if githash is not None:
+        new_glob_node['githash'] = githash
+
     new_loc_node = traversal.get_next_local_version(db_iface, loc_node)
     unbind(db_iface, new_loc_node, new_glob_node)
     return new_glob_node, new_loc_node

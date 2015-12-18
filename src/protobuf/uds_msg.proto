@@ -48,6 +48,7 @@ message FuncInfoMessage {
     optional int64 begin_time = 4;
     optional int64 end_time = 5;
     optional int64 error_num = 6;
+    optional string git_hash = 7;
 }
 
 message GenericMessage {

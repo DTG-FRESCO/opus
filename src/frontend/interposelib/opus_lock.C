@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdexcept>
 #include "log.h"
-#include "proc_utils.h"
+#include "sys_util.h"
 
 /**
  * Dummy destructor to
@@ -21,18 +21,18 @@ SimpleLock::SimpleLock()
     int err = 0;
 
     if ((err = pthread_mutexattr_init(&mutex_attr)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 
     if ((err = pthread_mutexattr_settype(&mutex_attr,
                         PTHREAD_MUTEX_ERRORCHECK)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 
     if ((err = pthread_mutexattr_setrobust(&mutex_attr,
                         PTHREAD_MUTEX_ROBUST)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 
     if ((err = pthread_mutex_init(&simple_lock, &mutex_attr)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -58,7 +58,7 @@ void SimpleLock::destroy_lock()
           reallocating a new lock object.
         */
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
     }
 }
 
@@ -74,16 +74,16 @@ void SimpleLock::acquire()
     while ((err = pthread_mutex_lock(&simple_lock)) != 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
 
         if (err == EOWNERDEAD)
         {
             if ((err = pthread_mutex_consistent(&simple_lock)) != 0)
-                throw std::runtime_error(ProcUtils::get_error(err));
+                throw std::runtime_error(SysUtil::get_error(err));
 
             continue;
         }
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
     }
 }
 
@@ -95,7 +95,7 @@ void SimpleLock::release()
     int err = 0;
 
     if ((err = pthread_mutex_unlock(&simple_lock)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -108,7 +108,7 @@ ConditionLock::ConditionLock() : SimpleLock()
     int err = 0;
 
     if ((err = pthread_cond_init(&cond, NULL)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -134,7 +134,7 @@ void ConditionLock::destroy_lock()
           reallocating a new lock object.
         */
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
     }
 }
 
@@ -147,7 +147,7 @@ void ConditionLock::wait()
     int err = 0;
 
     if ((err = pthread_cond_wait(&cond, &simple_lock)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -159,7 +159,7 @@ void ConditionLock::notify()
     int err = 0;
 
     if ((err = pthread_cond_signal(&cond)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -170,7 +170,7 @@ ReadWriteLock::ReadWriteLock()
     int err = 0;
 
     if ((err = pthread_rwlock_init(&rwlock, NULL)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -189,7 +189,7 @@ void ReadWriteLock::acquire_rdlock()
     int err = 0;
 
     if ((err = pthread_rwlock_rdlock(&rwlock)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -200,7 +200,7 @@ void ReadWriteLock::acquire_wrlock()
     int err = 0;
 
     if ((err = pthread_rwlock_wrlock(&rwlock)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -211,7 +211,7 @@ void ReadWriteLock::release()
     int err = 0;
 
     if ((err = pthread_rwlock_unlock(&rwlock)) != 0)
-        throw std::runtime_error(ProcUtils::get_error(err));
+        throw std::runtime_error(SysUtil::get_error(err));
 }
 
 /**
@@ -229,6 +229,6 @@ void ReadWriteLock::destroy_lock()
           reallocating a new lock object.
         */
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
     }
 }

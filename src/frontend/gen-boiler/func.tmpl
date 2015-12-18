@@ -71,12 +71,22 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     if ({{arg.name}}) {{arg.name}}_fd = fileno({{arg.name}});
     {%- endif -%}
     {%- endfor %}
-    uint64_t start_time = ProcUtils::get_time();
+
+    {% if "githash" in func.flags -%}
+    {% if func.githash.type == "pre" -%}
+#ifdef COMPUTE_GIT_HASH
+    char git_hash[64] = "";
+    bool git_hash_ret = FileHash::get_git_hash({{func.githash.arg}}, git_hash);
+#endif
+    {%- endif %}
+    {%- endif %}
+
+    uint64_t start_time = SysUtil::get_time();
 
     {{macros.fn_call(func)}}
 
     int errno_value = errno;
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     {% if "vararg" in func.flags -%}
     va_end(va_args);
@@ -110,42 +120,44 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {
         {% if 'can' in arg.flags %}
         char {{arg.name}}_buf[PATH_MAX + 1] = "";
-        tmp_arg->set_value(ProcUtils::canonicalise_path({{arg.name}}, {{arg.name}}_buf));
+        tmp_arg->set_value(SysUtil::canonicalise_path({{arg.name}}, {{arg.name}}_buf));
+
+
         {% elif 'abs' in arg.flags %}
         char {{arg.name}}_buf[PATH_MAX + 1] = "";
-        tmp_arg->set_value(ProcUtils::abs_path({{arg.name}}, {{arg.name}}_buf));
+        tmp_arg->set_value(SysUtil::abs_path({{arg.name}}, {{arg.name}}_buf));
         {% elif 'dirfd' in arg.flags %}
         char {{arg.name}}_ref[PATH_MAX + 1] = "";
         {% if 'sym' in arg.flags.dirfd -%}
         if(({{arg.flags.dirfd.sym.arg}} & {{arg.flags.dirfd.sym.val}}) == {{arg.flags.dirfd.sym.comp}}){
-            tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+            tmp_arg->set_value(SysUtil::dirfd_get_path({{arg.flags.dirfd.fd}},
                                                          {{arg.name}},
                                                          {{arg.name}}_ref,
-                                                         &ProcUtils::abs_path));
+                                                         &SysUtil::abs_path));
         }else{
-            tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+            tmp_arg->set_value(SysUtil::dirfd_get_path({{arg.flags.dirfd.fd}},
                                                          {{arg.name}},
                                                          {{arg.name}}_ref,
-                                                         &ProcUtils::canonicalise_path));
+                                                         &SysUtil::canonicalise_path));
         }
         {%- else -%}
         {%- if "type" in arg.flags.dirfd -%}
         {%- if arg.flags.dirfd.type == "abs" -%}
-        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+        tmp_arg->set_value(SysUtil::dirfd_get_path({{arg.flags.dirfd.fd}},
                                                      {{arg.name}},
                                                      {{arg.name}}_ref,
-                                                     &ProcUtils::abs_path));
+                                                     &SysUtil::abs_path));
         {%- else -%}
-        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+        tmp_arg->set_value(SysUtil::dirfd_get_path({{arg.flags.dirfd.fd}},
                                                      {{arg.name}},
                                                      {{arg.name}}_ref,
-                                                     &ProcUtils::canonicalise_path));
+                                                     &SysUtil::canonicalise_path));
         {%- endif -%}
         {%- else -%}
-        tmp_arg->set_value(ProcUtils::dirfd_get_path({{arg.flags.dirfd.fd}},
+        tmp_arg->set_value(SysUtil::dirfd_get_path({{arg.flags.dirfd.fd}},
                                                      {{arg.name}},
                                                      {{arg.name}}_ref,
-                                                     &ProcUtils::canonicalise_path));
+                                                     &SysUtil::canonicalise_path));
         {%- endif -%}
         {%- endif -%}
         {% else %}
@@ -156,9 +168,9 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     char {{arg.name}}_fd_buf[MAX_INT32_LEN] = "";
     tmp_arg->set_value(ProcUtils::opus_itoa({{arg.name}}_fd, {{arg.name}}_fd_buf));
     {%- elif arg.type == "uid_t" -%}
-    tmp_arg->set_value(ProcUtils::get_user_name({{arg.name}}));
+    tmp_arg->set_value(SysUtil::get_user_name({{arg.name}}));
     {%- elif arg.type == "gid_t" -%}
-    tmp_arg->set_value(ProcUtils::get_group_name({{arg.name}}));
+    tmp_arg->set_value(SysUtil::get_group_name({{arg.name}}));
     {%- else -%}
     {% if 'rwpair' in arg.flags %}
     char read_fd_buf[MAX_INT32_LEN] = "";
@@ -175,6 +187,30 @@ extern "C" {{func.ret~" "~func.name}}({{macros.fn_arg_def(func)}})
     {% endif %}
     {%- endif -%}
     {%- endfor %}
+
+    {% if "githash" in func.flags -%}
+    {% if func.githash.type == "post" -%}
+    {% if func.githash.arg == "ret" -%}
+    {% if func.ret == "FILE *" -%}
+#ifdef COMPUTE_GIT_HASH
+    if (ret)
+    {%- else -%}
+    if (ret >= 0)
+    {%- endif %}
+    {
+        char git_hash[64] = "";
+        if (FileHash::get_git_hash({{func.githash.arg}}, git_hash))
+            func_msg->set_git_hash(git_hash);
+    }
+#endif
+    {%- endif %}
+    {%- elif func.githash.type == "pre" -%}
+#ifdef COMPUTE_GIT_HASH
+    if (git_hash_ret) func_msg->set_git_hash(git_hash);
+#endif
+    {%- endif %}
+    {%- endif %}
+
 
     {% if func.ret == "FILE *" -%}
     int ret_val = -1;

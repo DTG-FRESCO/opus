@@ -23,7 +23,7 @@ namespace
                                 const uint64_t pay_msg_size,
                                 const PayloadType pay_type)
     {
-        hdr_msg->timestamp = ProcUtils::get_time();
+        hdr_msg->timestamp = SysUtil::get_time();
         hdr_msg->pid = static_cast<uint64_t>(ProcUtils::getpid());
         hdr_msg->payload_type = pay_type;
         hdr_msg->payload_len = pay_msg_size;

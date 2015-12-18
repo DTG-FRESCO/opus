@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include "log.h"
 #include "proc_utils.h"
+#include "sys_util.h"
 #include "message_util.h"
 
 /**
@@ -15,7 +16,7 @@ AggrMsg::AggrMsg()
     cur_msg_size = 0;
     max_aggr_msg_size = DEFAULT_MAX_BUF_SIZE;
 
-    char *aggr_msg_size = ProcUtils::get_env_val("OPUS_MAX_AGGR_MSG_SIZE");
+    char *aggr_msg_size = SysUtil::get_env_val("OPUS_MAX_AGGR_MSG_SIZE");
     if (aggr_msg_size) max_aggr_msg_size = atoi(aggr_msg_size);
 
     try

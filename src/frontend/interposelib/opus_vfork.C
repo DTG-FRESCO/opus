@@ -6,6 +6,7 @@
 #include <utility>
 #include "log.h"
 #include "proc_utils.h"
+#include "sys_util.h"
 #include "message_util.h"
 
 static __thread std::stack<std::pair<uint64_t, bool> > *proc_state_stack = NULL;
@@ -21,7 +22,7 @@ void* get_vfork_symbol(void)
 
     if (!start_time_stack) start_time_stack = new std::stack<uint64_t>;
 
-    start_time_stack->push(ProcUtils::get_time()); // Store the vfork call start time
+    start_time_stack->push(SysUtil::get_time()); // Store the vfork call start time
 
     return reinterpret_cast<void*>(real_vfork);
 }
@@ -57,7 +58,7 @@ void vfork_record_interpose(pid_t pid)
     uint64_t start_time = start_time_stack->top();
     start_time_stack->pop();
 
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     // Set message aggregation flag to the previous state
     ProcUtils::set_msg_aggr_flag(prev_aggr_on_flag);

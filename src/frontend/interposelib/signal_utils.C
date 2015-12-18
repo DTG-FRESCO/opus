@@ -10,8 +10,9 @@
 #include <unistd.h>
 #include "log.h"
 #include "proc_utils.h"
-#include "message_util.h"
 #include "lock_guard.h"
+#include "sys_util.h"
+#include "message_util.h"
 
 /**
  * Initialization of static class members
@@ -76,7 +77,7 @@ OPUSLock *SignalUtils::sig_vec_lock = NULL;
         if (raise(sig) != 0)                                        \
         {                                                           \
             LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__, \
-                        ProcUtils::get_error(errno).c_str());       \
+                        SysUtil::get_error(errno).c_str());       \
             _exit(EXIT_FAILURE);                                    \
         }                                                           \
     }                                                               \
@@ -96,7 +97,7 @@ static inline void set_signal(const int sig, sighandler_t handler)
     sighandler_t ret = ::signal(sig, handler);
     if (ret == SIG_ERR)
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                    ProcUtils::get_error(errno).c_str());
+                    SysUtil::get_error(errno).c_str());
 }
 
 /**
@@ -129,10 +130,10 @@ void SignalUtils::block_all_signals(sigset_t *old_set)
     try
     {
         if (sigfillset(&new_set) < 0)
-            throw std::runtime_error(ProcUtils::get_error(errno));
+            throw std::runtime_error(SysUtil::get_error(errno));
 
         if (pthread_sigmask(SIG_BLOCK, &new_set, old_set) < 0)
-            throw std::runtime_error(ProcUtils::get_error(errno));
+            throw std::runtime_error(SysUtil::get_error(errno));
     }
     catch(const std::exception& e)
     {
@@ -149,7 +150,7 @@ void SignalUtils::restore_signal_mask(sigset_t *old_set)
     try
     {
         if (pthread_sigmask(SIG_SETMASK, old_set, NULL) < 0)
-            throw std::runtime_error(ProcUtils::get_error(errno));
+            throw std::runtime_error(SysUtil::get_error(errno));
     }
     catch(const std::exception& e)
     {
@@ -183,7 +184,7 @@ void* SignalUtils::call_signal(const SIGNAL_POINTER& real_signal,
         errno = 0;
         ret = (*real_signal)(signum, signal_handler);
         if (ret == SIG_ERR)
-            throw std::runtime_error(ProcUtils::get_error(errno));
+            throw std::runtime_error(SysUtil::get_error(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -223,7 +224,7 @@ void* SignalUtils::call_sigaction(const SIGACTION_POINTER& real_sigaction,
 
         errno = 0;
         ret = (*real_sigaction)(signum, sa, oldact);
-        if (ret < 0) throw std::runtime_error(ProcUtils::get_error(errno));
+        if (ret < 0) throw std::runtime_error(SysUtil::get_error(errno));
 
         prev_handler = SignalUtils::add_signal_handler(signum, sh_obj);
     }
@@ -388,7 +389,7 @@ bool SignalUtils::init_signal_capture()
             if (sigaction(sig, NULL, &oldact) < 0)
             {
                 LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
+                        SysUtil::get_error(errno).c_str());
                 continue;
             }
 
@@ -408,7 +409,7 @@ bool SignalUtils::init_signal_capture()
             if (sigaction(sig, &sa, NULL) < 0)
             {
                 LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
+                        SysUtil::get_error(errno).c_str());
                 continue;
             }
         }
@@ -530,7 +531,7 @@ void SignalUtils::restore_all_signal_states()
                 if (sigaction(sig, &act, NULL) < 0)
                 {
                     LOG_MSG(LOG_DEBUG, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                                ProcUtils::get_error(errno).c_str());
+                                SysUtil::get_error(errno).c_str());
                     continue;
                 }
             }
