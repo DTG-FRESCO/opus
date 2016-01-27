@@ -32,9 +32,14 @@ from ...exception import MissingMappingError
 def _parse_mapping(msg, mapping):
     '''Given a message and an argument mapping, retrieve the value of that
     argument.'''
-    args = utils.parse_kvpair_list(msg.args)
     if mapping[0] == "msg_arg":
+        args = utils.parse_kvpair_list(msg.args)
         return args[mapping[1]]
+    elif mapping[0] == "msg_field":
+        if msg.HasField(mapping[1]):
+            return getattr(msg, mapping[1])
+        else:
+            return None
     elif mapping[0] == "ret_val":
         return str(msg.ret_val)
     elif mapping[0] == "const":
@@ -250,8 +255,10 @@ def posix_freopen(db_iface, proc_node, msg):
         actions.close_action(msg.error_num, db_iface,
                              proc_node, args['stream'])
 
+    git_hash = utils.parse_git_hash(msg)
     new_loc_node = actions.open_action(db_iface, proc_node,
-                                       args['path'], str(msg.ret_val))
+                                       args['path'], str(msg.ret_val),
+                                       git_hash)
     return new_loc_node
 
 
@@ -264,8 +271,11 @@ def posix_freopen64(db_iface, proc_node, msg):
     except utils.NoMatchingLocalError:
         actions.close_action(msg.error_num, db_iface, proc_node,
                              args['stream'])
+
+    git_hash = utils.parse_git_hash(msg)
     new_loc_node = actions.open_action(db_iface, proc_node,
-                                       args['filename'], str(msg.ret_val))
+                                       args['filename'], str(msg.ret_val),
+                                       git_hash)
     return new_loc_node
 
 
@@ -619,8 +629,10 @@ def posix_creat64(db_iface, proc_node, msg):
 def posix_fopen(db_iface, proc_node, msg):
     '''Implementation of fopen in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
+    git_hash = utils.parse_git_hash(msg)
     loc_obj = actions.open_action(db_iface, proc_node,
-                                  args['path'], str(msg.ret_val))
+                                  args['path'], str(msg.ret_val),
+                                  git_hash)
     if proc_node['opus_lite']:
         state = parse_fmode(args['mode'])
         for rel in loc_obj.LOC_OBJ.incoming:
@@ -633,8 +645,10 @@ def posix_fopen(db_iface, proc_node, msg):
 def posix_fopen64(db_iface, proc_node, msg):
     '''Implementation of fopen64 in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
+    git_hash = utils.parse_git_hash(msg)
     loc_obj = actions.open_action(db_iface, proc_node,
-                                  args['path'], str(msg.ret_val))
+                                  args['path'], str(msg.ret_val),
+                                  git_hash)
     if proc_node['opus_lite']:
         state = parse_fmode(args['mode'])
         for rel in loc_obj.LOC_OBJ.incoming:
@@ -647,8 +661,10 @@ def posix_fopen64(db_iface, proc_node, msg):
 def posix_open(db_iface, proc_node, msg):
     '''Implementation of open in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
+    git_hash = utils.parse_git_hash(msg)
     loc_obj = actions.open_action(db_iface, proc_node,
-                                  args['pathname'], str(msg.ret_val))
+                                  args['pathname'], str(msg.ret_val),
+                                  git_hash)
     if proc_node['opus_lite']:
         state = parse_omode(args['flags'])
         for rel in loc_obj.LOC_OBJ.incoming:
@@ -661,8 +677,10 @@ def posix_open(db_iface, proc_node, msg):
 def posix_open64(db_iface, proc_node, msg):
     '''Implementation of open64 in PVM semantics.'''
     args = utils.parse_kvpair_list(msg.args)
+    git_hash = utils.parse_git_hash(msg)
     loc_obj = actions.open_action(db_iface, proc_node,
-                                  args['pathname'], str(msg.ret_val))
+                                  args['pathname'], str(msg.ret_val),
+                                  git_hash)
     if proc_node['opus_lite']:
         state = parse_omode(args['flags'])
         for rel in loc_obj.LOC_OBJ.incoming:

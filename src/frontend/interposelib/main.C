@@ -10,6 +10,7 @@
 #include "signal_utils.h"
 #include "functions.h"
 #include "common_enums.h"
+#include "sys_util.h"
 
 __attribute__((section(".init_array")))
     typeof(opus_init) *__opus_init = opus_init;
@@ -25,7 +26,7 @@ static OPUS::OPUSMode check_env_opus_interpose_mode()
 
     try
     {
-        char *mode_str = ProcUtils::get_env_val("OPUS_INTERPOSE_MODE");
+        char *mode_str = SysUtil::get_env_val("OPUS_INTERPOSE_MODE");
 
         if (mode_str) opus_mode = static_cast<OPUS::OPUSMode>(atoi(mode_str));
 

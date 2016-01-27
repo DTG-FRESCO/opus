@@ -12,9 +12,9 @@
 #include <string>
 #include <stdexcept>
 #include "log.h"
-#include "proc_utils.h"
 #include "uds_client.h"
 #include "uds_comm_exception.h"
+#include "sys_util.h"
 
 /**
  * Constructor establishes a UDS
@@ -65,7 +65,7 @@ bool UDSCommClient::connect(const std::string& addr, const int port)
                 continue;
             }
             else throw UDSCommException(__FILE__, __LINE__,
-                        ProcUtils::get_error(errno));
+                        SysUtil::get_error(errno));
         }
 
         protect_fd();
@@ -78,7 +78,7 @@ bool UDSCommClient::connect(const std::string& addr, const int port)
 	struct addrinfo *res;
 	if(::getaddrinfo(addr.c_str(), NULL, NULL, &res)!=0)
 	    throw UDSCommException(__FILE__, __LINE__,
-	                ProcUtils::get_error(errno));
+	                SysUtil::get_error(errno));
 	
 	memcpy(&(address.sin_addr), &((struct sockaddr_in *) res->ai_addr)->sin_addr, sizeof(struct in_addr));
 
@@ -92,7 +92,7 @@ bool UDSCommClient::connect(const std::string& addr, const int port)
             }
             else if (errno == EINPROGRESS) break;
             else throw UDSCommException(__FILE__, __LINE__,
-                            ProcUtils::get_error(errno));
+                            SysUtil::get_error(errno));
         }
     }
     catch(const UDSCommException& e)
@@ -124,7 +124,7 @@ bool UDSCommClient::connect(const std::string& path)
                 continue;
             }
             else throw UDSCommException(__FILE__, __LINE__,
-                        ProcUtils::get_error(errno));
+                        SysUtil::get_error(errno));
         }
 
         protect_fd();
@@ -144,7 +144,7 @@ bool UDSCommClient::connect(const std::string& path)
             }
             else if (errno == EINPROGRESS) break;
             else throw UDSCommException(__FILE__, __LINE__,
-                            ProcUtils::get_error(errno));
+                            SysUtil::get_error(errno));
         }
     }
     catch(const UDSCommException& e)
@@ -189,7 +189,7 @@ bool UDSCommClient::send_data(const void* const data, const int data_size)
                     continue;
                 }
                 else throw UDSCommException(__FILE__, __LINE__,
-                                    ProcUtils::get_error(errno));
+                                    SysUtil::get_error(errno));
             }
 
             LOG_MSG(LOG_DEBUG, "[%s:%d]: Wrote %ld bytes to socket\n",
@@ -242,7 +242,7 @@ void UDSCommClient::close_connection()
                 continue;
             }
             else throw UDSCommException(__FILE__, __LINE__,
-                            ProcUtils::get_error(errno));
+                            SysUtil::get_error(errno));
         }
     }
     catch(const UDSCommException& e)

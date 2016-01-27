@@ -15,6 +15,13 @@ from ... import pvm, storage, traversal
 from ...exception import NoMatchingLocalError, InvalidNodeTypeException
 
 
+def parse_git_hash(msg):
+    '''Returns git hash field if present'''
+    git_hash = None
+    if msg.HasField('git_hash'):
+        git_hash = msg.git_hash
+    return git_hash
+
 def parse_kvpair_list(args):
     '''Converts a list of KVPair messages to a dictionary.'''
     return {arg.key: arg.value for arg in args}

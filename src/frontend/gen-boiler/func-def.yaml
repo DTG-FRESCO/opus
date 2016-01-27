@@ -3,7 +3,10 @@
   fd_protect:
     arg: "fd"
     errno: "EBADF"
-  flags: [fdprotect]
+  githash:
+    arg: "fd"
+    type: "pre"
+  flags: [fdprotect, githash]
   args:
   - flags: 
       read: ""
@@ -48,7 +51,10 @@
   fd_protect:
     arg: "fp"
     errno: "EBADF"
-  flags: [fdprotect]
+  githash:
+    arg: "fp"
+    type: "pre"
+  flags: [fdprotect, githash]
   args:
   - flags:
       read: ""
@@ -93,7 +99,10 @@
 
 - name: fopen
   ret: "FILE *"
-  flags: []
+  flags: [githash]
+  githash:
+    arg: "ret"
+    type: "post"
   args:
   - flags:
       read: ""
@@ -109,7 +118,10 @@
 
 - name: fopen64
   ret: "FILE *"
-  flags: []
+  flags: [githash]
+  githash:
+    arg: "ret"
+    type: "post"
   args:
   - flags:
       read: ""
@@ -177,7 +189,10 @@
 
 - name: freopen
   ret: "FILE *"
-  flags: []
+  flags: [githash]
+  githash:
+    arg: "ret"
+    type: "post"
   args:
   - flags:
       read: ""
@@ -198,7 +213,10 @@
 
 - name: freopen64
   ret: "FILE *"
-  flags: []
+  flags: [githash]
+  githash:
+    arg: "ret"
+    type: "post"
   args:
   - flags:
       read: ""

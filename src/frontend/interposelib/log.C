@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdexcept>
 #include "log.h"
-#include "proc_utils.h"
+#include "sys_util.h"
 
 #define MAX_MSG_SIZE 4096
 #define LOGGING_OFF 999
@@ -45,7 +45,7 @@ void Logging::init_logging()
 {
     try
     {
-        char *log_level = ProcUtils::get_env_val("OPUS_LOG_LEVEL");
+        char *log_level = SysUtil::get_env_val("OPUS_LOG_LEVEL");
         logging_level = atoi(log_level);
 
         if (logging_level < LOG_DEBUG || logging_level > LOG_CRITICAL)

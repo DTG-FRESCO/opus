@@ -77,15 +77,15 @@ def null_action(err, db_iface, proc_node, filedes):
 
 
 @ActionMap.add('open', True)
-def open_action(db_iface, proc_node, filename, filedes):
+def open_action(db_iface, proc_node, filename, filedes, githash=None):
     '''Action that opens a named file.'''
     loc_node = pvm.get_l(db_iface, proc_node, filedes)
-    pvm.get_g(db_iface, loc_node, filename)
+    pvm.get_g(db_iface, loc_node, filename, githash)
     return loc_node
 
 
 @ActionMap.add('close', False)
-def close_action(err, db_iface, proc_node, filedes):
+def close_action(err, db_iface, proc_node, filedes, githash=None):
     '''Action that closes a named file descriptor.'''
     try:
         loc_node = utils.proc_get_local(db_iface, proc_node, filedes)
@@ -98,14 +98,14 @@ def close_action(err, db_iface, proc_node, filedes):
     if err > 0:
         return loc_node
 
-    return close_action_helper(db_iface, loc_node)
+    return close_action_helper(db_iface, loc_node, githash)
 
 
-def close_action_helper(db_iface, loc_node):
+def close_action_helper(db_iface, loc_node, githash=None):
     glob_node_list = traversal.get_globals_from_local(db_iface, loc_node)
     if len(glob_node_list) > 0:
         glob_node, _ = glob_node_list[0]
-        _, new_loc_node = pvm.drop_g(db_iface, loc_node, glob_node)
+        _, new_loc_node = pvm.drop_g(db_iface, loc_node, glob_node, githash)
         pvm.drop_l(db_iface, new_loc_node)
     else:
         pvm.drop_l(db_iface, loc_node)

@@ -16,9 +16,11 @@
 #include "signal_handler.h"
 #include "func_ptr_types.h"
 #include "proc_utils.h"
-#include "message_util.h"
 #include "track_errno.h"
 #include "common_macros.h"
+#include "sys_util.h"
+#include "file_hash.h"
+#include "message_util.h"
 
 #define STRINGIFY(value) #value
 
@@ -58,7 +60,7 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
     bool comm_ret = send_pre_func_generic_msg(desc);        \
                                                             \
     /* Call the original exec */                            \
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
 
 #define POST_EXEC_CALL(desc, arg1_val)                      \
@@ -66,7 +68,7 @@ static inline void exit_program(const char *exit_str, const int status) __attrib
     if (!comm_ret) return ret;                              \
                                                             \
     /* This part will execute only if exec fails */         \
-    uint64_t end_time = ProcUtils::get_time();              \
+    uint64_t end_time = SysUtil::get_time();              \
     int errno_value = errno;                                \
                                                             \
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>( \
@@ -153,7 +155,7 @@ static void* opus_thread_start_routine(void *args)
     if (err != 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
     }
 
     ProcUtils::inside_opus(true);
@@ -192,7 +194,7 @@ static void* opus_thread_start_routine(void *args)
     if (err != 0)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(err).c_str());
+                SysUtil::get_error(err).c_str());
     }
 
     void *ret = real_handler(real_args);
@@ -220,7 +222,7 @@ static void get_lib_real_path(void *handle, std::string* real_path)
     if (!path)
     {
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                ProcUtils::get_error(errno).c_str());
+                SysUtil::get_error(errno).c_str());
         return;
     }
 
@@ -263,7 +265,7 @@ static inline void exit_program(const char *exit_str, const int status)
         char status_buf[MAX_INT32_LEN] = "";
         tmp_arg->set_value(ProcUtils::opus_itoa(status, status_buf));
 
-        uint64_t start_time = ProcUtils::get_time();
+        uint64_t start_time = SysUtil::get_time();
         uint64_t end_time = 0;  // function does not return
         int errno_value = 0;
 
@@ -382,7 +384,7 @@ static void check_and_add_opus_lib(std::string* env_str)
 {
     try
     {
-        char *opus_lib_name = ProcUtils::get_env_val("OPUS_LIB_NAME");
+        char *opus_lib_name = SysUtil::get_env_val("OPUS_LIB_NAME");
 
         int64_t pos = env_str->find(opus_lib_name);
         if (pos != (int64_t)std::string::npos)
@@ -428,7 +430,7 @@ static void add_opus_interpose_mode(std::vector<char*>* env_vec_ptr)
 {
     try
     {
-        char *ipose_mode = ProcUtils::get_env_val("OPUS_INTERPOSE_MODE");
+        char *ipose_mode = SysUtil::get_env_val("OPUS_INTERPOSE_MODE");
 
         std::string opus_interpose_mode = "OPUS_INTERPOSE_MODE=";
         opus_interpose_mode += std::string(ipose_mode);
@@ -675,7 +677,7 @@ extern "C" pid_t fork(void)
     }
 
 
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
     CALL_FUNC(pid_t, pid, real_fork);
 
@@ -689,7 +691,7 @@ extern "C" pid_t fork(void)
     /* Parent process */
     int errno_value = errno;
 
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
@@ -740,7 +742,7 @@ extern "C" void* dlopen(const char * filename, int flag)
         std::string md5_sum;
 
         get_lib_real_path(handle, &real_path);
-        ProcUtils::get_md5_sum(real_path, &md5_sum);
+        FileHash::get_md5_sum(real_path, &md5_sum);
 
         LibInfoMessage lib_info_msg;
         KVPair *kv_args = lib_info_msg.add_library();
@@ -965,7 +967,7 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
         return (*real_pthread_create)(thread, attr, real_handler, real_args);
     }
 
-    uint64_t start_time = ProcUtils::get_time();
+    uint64_t start_time = SysUtil::get_time();
 
     PTHREAD_HANDLER handler = real_handler;
     void *args = real_args;
@@ -983,12 +985,12 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     {
         ProcUtils::interpose_off(e.what());
         LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                        ProcUtils::get_error(errno).c_str());
+                        SysUtil::get_error(errno).c_str());
     }
 
     int ret = (*real_pthread_create)(thread, attr, handler, args);
 
-    uint64_t end_time = ProcUtils::get_time();
+    uint64_t end_time = SysUtil::get_time();
 
     FuncInfoMessage *func_msg = static_cast<FuncInfoMessage*>(
                         ProcUtils::get_proto_msg(PayloadType::FUNCINFO_MSG));
@@ -1036,7 +1038,7 @@ extern "C" void pthread_exit(void *retval)
     // Keep interposition turned off
     if (!func_msg)
     {
-        uint64_t start_time = ProcUtils::get_time();
+        uint64_t start_time = SysUtil::get_time();
         uint64_t end_time = 0;
         int errno_value = 0;
 

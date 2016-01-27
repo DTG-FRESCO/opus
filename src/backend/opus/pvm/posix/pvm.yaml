@@ -4,6 +4,9 @@ close:
     filedes: 
       - msg_arg
       - fd
+    githash: 
+      - msg_field
+      - git_hash
 
 fclose:
   action: close
@@ -11,6 +14,9 @@ fclose:
     filedes: 
       - msg_arg
       - fp
+    githash: 
+      - msg_field
+      - git_hash
 
 fgetc:
   action: read

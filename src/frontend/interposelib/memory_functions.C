@@ -13,7 +13,6 @@
 #include "log.h"
 #include "func_ptr_types.h"
 #include "proc_utils.h"
-#include "message_util.h"
 #include "track_errno.h"
 #include "signal_utils.h"
 

@@ -14,6 +14,8 @@
 
 #include "log.h"
 #include "proc_utils.h"
+#include "sys_util.h"
+#include "file_hash.h"
 #include "message_util.h"
 #include "track_errno.h"
 

@@ -24,8 +24,6 @@
 class ProcUtils
 {
     public:
-        static uint64_t get_time();
-        static void get_formatted_time(std::string* date_time);
         static bool inside_opus(const bool value);
 
         static bool serialise_and_send_data(
@@ -44,14 +42,10 @@ class ProcUtils
         static void send_libinfo_message
             (const std::vector<std::pair<std::string, std::string> >& lib_vec);
 
-        static char* get_env_val(const std::string& env_key);
         static void get_uds_path(std::string* uds_path_str);
-	static void get_tcp_address(std::string* address, int* port);
-	static void get_preload_path(std::string* ld_preload_path);
-        static const std::string get_user_name(const uid_t user_id);
-        static const std::string get_group_name(const gid_t group_id);
-        static void get_md5_sum(const std::string& real_path,
-                                std::string* md5_sum);
+        static void get_tcp_address(std::string* address, int* port);
+        static void get_preload_path(std::string* ld_preload_path);
+
         static pid_t gettid();
         static pid_t getpid();
         static pid_t __getpid(); // Used internally
@@ -65,17 +59,8 @@ class ProcUtils
         static bool connect();
         static void disconnect();
 
-        static const char* get_path_from_fd(const int fd, char *file_path);
-        static const char* canonicalise_path(const char *path,
-                                            char *actual_path);
-        static const char* abs_path(const char *path, char *abs_path);
-        static const char* dirfd_get_path(const int fd,
-                                          const char *path,
-                                          char *path_res,
-                                          const char* (path_res_func)(const char*, char*));
-        static const std::string get_error(const int err_num);
         static const bool is_opus_fd(const int fd);
-        static const bool is_opus_fd(FILE* fp); 
+        static const bool is_opus_fd(FILE* fp);
 
         /* Converts an integer to a string */
         static char* opus_itoa(const int32_t val, char *str);
