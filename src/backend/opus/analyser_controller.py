@@ -162,7 +162,7 @@ class AnalyserController(object):
 
     def _check_mem_condition(self, fetch_proc):
         '''Checks JVM heap memory size and available memory on the system'''
-        proc_mem_info = fetch_proc.get_memory_info()
+        proc_mem_info = fetch_proc.memory_info()
         if __debug__:
             logging.debug("RSS: %d", proc_mem_info.rss)
 
