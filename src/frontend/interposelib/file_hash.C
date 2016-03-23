@@ -73,24 +73,7 @@ bool FileHash::get_git_hash(FILE *fp, char *git_hash)
 bool FileHash::get_git_hash(int fd, char *git_hash)
 {
     bool retval = false;
-
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags < 0)
-    {
-        LOG_MSG(LOG_ERROR, "[%s:%d]: %s\n", __FILE__, __LINE__,
-                SysUtil::get_error(errno).c_str());
-        return retval;
-    }
-
     int new_fd = -1;
-    if (!(flags & O_RDONLY || flags & O_RDWR))
-    {
-        LOG_MSG(LOG_DEBUG, "[%s:%d]: FD does not have read perms\n",
-                __FILE__, __LINE__);
-
-        int new_fd = open_read_mode(fd);
-        if (new_fd >= 0) fd = new_fd;
-    }
 
     try
     {
@@ -104,6 +87,21 @@ bool FileHash::get_git_hash(int fd, char *git_hash)
         size_t file_size = stat_buf.st_size;
         if (file_size == 0)
             throw std::runtime_error("File size is zero");
+
+        int flags = fcntl(fd, F_GETFL, 0);
+        if (flags < 0)
+            throw std::runtime_error(SysUtil::get_error(errno).c_str());
+
+        if (!(flags & O_RDONLY || flags & O_RDWR))
+        {
+            LOG_MSG(LOG_DEBUG, "[%s:%d]: FD %d does not have read perms\n",
+                    fd, __FILE__, __LINE__);
+
+            int new_fd = open_read_mode(fd);
+            if (new_fd < 0)
+                throw std::runtime_error("Unable to open file in read mode");
+            fd = new_fd;
+        }
 
         char hash_header[HASH_HDR_SZ] = "";  // "blob <file_size>\0"
         snprintf(hash_header, HASH_HDR_SZ, "%s %zu%c", "blob", file_size, '\0');
