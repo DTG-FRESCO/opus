@@ -11,16 +11,16 @@ import traceback
 import timer
 
 import test_dump
-import test_sql
-import test_neo4j
-import test_sqldump
+#import test_sql
+#import test_neo4j
+#import test_sqldump
 
 
-CANDIDATES = [test_neo4j,
-              test_sql,
-              test_dump,
-              test_sqldump]
-
+CANDIDATES = [#test_neo4j,
+              #test_sql,
+              #test_dump,
+              #test_sqldump]
+              test_dump.DumpModule(2**i) for i in range(21)]
 
 # Defaults
 ITERATIONS = 1000
@@ -92,7 +92,7 @@ def main(config):
 
     if success:
         timer.display()
-
+        timer.gnuplot()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

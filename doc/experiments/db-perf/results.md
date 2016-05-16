@@ -31,3 +31,38 @@
     version_local        :    2.56
     get_l                :    0.76
     drop_l               :    0.33
+
+## ./test.py --iters 10000 --files 100 --fds 10
+### neo4j
+    handle_file_close    : 1907.47
+    drop_g               : 1842.30
+    process_msg          : 1001.65
+    version_global       :  967.75
+    create_new_global    :  886.11
+    handle_process_start :  613.19
+    handle_file_open     :   95.40
+    get_g                :   84.81
+    local_by_name        :   64.71
+    get_l                :   10.28
+    version_local        :    1.58
+    drop_l               :    0.30
+### sqldump
+    process_msg          :    4.00
+### dump
+    process_msg          :    0.44
+    sync                 :    0.38
+    dump                 :    0.06
+### sql
+    process_msg          :    9.05
+    handle_file_open     :    5.71
+    handle_file_close    :    4.88
+    get_g                :    4.39
+    handle_process_start :    4.33
+    drop_g               :    4.09
+    version_global       :    3.74
+    version_local        :    2.83
+    get_l                :    0.83
+    drop_l               :    0.37
+
+## Experiments in differing sync frequencies for dump to file
+(data.png)
