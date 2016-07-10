@@ -6,7 +6,6 @@
 
 #include "log.h"
 #include "proc_utils.h"
-#include "uds_client.h"
 #include "signal_utils.h"
 #include "functions.h"
 #include "common_enums.h"

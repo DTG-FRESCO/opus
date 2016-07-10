@@ -17,8 +17,9 @@
 #include <utility>
 #include <vector>
 #include <map>
+
 #include "log.h"
-#include "uds_client.h"
+#include "comm_client.h"
 #include "messaging.h"
 #include "signal_utils.h"
 #include "common_enums.h"
@@ -34,7 +35,7 @@ using std::vector;
 
 /** Thread local storage */
 __thread bool ProcUtils::in_opus_flag = true;
-__thread UDSCommClient *ProcUtils::comm_obj = NULL;
+__thread CommClient *ProcUtils::comm_obj = NULL;
 __thread uint32_t ProcUtils::conn_ref_count = 0;
 __thread FuncInfoMessage *ProcUtils::func_msg_obj = NULL;
 __thread GenericMessage *ProcUtils::gen_msg_obj = NULL;
@@ -687,25 +688,30 @@ bool ProcUtils::connect()
 
     try
     {
-#ifdef TCP_SOCKET
-        std::string address;
-	int port;
-	get_tcp_address(&address, &port);
+        std::string comm_mode = SysUtil::get_env_val("OPUS_PROV_COMM_MODE");
 
-	if(address.empty())
-	   throw std::runtime_error("Cannot connect! Address is empty");
+        if (comm_mode == "unix")
+        {
+            std::string uds_path_str;
+            get_uds_path(&uds_path_str);
 
-	comm_obj = new UDSCommClient(address, port);
-#else
-        std::string uds_path_str;
-        get_uds_path(&uds_path_str);
+            if (uds_path_str.empty())
+                throw std::runtime_error("Cannot connect!! UDS path is empty");
 
-        if (uds_path_str.empty())
-            throw std::runtime_error("Cannot connect!! UDS path is empty");
+            comm_obj = new UDSCommClient(uds_path_str);
+        }
+        else if (comm_mode == "tcp")
+        {
+            std::string address;
+            int port;
+            get_tcp_address(&address, &port);
 
-        // Connect to the backend
-        comm_obj = new UDSCommClient(uds_path_str);
-#endif
+            if(address.empty())
+                throw std::runtime_error("Cannot connect! Address is empty");
+
+            comm_obj = new TCPCommClient(address, port);
+        }
+        else throw std::runtime_error("Invalid provenance comm mode");
     }
     catch(const std::exception& e)
     {

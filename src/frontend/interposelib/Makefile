@@ -19,7 +19,6 @@ CFLAGS2 := $(CFLAGS2) $(INTERPOSE_ON_FLAG)
 CFLAGS2 := $(CFLAGS2) -DCAPTURE_SIGNALS
 CFLAGS2 := $(CFLAGS2) -DDEBUG_LOGGING
 CFLAGS2 := $(CFLAGS2) -DCOMPUTE_GIT_HASH
-#CFLAGS2 := $(CFLAGS2) -DTCP_SOCKET
 CFLAGS2 := $(CFLAGS2) -std=gnu++0x
 CFLAGS2 := $(CFLAGS2) -I$(PROJ_INCLUDE)
 
@@ -29,7 +28,7 @@ SRCS    :=  log.C \
             opus_lock.C \
             lock_guard.C \
             proc_utils.C \
-            uds_client.C \
+            comm_client.C \
             uds_msg.pb.cc \
             functions.C \
             io_functions.C \
@@ -48,8 +47,8 @@ HDRS    :=  log.h \
             opus_lock.h \
             lock_guard.h \
             proc_utils.h \
-            uds_comm_exception.h \
-            uds_client.h \
+            comm_exception.h \
+            comm_client.h \
             functions.h \
             signal_handler.h \
             signal_utils.h \

@@ -6,9 +6,10 @@
 #include <string>
 #include <vector>
 #include <utility>
+
 #include "uds_msg.pb.h"
 #include "opus_lock.h"
-#include "uds_client.h"
+#include "comm_client.h"
 #include "messaging.h"
 #include "aggr_msg.h"
 
@@ -92,7 +93,7 @@ class ProcUtils
 
     private:
         static __thread bool in_opus_flag;
-        static __thread UDSCommClient *comm_obj;
+        static __thread CommClient *comm_obj;
         static __thread uint32_t conn_ref_count;
         static pid_t opus_pid;
         static std::map<std::string, void*> *libc_func_map;
