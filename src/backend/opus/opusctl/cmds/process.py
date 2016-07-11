@@ -30,7 +30,9 @@ def handle_launch(cfg, binary, arguments):
 
     if cfg['server_addr'][:4] == "unix":
         os.environ['OPUS_UDS_PATH'] = utils.path_normalise(cfg['server_addr'][7:])
+        os.environ['OPUS_PROV_COMM_MODE'] = cfg['server_addr'][:4]
     else:
+        os.environ['OPUS_PROV_COMM_MODE'] = cfg['server_addr'][:3]
         addr = cfg['server_addr'][6:].split(":")
         os.environ['OPUS_TCP_ADDRESS'] = addr[0]
         os.environ['OPUS_TCP_PORT'] = addr[1]
