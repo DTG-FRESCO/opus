@@ -16,13 +16,21 @@ fi
 export VERSION=${VERSION#v}
 
 mkdir -p dist/opus-$VERSION
+
 cd dist/opus-$VERSION
+
 export INSTALL_BASE=$PWD
+
 mkdir -p python-libs
 mkdir -p lib
 mkdir -p lib-base
+
 echo $VERSION > VERSION
+
 export PATH=$INSTALL_BASE/lib-base/bin:$PATH
+export CPATH=$INSTALL_BASE/lib-base/include:$CPATH
+export LIBRARY_PATH=$INSTALL_BASE/lib-base/lib:$LIBRARY_PATH
+
 export PYTHONUSERBASE=$INSTALL_BASE/python-libs
 export PYTHON=/usr/bin/python2
 
@@ -33,7 +41,7 @@ pip install --user --upgrade pytz setuptools google-apputils
 
 function build_deps(){
 cd $INSTALL_BASE
-pip install --user --upgrade jinja2
+pip install --user --upgrade jinja2 pyyaml
 }
 
 function install_protobuf(){
@@ -89,10 +97,7 @@ rm -rf $OPENSSL_DIR
 
 function install_opus(){
 cd $INSTALL_BASE
-
 export PROJ_INCLUDE=$REPO_BASE/include
-export LIBRARY_PATH=$INSTALL_BASE/lib-base/lib:$LIBRARY_PATH
-export CPATH=$INSTALL_BASE/lib-base/include:$CPATH
 cd $REPO_BASE
 make
 mv lib/libopusinterpose.so $INSTALL_BASE/lib

@@ -7,7 +7,7 @@ include $(PROJ_HOME)/Maketmpl/dir.mk
 .PHONY: opuspb
 
 all: opuspb
-	$(PYTHON) setup.py install --install-lib=$(PROJ_HOME)/lib
+	$(PYTHON) setup.py install --install-lib=$(PROJ_HOME)/lib --install-scripts=$(PROJ_HOME)/bin
 	rm -rf build
 
 clean: opuspb
