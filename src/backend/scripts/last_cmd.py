@@ -12,7 +12,7 @@ import os.path
 import sys
 
 try:
-    from opus import cc_utils
+    from opus import cc_cfg, cc_utils
 except ImportError:
     print("Failed to locate OPUS libs, check your $PYTHONPATH"
           "and try again.")
@@ -100,7 +100,7 @@ def main():
         description="Shows the last command(s) that were run on a file or in "
                     "a directory.")
 
-    parser.add_argument("--server", default="tcp://localhost:10101")
+    parser.add_argument("--server", default=cc_cfg.default_server())
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-D", "--directory", action="store_true",

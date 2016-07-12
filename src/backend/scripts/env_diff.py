@@ -13,8 +13,6 @@ import os
 import sys
 import textwrap
 
-from opus import common_utils as cu
-
 try:
     import prettytable
 except ImportError as exe:
@@ -22,7 +20,7 @@ except ImportError as exe:
     sys.exit(1)
 
 try:
-    from opus import cc_utils
+    from opus import cc_cfg, cc_utils, common_utils as cu
 except ImportError:
     print("Failed to locate OPUS libs, check your $PYTHONPATH"
           "and try again.")
@@ -171,7 +169,7 @@ def main():
                                      " executions of a binary and allows the"
                                      " user to find the difference between two"
                                      " executions")
-    parser.add_argument("--server", default="tcp://localhost:10101")
+    parser.add_argument("--server", default=cc_cfg.default_server())
     parser.add_argument('--dates', nargs=2, metavar=('start_date', 'end_date'),
                         help='start_date and end_date in YYYY-MM-DD',
                         default=None,

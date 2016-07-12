@@ -7,7 +7,7 @@ Helper module for workflow scripts
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from opus import cc_utils, common_utils as cu
+from opus import cc_cfg, cc_utils, common_utils as cu
 
 import cPickle as pickle
 import time
@@ -20,7 +20,7 @@ def get_cur_time():
 
 
 def parse_command_line(parser):
-    parser.add_argument("--server", default="tcp://localhost:10101",
+    parser.add_argument("--server", default=cc_cfg.default_server(),
                         help="Address to connect to provenance server via.")
     parser.add_argument("file_name",
                         help="Full path of the file to be queried", type=str)
