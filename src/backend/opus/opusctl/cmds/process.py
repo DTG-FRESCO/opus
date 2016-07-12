@@ -6,8 +6,17 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
+import psutil
 
 from .. import config, server_start, utils
+
+
+def get_current_shell():
+    ppid = os.getppid()
+    parent = psutil.Process(ppid);
+    cur_shell = parent.exe()
+    shell_args = parent.cmdline()[1:]
+    return cur_shell, shell_args
 
 
 @config.auto_read_config
@@ -41,6 +50,8 @@ def handle_launch(cfg, binary, arguments):
     os.environ['OPUS_LOG_LEVEL'] = "3"  # Log critical
     os.environ['OPUS_INTERPOSE_MODE'] = "1"  # OPUS lite
 
+    if not binary:
+        binary, arguments = get_current_shell()
     os.execvp(binary, [binary] + arguments)
 
 
@@ -50,6 +61,9 @@ def handle_exclude(cfg, binary, arguments):
         utils.reset_opus_env(cfg)
     else:
         print("OPUS is not active.")
+
+    if not binary:
+        binary, arguments = get_current_shell()
     os.execvp(binary, [binary] + arguments)
 
 
@@ -67,7 +81,7 @@ def setup_parser(parser):
         "launch",
         help="Launch a process under OPUS.")
     launch.add_argument(
-        "binary", nargs='?', default=os.environ['SHELL'],
+        "binary", nargs='?',
         help="The binary to be launched. Defaults to the current shell.")
     launch.add_argument(
         "arguments", nargs=argparse.REMAINDER,
@@ -77,7 +91,7 @@ def setup_parser(parser):
         "exclude",
         help="Launch a process excluded from OPUS interposition.")
     exclude.add_argument(
-        "binary", nargs='?', default=os.environ['SHELL'],
+        "binary", nargs='?',
         help="The binary to be launched. Defaults to the current shell.")
     exclude.add_argument(
         "arguments", nargs=argparse.REMAINDER,
