@@ -81,7 +81,7 @@ def setup_parser(parser):
         "launch",
         help="Launch a process under OPUS.")
     launch.add_argument(
-        "binary", nargs='?', default='',
+        "binary", nargs='?',
         help="The binary to be launched. Defaults to the current shell.")
     launch.add_argument(
         "arguments", nargs=argparse.REMAINDER,
@@ -91,7 +91,7 @@ def setup_parser(parser):
         "exclude",
         help="Launch a process excluded from OPUS interposition.")
     exclude.add_argument(
-        "binary", nargs='?', default='',
+        "binary", nargs='?',
         help="The binary to be launched. Defaults to the current shell.")
     exclude.add_argument(
         "arguments", nargs=argparse.REMAINDER,
