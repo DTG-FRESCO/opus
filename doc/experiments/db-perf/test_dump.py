@@ -9,33 +9,32 @@ import os
 
 import timer
 
-fh = None
 
-track = timer.track("dump")
+class DumpModule():
+    def __init__(self, sync_freq):
+        self.sync_freq = sync_freq
+        self.sync_count = 0
+        track = timer.track("dump-{}".format(sync_freq))
+        self.dump = track(self.dump)
+        self.sync = track(self.sync)
+        self.process_msg = track(self.process_msg)
 
+    def setup(self):
+        self.fh = open("/tmp/prov-{}.log".format(self.sync_freq), "w")
 
-@track
-def dump(msg):
-    json.dump(msg, fh)
+    def teardown(self):
+        self.fh.close()
+        os.unlink("/tmp/prov-{}.log".format(self.sync_freq))
 
+    def dump(self, msg):
+        json.dump(msg, self.fh)
 
-@track
-def sync():
-    os.fdatasync(fh.fileno())
+    def sync(self):
+        self.sync_count += 1
+        if self.sync_count >= self.sync_freq:
+            os.fdatasync(self.fh.fileno())
+            self.sync_count = 0
 
-
-@track
-def process_msg(msg):
-    # TODO: Test out a workflow extraction query
-    dump(msg)
-    sync()
-
-
-def setup():
-    global fh
-    fh = open("prov.log", "w")
-
-
-def teardown():
-    fh.close()
-    os.unlink("prov.log")
+    def process_msg(self, msg):
+        self.dump(msg)
+        self.sync()

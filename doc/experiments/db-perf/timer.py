@@ -44,13 +44,21 @@ def track(section):
 
 
 def display():
-    for cat in time_log:
-        print("==========")
-        print(cat)
-        print("==========")
+    pad = 1 + max(len(name)
+                  for cat in time_log
+                  for name in time_log[cat])
+    for cat in sorted(time_log):
+        print("### {}".format(cat))
         entries = [(name, f.total/f.count)
                    for name, f in time_log[cat].items()]
         for name, avg in sorted(entries,
                                 key=lambda x: x[1],
                                 reverse=True):
-            print("{}: {:.2f}".format(name, avg))
+            print("    {0:{pad}}: {1:>9.4f}".format(name, avg, pad=pad))
+
+def gnuplot():
+    for cat in sorted(time_log, key=lambda x: int(x.split("-")[1])):
+        measures = {name:(f.total/f.count) for name, f in time_log[cat].items()}
+        measures['i'] =  int(cat.split("-")[1])
+        print("{i} {process_msg} {dump} {sync}".format(**measures))
+                                   
