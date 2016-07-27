@@ -12,7 +12,7 @@ SRC= uds_msg.proto cc_msg.proto
 OBJ=    $(SRC:.proto=.pb.cc)
 
 .proto.pb.cc:
-			$(CC) $< $(CFLAGS)
+	$(CC) $< $(CFLAGS)
 
 all: $(OBJ)
 
